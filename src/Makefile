@@ -89,6 +89,18 @@ ifeq ($(ARCH),general-64)
 	bits = 64
 endif
 
+ifeq ($(ARCH),js)
+	arch = any
+	os = any
+	bits = 32
+	prefetch = no
+	bsfq = no
+	popcnt = no
+	sse = no
+	COMP = emscripten
+	EXE = stockfish.js
+endif
+
 ifeq ($(ARCH),x86-64)
 	arch = x86_64
 	bits = 64
@@ -182,6 +194,13 @@ ifeq ($(COMP),icc)
 	CXXFLAGS += -diag-disable 1476,10120 -Wcheck -Wabi -Wdeprecated -strict-ansi
 endif
 
+ifeq ($(COMP),emscripten)
+	comp=clang
+	CXX=em++
+	CXXFLAGS += -O3 -s TOTAL_MEMORY=67108864
+	LDFLAGS += -O3 -s TOTAL_MEMORY=67108864 --memory-init-file 0 -s NO_EXIT_RUNTIME=1
+endif
+
 ifeq ($(COMP),clang)
 	comp=clang
 	CXX=clang++
@@ -220,7 +239,8 @@ ifdef COMPCXX
 	CXX=$(COMPCXX)
 endif
 
-### On mingw use Windows threads, otherwise POSIX
+### On mingw and emscripten do not use POSIX threads
+ifneq ($(COMP),emscripten)
 ifneq ($(comp),mingw)
 	# On Android Bionic's C library comes with its own pthread implementation bundled in
 	ifneq ($(arch),armv7)
@@ -229,6 +249,7 @@ ifneq ($(comp),mingw)
 			LDFLAGS += -lpthread
 		endif
 	endif
+endif
 endif
 
 ### 3.2 Debugging
@@ -375,6 +396,7 @@ help:
 	@echo "armv7                   > ARMv7 32-bit"
 	@echo "general-64              > unspecified 64-bit"
 	@echo "general-32              > unspecified 32-bit"
+	@echo "js                      > emscripten javascript"
 	@echo ""
 	@echo "Supported compilers:"
 	@echo ""
@@ -429,7 +451,7 @@ install:
 	-strip $(BINDIR)/$(EXE)
 
 clean:
-	$(RM) $(EXE) $(EXE).exe *.o .depend *~ core bench.txt *.gcda ./syzygy/*.o ./syzygy/*.gcda
+	$(RM) $(EXE) $(EXE).exe $(EXE).js *.o .depend *~ core bench.txt *.gcda ./syzygy/*.o ./syzygy/*.gcda
 
 default:
 	help
