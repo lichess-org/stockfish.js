@@ -49,8 +49,10 @@ int main(int argc, char* argv[]) {
 #endif
   TT.resize(Options["Hash"]);
 
+#ifndef __EMSCRIPTEN__
   UCI::loop(argc, argv);
 
   Threads.exit();
+#endif
   return 0;
 }
