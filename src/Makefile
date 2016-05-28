@@ -202,7 +202,7 @@ ifeq ($(COMP),emscripten)
 	CXX=em++
 	EMFLAGS += -O3 -s TOTAL_MEMORY=33550000
 	CXXFLAGS += $(EMFLAGS)
-	LDFLAGS += $(EMFLAGS) --memory-init-file 0 -s NO_EXIT_RUNTIME=1
+	LDFLAGS += $(EMFLAGS) --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" --pre-js pre.js --post-js post.js
 endif
 
 ifeq ($(COMP),clang)
@@ -495,7 +495,7 @@ config-sanity:
 	@test "$(pext)" = "yes" || test "$(pext)" = "no"
 	@test "$(comp)" = "gcc" || test "$(comp)" = "icc" || test "$(comp)" = "mingw" || test "$(comp)" = "clang"
 
-$(EXE): $(OBJS)
+$(EXE): $(OBJS) pre.js post.js
 	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
 
 gcc-profile-prepare:
