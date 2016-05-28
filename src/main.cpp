@@ -26,7 +26,9 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+#ifndef __EMSCRIPTEN__
 #include "syzygy/tbprobe.h"
+#endif
 
 namespace PSQT {
   void init();
@@ -44,7 +46,9 @@ int main(int argc, char* argv[]) {
   Search::init();
   Pawns::init();
   Threads.init();
+#ifndef __EMSCRIPTEN__
   Tablebases::init(Options["SyzygyPath"]);
+#endif
   TT.resize(Options["Hash"]);
 
   UCI::loop(argc, argv);

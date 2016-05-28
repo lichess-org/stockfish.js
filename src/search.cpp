@@ -35,7 +35,9 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+#ifndef __EMSCRIPTEN__
 #include "syzygy/tbprobe.h"
+#endif
 
 namespace Search {
 
@@ -660,6 +662,7 @@ namespace {
         return ttValue;
     }
 
+#ifndef __EMSCRIPTEN__
     // Step 4a. Tablebase probe
     if (!rootNode && TB::Cardinality)
     {
@@ -690,6 +693,7 @@ namespace {
             }
         }
     }
+#endif  // ifndef __EMSCRIPTEN__
 
     // Step 5. Evaluate the position statically
     if (inCheck)
@@ -1610,6 +1614,7 @@ bool RootMove::extract_ponder_from_tt(Position& pos)
     return pv.size() > 1;
 }
 
+#ifndef __EMSCRIPTEN__
 void Tablebases::filter_root_moves(Position& pos, Search::RootMoves& rootMoves) {
 
     Hits = 0;
@@ -1655,3 +1660,4 @@ void Tablebases::filter_root_moves(Position& pos, Search::RootMoves& rootMoves) 
                                                 :  VALUE_DRAW;
     }
 }
+#endif  // ifndef __EMSCRIPTEN__
