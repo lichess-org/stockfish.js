@@ -178,6 +178,7 @@ namespace {
 /// run 'bench', once the command is executed the function returns immediately.
 /// In addition to the UCI ones, also some additional debug commands are supported.
 
+#ifndef __EMSCRIPTEN__
 void UCI::loop(int argc, char* argv[]) {
 
   Position pos;
@@ -191,6 +192,17 @@ void UCI::loop(int argc, char* argv[]) {
   do {
       if (argc == 1 && !getline(cin, cmd)) // Block here waiting for input or EOF
           cmd = "quit";
+#else
+extern "C" void uci_command(const char *c_cmd) {
+  static bool initialized = false;
+  static Position pos;
+  if (!initialized) {
+    pos.set(StartFEN, false, &States->back(), Threads.main());
+    initialized = true;
+  }
+
+  std::string token, cmd(c_cmd);
+#endif  // __EMSCRIPTEN__
 
       istringstream is(cmd);
 
@@ -245,10 +257,12 @@ void UCI::loop(int argc, char* argv[]) {
       }
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
+#ifndef __EMSCRIPTEN__
 
   } while (token != "quit" && argc == 1); // Passed args have one-shot behaviour
 
   Threads.main()->wait_for_search_finished();
+#endif
 }
 
 

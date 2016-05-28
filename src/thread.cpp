@@ -40,10 +40,14 @@ Thread::Thread() {
   counterMoves.clear();
   idx = Threads.size(); // Start from 0
 
+#ifndef __EMSCRIPTEN__
   std::unique_lock<Mutex> lk(mutex);
   searching = true;
   nativeThread = std::thread(&Thread::idle_loop, this);
   sleepCondition.wait(lk, [&]{ return !searching; });
+#else
+  searching = false;
+#endif  // __EMSCRIPTEN__
 }
 
 
@@ -173,7 +177,9 @@ int64_t ThreadPool::nodes_searched() {
 void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
                                 const Search::LimitsType& limits) {
 
+#ifndef __EMSCRIPTEN__
   main()->wait_for_search_finished();
+#endif
 
   Search::Signals.stopOnPonderhit = Search::Signals.stop = false;
   Search::Limits = limits;
@@ -207,5 +213,9 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
 
   setupStates->back() = tmp; // Restore st->previous, cleared by Position::set()
 
+#ifndef __EMSCRIPTEN__
   main()->start_searching();
+#else
+  main()->search();
+#endif
 }
