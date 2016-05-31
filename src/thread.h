@@ -52,6 +52,9 @@ public:
   Thread();
   virtual ~Thread();
   virtual void search();
+  /* <REFACTORED FOR EMSCRIPTEN> */
+  void search_iteration();
+  /* </REFACTORED FOR EMSCRIPTEN> */
   void idle_loop();
   void start_searching(bool resume = false);
   void wait_for_search_finished();
@@ -77,6 +80,9 @@ public:
 
 struct MainThread : public Thread {
   virtual void search();
+/* <REFACTORED FOR EMSCRIPTEN> */
+  void after_search();
+/* </REFACTORED FOR EMSCRIPTEN> */
 
   bool easyMovePlayed, failedLow;
   double bestMoveChanges;
