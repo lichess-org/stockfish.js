@@ -18,6 +18,10 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -364,6 +368,14 @@ MainThread* mainThread_;
 size_t multiPV_;
 Skill skill_(Options["Skill Level"]);
 
+void search_iteration_call(void *thread) {
+  ((Thread *)thread)->search_iteration();
+}
+
+void after_search_call(void *mainThread) {
+  ((MainThread *)mainThread)->after_search();
+}
+
 void Thread::search() {
   easyMove_ = MOVE_NONE;
   mainThread_ = (this == Threads.main() ? Threads.main() : nullptr);
@@ -393,7 +405,11 @@ void Thread::search() {
 
   multiPV_ = std::min(multiPV_, rootMoves.size());
 
-  search_iteration(); // XXX
+#ifdef __EMSCRIPTEN__
+  emscripten_async_call(search_iteration_call, this, 30);
+#else
+  search_iteration();
+#endif
 }
 
 void Thread::search_iteration() {
@@ -406,7 +422,12 @@ void Thread::search_iteration() {
       {
           const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
           if (row[(rootDepth + rootPos.game_ply()) % row.size()]) {
-             search_iteration(); return; // continue
+#ifdef __EMSCRIPTEN__
+              emscripten_async_call(search_iteration_call, this, 30);
+#else
+              search_iteration();
+#endif
+              return;
           }
       }
 
@@ -503,7 +524,12 @@ void Thread::search_iteration() {
           completedDepth = rootDepth;
 
       if (!mainThread_) {
-          search_iteration(); return; // continue
+#ifdef __EMSCRIPTEN__
+          emscripten_async_call(search_iteration_call, this, 30);
+#else
+          search_iteration();
+#endif
+          return;
       }
 
       // If skill level is enabled and time is up, pick a sub-optimal best move
@@ -553,7 +579,11 @@ void Thread::search_iteration() {
               EasyMove.clear();
       }
 
-      search_iteration(); // XXX
+#ifdef __EMSCRIPTEN__
+      emscripten_async_call(search_iteration_call, this, 30);
+#else
+      search_iteration();
+#endif
       return;
   }
 
@@ -570,8 +600,13 @@ void Thread::search_iteration() {
       std::swap(rootMoves[0], *std::find(rootMoves.begin(),
                 rootMoves.end(), skill_.best_move(multiPV_)));
 
-  if (mainThread_)
-      mainThread_->after_search(); // XXX
+  if (mainThread_) {
+#ifdef __EMSCRIPTEN__
+      emscripten_async_call(after_search_call, mainThread_, 30);
+#else
+      mainThread_->after_search();
+#endif
+  }
 }
 
 /* </REFACTORED FOR EMSCRIPTEN> */
