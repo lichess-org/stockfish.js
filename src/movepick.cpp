@@ -134,6 +134,11 @@ void MovePicker::score<CAPTURES>() {
   // badCaptures[] array, but instead of doing it now we delay until the move
   // has been picked up, saving some SEE calls in case we get a cutoff.
   for (auto& m : *this)
+#ifdef RACE
+      if (pos.is_race())
+          m.value = PieceValue[MG][pos.piece_on(to_sq(m))] - Value(200 * relative_rank(BLACK, to_sq(m)));
+      else
+#endif
       m.value =  PieceValue[MG][pos.piece_on(to_sq(m))]
                - Value(200 * relative_rank(pos.side_to_move(), to_sq(m)));
 }
@@ -142,16 +147,20 @@ template<>
 void MovePicker::score<QUIETS>() {
 
   const HistoryStats& history = pos.this_thread()->history;
+  const FromToStats& fromTo = pos.this_thread()->fromTo;
 
   const CounterMoveStats* cm = (ss-1)->counterMoves;
   const CounterMoveStats* fm = (ss-2)->counterMoves;
   const CounterMoveStats* f2 = (ss-4)->counterMoves;
 
+  Color c = pos.side_to_move();
+
   for (auto& m : *this)
       m.value =      history[pos.moved_piece(m)][to_sq(m)]
                + (cm ? (*cm)[pos.moved_piece(m)][to_sq(m)] : VALUE_ZERO)
                + (fm ? (*fm)[pos.moved_piece(m)][to_sq(m)] : VALUE_ZERO)
-               + (f2 ? (*f2)[pos.moved_piece(m)][to_sq(m)] : VALUE_ZERO);
+               + (f2 ? (*f2)[pos.moved_piece(m)][to_sq(m)] : VALUE_ZERO)
+               + fromTo.get(c, m);
 }
 
 template<>
@@ -160,6 +169,8 @@ void MovePicker::score<EVASIONS>() {
   // by history value, then bad captures and quiet moves with a negative SEE ordered
   // by SEE value.
   const HistoryStats& history = pos.this_thread()->history;
+  const FromToStats& fromTo = pos.this_thread()->fromTo;
+  Color c = pos.side_to_move();
   Value see;
 
   for (auto& m : *this)
@@ -170,7 +181,7 @@ void MovePicker::score<EVASIONS>() {
           m.value =  PieceValue[MG][pos.piece_on(to_sq(m))]
                    - Value(type_of(pos.moved_piece(m))) + HistoryStats::Max;
       else
-          m.value = history[pos.moved_piece(m)][to_sq(m)];
+          m.value = history[pos.moved_piece(m)][to_sq(m)] + fromTo.get(c, m);
 }
 
 
