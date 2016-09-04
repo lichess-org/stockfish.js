@@ -90,6 +90,10 @@ namespace {
     if (Options["UCI_3Check"])
         variant |= THREECHECK_VARIANT;
 #endif
+#ifdef ANTI
+    if (Options["UCI_Anti"])
+        variant |= ANTI_VARIANT;
+#endif
 
     is >> token;
     if (token == "startpos")
@@ -120,7 +124,7 @@ namespace {
     while (is >> token && (m = UCI::to_move(pos, token)) != MOVE_NONE)
     {
         States->push_back(StateInfo());
-        pos.do_move(m, States->back(), pos.gives_check(m, CheckInfo(pos)));
+        pos.do_move(m, States->back(), pos.gives_check(m));
     }
   }
 

@@ -189,13 +189,21 @@ enum Value : int {
   VALUE_MATE_IN_MAX_PLY  =  VALUE_MATE - 2 * MAX_PLY,
   VALUE_MATED_IN_MAX_PLY = -VALUE_MATE + 2 * MAX_PLY,
 
-  PawnValueMg   = 198,   PawnValueEg   = 258,
-  KnightValueMg = 817,   KnightValueEg = 896,
-  BishopValueMg = 836,   BishopValueEg = 907,
-  RookValueMg   = 1270,  RookValueEg   = 1356,
-  QueenValueMg  = 2521,  QueenValueEg  = 2658,
+  PawnValueMg   = 188,   PawnValueEg   = 248,
+  KnightValueMg = 753,   KnightValueEg = 832,
+  BishopValueMg = 826,   BishopValueEg = 897,
+  RookValueMg   = 1285,  RookValueEg   = 1371,
+  QueenValueMg  = 2513,  QueenValueEg  = 2650,
+#ifdef ANTI
+  PawnValueMgAnti   = -300,  PawnValueEgAnti   = -300,
+  KnightValueMgAnti = -350,  KnightValueEgAnti = -500,
+  BishopValueMgAnti = -400,  BishopValueEgAnti = -200,
+  RookValueMgAnti   = -500,  RookValueEgAnti   = -100,
+  QueenValueMgAnti  = -400,  QueenValueEgAnti  = -600,
+  KingValueMgAnti   = -300,  KingValueEgAnti   = -300,
+#endif
 
-  MidgameLimit  = 15581, EndgameLimit  = 3998
+  MidgameLimit  = 15258, EndgameLimit  = 3915
 };
 
 enum PieceType {
@@ -215,14 +223,16 @@ enum Depth {
 
   ONE_PLY = 1,
 
-  DEPTH_ZERO          =  0,
-  DEPTH_QS_CHECKS     =  0,
-  DEPTH_QS_NO_CHECKS  = -1,
-  DEPTH_QS_RECAPTURES = -5,
+  DEPTH_ZERO          =  0 * ONE_PLY,
+  DEPTH_QS_CHECKS     =  0 * ONE_PLY,
+  DEPTH_QS_NO_CHECKS  = -1 * ONE_PLY,
+  DEPTH_QS_RECAPTURES = -5 * ONE_PLY,
 
-  DEPTH_NONE = -6,
-  DEPTH_MAX  = MAX_PLY
+  DEPTH_NONE = -6 * ONE_PLY,
+  DEPTH_MAX  = MAX_PLY * ONE_PLY
 };
+
+static_assert(!(ONE_PLY & (ONE_PLY - 1)), "ONE_PLY is not a power of 2");
 
 enum Square {
   SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
@@ -343,6 +353,10 @@ inline Square operator~(Square s) {
   return Square(s ^ SQ_A8); // Vertical flip SQ_A1 -> SQ_A8
 }
 
+inline Piece operator~(Piece pc) {
+  return Piece(pc ^ 8);
+}
+
 inline CastlingRight operator|(Color c, CastlingSide s) {
   return CastlingRight(WHITE_OO << ((s == QUEEN_SIDE) + 2 * c));
 }
@@ -360,7 +374,7 @@ inline Square make_square(File f, Rank r) {
 }
 
 inline Piece make_piece(Color c, PieceType pt) {
-  return Piece((c << 3) | pt);
+  return Piece((c << 3) + pt);
 }
 
 inline PieceType type_of(Piece pc) {
@@ -418,6 +432,10 @@ inline MoveType type_of(Move m) {
 }
 
 inline PieceType promotion_type(Move m) {
+#ifdef ANTI
+  if ((m >> 16) & 1)
+      return KING;
+#endif
   return PieceType(((m >> 12) & 3) + KNIGHT);
 }
 
@@ -427,6 +445,10 @@ inline Move make_move(Square from, Square to) {
 
 template<MoveType T>
 inline Move make(Square from, Square to, PieceType pt = KNIGHT) {
+#ifdef ANTI
+  if (pt == KING)
+      return Move(to | (from << 6) | T | ((pt - KNIGHT) << 12) | (1 << 16));
+#endif
   return Move(to | (from << 6) | T | ((pt - KNIGHT) << 12));
 }
 
