@@ -25,6 +25,10 @@
 #include <iostream>
 #include <sstream>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include "evaluate.h"
 #include "misc.h"
 #include "movegen.h"
@@ -174,6 +178,23 @@ namespace {
   void update_stats(const Position& pos, Stack* ss, Move move, Move* quiets, int quietsCnt, Value bonus);
   void check_time();
 
+#ifdef __EMSCRIPTEN__
+  bool Signals_stop() {
+    static int i = 0;
+    if (i++ > 2) {
+      i = 0;
+      emscripten_sleep_with_yield(5);
+    }
+    return Signals.stop;
+  }
+
+  void Signals_stop_wait() {
+    while (!Signals.stop) {
+      emscripten_sleep_with_yield(30);
+    }
+  }
+#endif  // #ifndef __EMSCRIPTEN__
+
 } // namespace
 
 
@@ -290,10 +311,18 @@ void MainThread::search() {
   // the UCI protocol states that we shouldn't print the best move before the
   // GUI sends a "stop" or "ponderhit" command. We therefore simply wait here
   // until the GUI sends one of those commands (which also raises Signals.stop).
+#ifndef __EMSCRIPTEN__
   if (!Signals.stop && (Limits.ponder || Limits.infinite))
+#else
+  if (!Signals_stop() && (Limits.ponder || Limits.infinite))
+#endif
   {
       Signals.stopOnPonderhit = true;
+#ifndef __EMSCRIPTEN__
       wait(Signals.stop);
+#else
+      Signals_stop_wait();
+#endif
   }
 
   // Stop the threads if not already stopped
@@ -371,7 +400,11 @@ void Thread::search() {
 
   // Iterative deepening loop until requested to stop or the target depth is reached
   while (   (rootDepth += ONE_PLY) < DEPTH_MAX
+#ifndef __EMSCRIPTEN__
          && !Signals.stop
+#else
+         && !Signals_stop()
+#endif
          && (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
   {
       // Set up the new depths for the helper threads skipping on average every
@@ -393,7 +426,11 @@ void Thread::search() {
           rm.previousScore = rm.score;
 
       // MultiPV loop. We perform a full root search for each PV line
+#ifndef __EMSCRIPTEN__
       for (PVIdx = 0; PVIdx < multiPV && !Signals.stop; ++PVIdx)
+#else
+      for (PVIdx = 0; PVIdx < multiPV && !Signals_stop(); ++PVIdx)
+#endif
       {
           // Reset aspiration window starting size
           if (rootDepth >= 5 * ONE_PLY)
@@ -421,7 +458,11 @@ void Thread::search() {
               // If search has been stopped, break immediately. Sorting and
               // writing PV back to TT is safe because RootMoves is still
               // valid, although it refers to the previous iteration.
+#ifndef __EMSCRIPTEN__
               if (Signals.stop)
+#else
+              if (Signals_stop())
+#endif
                   break;
 
               // When failing high/low give some update (without cluttering
@@ -464,7 +505,11 @@ void Thread::search() {
           if (!mainThread)
               continue;
 
+#ifndef __EMSCRIPTEN__
           if (Signals.stop)
+#else
+          if (Signals_stop())
+#endif
               sync_cout << "info nodes " << Threads.nodes_searched()
                         << " time " << Time.elapsed() << sync_endl;
 
@@ -472,7 +517,11 @@ void Thread::search() {
               sync_cout << UCI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
       }
 
+#ifndef __EMSCRIPTEN__
       if (!Signals.stop)
+#else
+      if (!Signals_stop())
+#endif
           completedDepth = rootDepth;
 
       if (!mainThread)
@@ -491,7 +540,11 @@ void Thread::search() {
       // Do we have time for the next iteration? Can we stop searching now?
       if (Limits.use_time_management())
       {
+#ifndef __EMSCRIPTEN__
           if (!Signals.stop && !Signals.stopOnPonderhit)
+#else
+          if (!Signals_stop() && !Signals.stopOnPonderhit)
+#endif
           {
               // Stop the search if only one legal move is available, or if all
               // of the available time has been used, or if we matched an easyMove
