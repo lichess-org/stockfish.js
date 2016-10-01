@@ -191,7 +191,8 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
           rootMoves.push_back(Search::RootMove(m));
 
 #ifndef __EMSCRIPTEN__
-  Tablebases::filter_root_moves(pos, rootMoves);
+  if (!rootMoves.empty())
+      Tablebases::filter_root_moves(pos, rootMoves);
 #endif
 
   // After ownership transfer 'states' becomes empty, so if we stop the search
@@ -208,7 +209,7 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
       th->maxPly = 0;
       th->rootDepth = DEPTH_ZERO;
       th->rootMoves = rootMoves;
-      th->rootPos.set(pos.fen(), pos.variant(), &setupStates->back(), th);
+      th->rootPos.set(pos.fen(), pos.is_chess960(), pos.variant(), &setupStates->back(), th);
   }
 
   setupStates->back() = tmp; // Restore st->previous, cleared by Position::set()

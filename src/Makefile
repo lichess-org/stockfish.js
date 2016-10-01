@@ -32,7 +32,7 @@ PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
 ### Built-in benchmark for pgo-builds
-PGOBENCH = ./$(EXE) bench 16 1 1000 default time
+PGOBENCH = ./$(EXE) bench
 
 ### Object files
 OBJS = bitbase.o bitboard.o endgame.o evaluate.o main.o \
@@ -257,7 +257,7 @@ endif
 endif
 
 ### 3.2 Debugging
-CXXFLAGS += -DATOMIC -DHORDE -DHOUSE -DKOTH -DRACE -DTHREECHECK -DANTI
+CXXFLAGS += -DANTI -DATOMIC -DHORDE -DKOTH -DRACE -DTHREECHECK
 ifeq ($(debug),no)
 	CXXFLAGS += -DNDEBUG
 else

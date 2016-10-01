@@ -36,15 +36,24 @@ namespace {
     // After castling, the rook and king final positions are the same in Chess960
     // as they would be in standard chess.
     Square kfrom = pos.square<KING>(us);
+#ifdef ANTI
+    if (pos.is_anti())
+        kfrom = pos.castling_king_square(Cr);
+#endif
     Square rfrom = pos.castling_rook_square(Cr);
     Square kto = relative_square(us, KingSide ? SQ_G1 : SQ_C1);
     Bitboard enemies = pos.pieces(~us);
 
     assert(!pos.checkers());
 
-    const Square K = Chess960 ? kto > kfrom ? DELTA_W : DELTA_E
-                              : KingSide    ? DELTA_W : DELTA_E;
+    const Square K = Chess960 ? kto > kfrom ? WEST : EAST
+                              : KingSide    ? WEST : EAST;
 
+#ifdef ANTI
+    if (pos.is_anti()) {}
+    else
+    {
+#endif
     for (Square s = kto; s != kfrom; s += K)
         if (pos.attackers_to(s) & enemies)
         {
@@ -60,6 +69,9 @@ namespace {
     // For instance an enemy queen in SQ_A1 when castling rook is in SQ_B1.
     if (Chess960 && (attacks_bb<ROOK>(kto, pos.pieces() ^ rfrom) & pos.pieces(~us, ROOK, QUEEN)))
         return moveList;
+#ifdef ANTI
+    }
+#endif
 
     Move m = make<CASTLING>(kfrom, rfrom);
 
@@ -72,41 +84,41 @@ namespace {
 
 
 #ifdef ANTI
-  template<GenType Type, Square Delta>
+  template<GenType Type, Square D>
   ExtMove* make_promotions(const Position& pos, ExtMove* moveList, Square to, Square ksq) {
 #else
-  template<GenType Type, Square Delta>
+  template<GenType Type, Square D>
   ExtMove* make_promotions(ExtMove* moveList, Square to, Square ksq) {
 #endif
 
 #ifdef ANTI
     if (pos.is_anti())
     {
-        if (Type == CAPTURES || Type == NON_EVASIONS)
+        if (Type == QUIETS || Type == CAPTURES || Type == NON_EVASIONS)
         {
-            *moveList++ = make<PROMOTION>(to - Delta, to, QUEEN);
-            *moveList++ = make<PROMOTION>(to - Delta, to, ROOK);
-            *moveList++ = make<PROMOTION>(to - Delta, to, BISHOP);
-            *moveList++ = make<PROMOTION>(to - Delta, to, KNIGHT);
-            *moveList++ = make<PROMOTION>(to - Delta, to, KING);
+            *moveList++ = make<PROMOTION>(to - D, to, QUEEN);
+            *moveList++ = make<PROMOTION>(to - D, to, ROOK);
+            *moveList++ = make<PROMOTION>(to - D, to, BISHOP);
+            *moveList++ = make<PROMOTION>(to - D, to, KNIGHT);
+            *moveList++ = make<PROMOTION>(to - D, to, KING);
         }
         return moveList;
     }
 #endif
     if (Type == CAPTURES || Type == EVASIONS || Type == NON_EVASIONS)
-        *moveList++ = make<PROMOTION>(to - Delta, to, QUEEN);
+        *moveList++ = make<PROMOTION>(to - D, to, QUEEN);
 
     if (Type == QUIETS || Type == EVASIONS || Type == NON_EVASIONS)
     {
-        *moveList++ = make<PROMOTION>(to - Delta, to, ROOK);
-        *moveList++ = make<PROMOTION>(to - Delta, to, BISHOP);
-        *moveList++ = make<PROMOTION>(to - Delta, to, KNIGHT);
+        *moveList++ = make<PROMOTION>(to - D, to, ROOK);
+        *moveList++ = make<PROMOTION>(to - D, to, BISHOP);
+        *moveList++ = make<PROMOTION>(to - D, to, KNIGHT);
     }
 
     // Knight promotion is the only promotion that can give a direct check
     // that's not already included in the queen promotion.
     if (Type == QUIET_CHECKS && (StepAttacksBB[W_KNIGHT][to] & ksq))
-        *moveList++ = make<PROMOTION>(to - Delta, to, KNIGHT);
+        *moveList++ = make<PROMOTION>(to - D, to, KNIGHT);
     else
         (void)ksq; // Silence a warning under MSVC
 
@@ -119,16 +131,16 @@ namespace {
 
     // Compute our parametrized parameters at compile time, named according to
     // the point of view of white side.
-    const Color    Them     = (Us == WHITE ? BLACK    : WHITE);
-    const Bitboard TRank8BB = (Us == WHITE ? Rank8BB  : Rank1BB);
-    const Bitboard TRank7BB = (Us == WHITE ? Rank7BB  : Rank2BB);
+    const Color    Them     = (Us == WHITE ? BLACK      : WHITE);
+    const Bitboard TRank8BB = (Us == WHITE ? Rank8BB    : Rank1BB);
+    const Bitboard TRank7BB = (Us == WHITE ? Rank7BB    : Rank2BB);
 #ifdef HORDE
-    const Bitboard TRank2BB = (Us == WHITE ? Rank2BB  : Rank7BB);
+    const Bitboard TRank2BB = (Us == WHITE ? Rank2BB    : Rank7BB);
 #endif
-    const Bitboard TRank3BB = (Us == WHITE ? Rank3BB  : Rank6BB);
-    const Square   Up       = (Us == WHITE ? DELTA_N  : DELTA_S);
-    const Square   Right    = (Us == WHITE ? DELTA_NE : DELTA_SW);
-    const Square   Left     = (Us == WHITE ? DELTA_NW : DELTA_SE);
+    const Bitboard TRank3BB = (Us == WHITE ? Rank3BB    : Rank6BB);
+    const Square   Up       = (Us == WHITE ? NORTH      : SOUTH);
+    const Square   Right    = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
+    const Square   Left     = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
 
     Bitboard emptySquares;
 
@@ -147,11 +159,11 @@ namespace {
             emptySquares &= target;
 #endif
 
-        Bitboard b1 = shift_bb<Up>(pawnsNotOn7)   & emptySquares;
-        Bitboard b2 = shift_bb<Up>(b1 & TRank3BB) & emptySquares;
+        Bitboard b1 = shift<Up>(pawnsNotOn7)   & emptySquares;
+        Bitboard b2 = shift<Up>(b1 & TRank3BB) & emptySquares;
 #ifdef HORDE
         if (pos.is_horde())
-            b2 = shift_bb<Up>(b1 & (TRank2BB | TRank3BB)) & emptySquares;
+            b2 = shift<Up>(b1 & (TRank2BB | TRank3BB)) & emptySquares;
 #endif
 
         if (Type == EVASIONS) // Consider only blocking squares
@@ -174,8 +186,8 @@ namespace {
             Bitboard dcCandidates = pos.discovered_check_candidates();
             if (pawnsNotOn7 & dcCandidates)
             {
-                Bitboard dc1 = shift_bb<Up>(pawnsNotOn7 & dcCandidates) & emptySquares & ~file_bb(ksq);
-                Bitboard dc2 = shift_bb<Up>(dc1 & TRank3BB) & emptySquares;
+                Bitboard dc1 = shift<Up>(pawnsNotOn7 & dcCandidates) & emptySquares & ~file_bb(ksq);
+                Bitboard dc2 = shift<Up>(dc1 & TRank3BB) & emptySquares;
 
                 b1 |= dc1;
                 b2 |= dc2;
@@ -215,9 +227,9 @@ namespace {
         if (Type == EVASIONS)
             emptySquares &= target;
 
-        Bitboard b1 = shift_bb<Right>(pawnsOn7) & enemies;
-        Bitboard b2 = shift_bb<Left >(pawnsOn7) & enemies;
-        Bitboard b3 = shift_bb<Up   >(pawnsOn7) & emptySquares;
+        Bitboard b1 = shift<Right>(pawnsOn7) & enemies;
+        Bitboard b2 = shift<Left >(pawnsOn7) & enemies;
+        Bitboard b3 = shift<Up   >(pawnsOn7) & emptySquares;
 
         Square ksq = pos.square<KING>(Them);
 
@@ -246,8 +258,8 @@ namespace {
     // Standard and en-passant captures
     if (Type == CAPTURES || Type == EVASIONS || Type == NON_EVASIONS)
     {
-        Bitboard b1 = shift_bb<Right>(pawnsNotOn7) & enemies;
-        Bitboard b2 = shift_bb<Left >(pawnsNotOn7) & enemies;
+        Bitboard b1 = shift<Right>(pawnsNotOn7) & enemies;
+        Bitboard b2 = shift<Left >(pawnsNotOn7) & enemies;
 
         while (b1)
         {
@@ -288,7 +300,11 @@ namespace {
   ExtMove* generate_moves(const Position& pos, ExtMove* moveList, Color us,
                           Bitboard target) {
 
+#ifdef RELAY
+    assert((pos.is_relay() || Pt != KING) && Pt != PAWN);
+#else
     assert(Pt != KING && Pt != PAWN);
+#endif
 
     const Square* pl = pos.squares<Pt>(us);
 
@@ -305,6 +321,25 @@ namespace {
         }
 
         Bitboard b = pos.attacks_from<Pt>(from) & target;
+#ifdef RELAY
+        if (pos.is_relay())
+        {
+            const PieceType pt = type_of(pos.piece_on(from));
+            if (pt == KNIGHT || PseudoAttacks[KNIGHT][from] & pos.pieces(us, KNIGHT))
+                b |= pos.attacks_from<KNIGHT>(from) & target;
+            if (pt == QUEEN || PseudoAttacks[QUEEN][from] & pos.pieces(us, QUEEN))
+                b |= pos.attacks_from<QUEEN>(from) & target;
+            else
+            {
+                if (PseudoAttacks[BISHOP][from] & pos.pieces(us, BISHOP))
+                    b |= pos.attacks_from<BISHOP>(from) & target;
+                if (PseudoAttacks[ROOK][from] & pos.pieces(us, ROOK))
+                    b |= pos.attacks_from<ROOK>(from) & target;
+                if (PseudoAttacks[KING][from] & pos.pieces(us, KING))
+                    b |= pos.attacks_from<KING>(from) & target;
+            }
+        }
+#endif
 
         if (Checks)
             b &= pos.check_squares(Pt);
@@ -339,8 +374,10 @@ namespace {
             while (b)
                 *moveList++ = make_move(ksq, pop_lsb(&b));
         }
-        return moveList;
+        if (pos.can_capture())
+            return moveList;
     }
+    else
 #endif
     if (Type != QUIET_CHECKS && Type != EVASIONS)
     {

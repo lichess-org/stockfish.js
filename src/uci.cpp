@@ -46,6 +46,10 @@ namespace {
   // FEN string of the initial position, race variant
   const char* StartFENRace = "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1";
 #endif
+#ifdef THREECHECK
+  // FEN string of the initial position, horde variant
+  const char* StartFENThreeCheck = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1";
+#endif
 
   // A list to keep track of the position states along the setup moves (from the
   // start position to the position just before the search starts). Needed by
@@ -63,48 +67,55 @@ namespace {
     Move m;
     string token, fen;
 
-    int variant = STANDARD_VARIANT;
-    if (Options["UCI_Chess960"])
-        variant |= CHESS960_VARIANT;
+    Variant variant = CHESS_VARIANT;
 #ifdef ATOMIC
-    if (Options["UCI_Atomic"])
-        variant |= ATOMIC_VARIANT;
-#endif
-#ifdef HORDE
-    if (Options["UCI_Horde"])
-        variant |= HORDE_VARIANT;
+    if (!(Options["UCI_Variant"].compare("atomic")))
+        variant = ATOMIC_VARIANT;
 #endif
 #ifdef HOUSE
-    if (Options["UCI_House"])
-        variant |= HOUSE_VARIANT;
-#endif
-#ifdef KOTH
-    if (Options["UCI_KingOfTheHill"])
-        variant |= KOTH_VARIANT;
-#endif
-#ifdef RACE
-    if (Options["UCI_Race"])
-        variant |= RACE_VARIANT;
-#endif
-#ifdef THREECHECK
-    if (Options["UCI_3Check"])
-        variant |= THREECHECK_VARIANT;
+    if (!(Options["UCI_Variant"].compare("crazyhouse")))
+        variant = HOUSE_VARIANT;
 #endif
 #ifdef ANTI
-    if (Options["UCI_Anti"])
-        variant |= ANTI_VARIANT;
+    if (!(Options["UCI_Variant"].compare("giveaway")))
+        variant = ANTI_VARIANT;
+#endif
+#ifdef HORDE
+    if (!(Options["UCI_Variant"].compare("horde")))
+        variant = HORDE_VARIANT;
+#endif
+#ifdef KOTH
+    if (!(Options["UCI_Variant"].compare("kingofthehill")))
+        variant = KOTH_VARIANT;
+#endif
+#ifdef RACE
+    if (!(Options["UCI_Variant"].compare("racingkings")))
+        variant = RACE_VARIANT;
+#endif
+#ifdef RELAY
+    if (!(Options["UCI_Variant"].compare("relay")))
+        variant = RELAY_VARIANT;
+#endif
+#ifdef THREECHECK
+    if (!(Options["UCI_Variant"].compare("threecheck")))
+        variant = THREECHECK_VARIANT;
 #endif
 
     is >> token;
     if (token == "startpos")
     {
 #ifdef HORDE
-        if(variant & HORDE_VARIANT)
+        if(variant == HORDE_VARIANT)
             fen = StartFENHorde;
         else
 #ifdef RACE
-        if(variant & RACE_VARIANT)
+        if(variant == RACE_VARIANT)
             fen = StartFENRace;
+        else
+#endif
+#ifdef THREECHECK
+        if(variant == THREECHECK_VARIANT)
+            fen = StartFENThreeCheck;
         else
 #endif
         fen = StartFEN;
@@ -118,7 +129,8 @@ namespace {
         return;
 
     States = StateListPtr(new std::deque<StateInfo>(1));
-    pos.set(fen, variant, &States->back(), Threads.main());
+    pos.set(fen, Options["UCI_Chess960"], variant, &States->back(), Threads.main());
+    sync_cout << "info string variant " << (string)Options["UCI_Variant"] << " startpos " << pos.fen() << sync_endl;
 
     // Parse move list (if any)
     while (is >> token && (m = UCI::to_move(pos, token)) != MOVE_NONE)
@@ -198,7 +210,7 @@ void UCI::loop(int argc, char* argv[]) {
   Position pos;
   string token, cmd;
 
-  pos.set(StartFEN, false, &States->back(), Threads.main());
+  pos.set(StartFEN, false, CHESS_VARIANT, &States->back(), Threads.main());
 
   for (int i = 1; i < argc; ++i)
       cmd += std::string(argv[i]) + " ";
@@ -211,7 +223,7 @@ extern "C" void uci_command(const char *c_cmd) {
   static bool initialized = false;
   static Position pos;
   if (!initialized) {
-    pos.set(StartFEN, false, &States->back(), Threads.main());
+    pos.set(StartFEN, false, CHESS_VARIANT, &States->back(), Threads.main());
     initialized = true;
   }
 

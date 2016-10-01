@@ -43,6 +43,8 @@
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 #if defined(_MSC_VER)
 // Disable some silly and noisy warning from MSVC compiler
@@ -103,6 +105,31 @@ typedef uint64_t Bitboard;
 const int MAX_MOVES = 256;
 const int MAX_PLY   = 128;
 
+//static const constexpr char* variants[] doesn't play nicely with uci.h
+static std::vector<std::string> variants = {"chess"
+#ifdef ATOMIC
+,"atomic"
+#endif
+#ifdef ANTI
+,"giveaway"
+#endif
+#ifdef HORDE
+,"horde"
+#endif
+#ifdef KOTH
+,"kingofthehill"
+#endif
+#ifdef RACE
+,"racingkings"
+#endif
+#ifdef RELAY
+,"relay"
+#endif
+#ifdef THREECHECK
+,"threecheck"
+#endif
+};
+
 /// A move needs 16 bits to be stored
 ///
 /// bit  0- 5: destination square (from 0 to 63)
@@ -152,9 +179,11 @@ template<Color C, CastlingSide S> struct MakeCastling {
 };
 
 #ifdef THREECHECK
-enum Checks {
+enum CheckCount {
   CHECKS_0 = 0, CHECKS_1 = 1, CHECKS_2 = 2, CHECKS_3 = 3, CHECKS_NB = 4
 };
+
+const CheckCount Checks[] = { CHECKS_0, CHECKS_1, CHECKS_2, CHECKS_3 };
 #endif
 
 enum Phase {
@@ -195,12 +224,12 @@ enum Value : int {
   RookValueMg   = 1285,  RookValueEg   = 1371,
   QueenValueMg  = 2513,  QueenValueEg  = 2650,
 #ifdef ANTI
-  PawnValueMgAnti   = -300,  PawnValueEgAnti   = -300,
-  KnightValueMgAnti = -350,  KnightValueEgAnti = -500,
-  BishopValueMgAnti = -400,  BishopValueEgAnti = -200,
-  RookValueMgAnti   = -500,  RookValueEgAnti   = -100,
-  QueenValueMgAnti  = -400,  QueenValueEgAnti  = -600,
-  KingValueMgAnti   = -300,  KingValueEgAnti   = -300,
+  PawnValueMgAnti   = -353,  PawnValueEgAnti   = -568,
+  KnightValueMgAnti = -420,  KnightValueEgAnti = -293,
+  BishopValueMgAnti = -680,  BishopValueEgAnti = -119,
+  RookValueMgAnti   = -949,  RookValueEgAnti   = -234,
+  QueenValueMgAnti  = -936,  QueenValueEgAnti  = -829,
+  KingValueMgAnti   = -230,  KingValueEgAnti   = -168,
 #endif
 
   MidgameLimit  = 15258, EndgameLimit  = 3915
@@ -218,6 +247,13 @@ enum Piece {
   B_PAWN = 9, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING,
   PIECE_NB = 16
 };
+
+const Piece Pieces[] = { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
+                         B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING };
+extern Value PieceValue[PHASE_NB][PIECE_NB];
+#ifdef ANTI
+extern Value PieceValueAnti[PHASE_NB][PIECE_NB];
+#endif
 
 enum Depth {
 
@@ -247,17 +283,15 @@ enum Square {
 
   SQUARE_NB = 64,
 
-  DELTA_N =  8,
-  DELTA_E =  1,
-  DELTA_S = -8,
-  DELTA_W = -1,
+  NORTH =  8,
+  EAST  =  1,
+  SOUTH = -8,
+  WEST  = -1,
 
-  DELTA_NN = DELTA_N + DELTA_N,
-  DELTA_NE = DELTA_N + DELTA_E,
-  DELTA_SE = DELTA_S + DELTA_E,
-  DELTA_SS = DELTA_S + DELTA_S,
-  DELTA_SW = DELTA_S + DELTA_W,
-  DELTA_NW = DELTA_N + DELTA_W
+  NORTH_EAST = NORTH + EAST,
+  SOUTH_EAST = SOUTH + EAST,
+  SOUTH_WEST = SOUTH + WEST,
+  NORTH_WEST = NORTH + WEST
 };
 
 enum File {
@@ -275,22 +309,22 @@ enum Rank {
 enum Score : int { SCORE_ZERO };
 
 inline Score make_score(int mg, int eg) {
-  return Score((mg << 16) + eg);
+  return Score((eg << 16) + mg);
 }
 
 /// Extracting the signed lower and upper 16 bits is not so trivial because
 /// according to the standard a simple cast to short is implementation defined
 /// and so is a right shift of a signed integer.
-inline Value mg_value(Score s) {
-
-  union { uint16_t u; int16_t s; } mg = { uint16_t(unsigned(s + 0x8000) >> 16) };
-  return Value(mg.s);
-}
-
 inline Value eg_value(Score s) {
 
-  union { uint16_t u; int16_t s; } eg = { uint16_t(unsigned(s)) };
+  union { uint16_t u; int16_t s; } eg = { uint16_t(unsigned(s + 0x8000) >> 16) };
   return Value(eg.s);
+}
+
+inline Value mg_value(Score s) {
+
+  union { uint16_t u; int16_t s; } mg = { uint16_t(unsigned(s)) };
+  return Value(mg.s);
 }
 
 #define ENABLE_BASE_OPERATORS_ON(T)                             \
@@ -316,7 +350,7 @@ ENABLE_FULL_OPERATORS_ON(PieceType)
 ENABLE_FULL_OPERATORS_ON(Piece)
 ENABLE_FULL_OPERATORS_ON(Color)
 #ifdef THREECHECK
-ENABLE_FULL_OPERATORS_ON(Checks)
+ENABLE_FULL_OPERATORS_ON(CheckCount)
 #endif
 ENABLE_FULL_OPERATORS_ON(Depth)
 ENABLE_FULL_OPERATORS_ON(Square)
@@ -343,10 +377,8 @@ inline Score operator/(Score s, int i) {
   return make_score(mg_value(s) / i, eg_value(s) / i);
 }
 
-extern Value PieceValue[PHASE_NB][PIECE_NB];
-
 inline Color operator~(Color c) {
-  return Color(c ^ BLACK);
+  return Color(c ^ BLACK); // Toggle color
 }
 
 inline Square operator~(Square s) {
@@ -354,7 +386,7 @@ inline Square operator~(Square s) {
 }
 
 inline Piece operator~(Piece pc) {
-  return Piece(pc ^ 8);
+  return Piece(pc ^ 8); // Swap color of piece B_KNIGHT -> W_KNIGHT
 }
 
 inline CastlingRight operator|(Color c, CastlingSide s) {
@@ -370,7 +402,7 @@ inline Value mated_in(int ply) {
 }
 
 inline Square make_square(File f, Rank r) {
-  return Square((r << 3) | f);
+  return Square((r << 3) + f);
 }
 
 inline Piece make_piece(Color c, PieceType pt) {
@@ -416,7 +448,7 @@ inline bool opposite_colors(Square s1, Square s2) {
 }
 
 inline Square pawn_push(Color c) {
-  return c == WHITE ? DELTA_N : DELTA_S;
+  return c == WHITE ? NORTH : SOUTH;
 }
 
 inline Square from_sq(Move m) {
@@ -440,16 +472,16 @@ inline PieceType promotion_type(Move m) {
 }
 
 inline Move make_move(Square from, Square to) {
-  return Move(to | (from << 6));
+  return Move((from << 6) + to);
 }
 
 template<MoveType T>
 inline Move make(Square from, Square to, PieceType pt = KNIGHT) {
 #ifdef ANTI
   if (pt == KING)
-      return Move(to | (from << 6) | T | ((pt - KNIGHT) << 12) | (1 << 16));
+      return Move((1 << 16) | (T + (from << 6) + to));
 #endif
-  return Move(to | (from << 6) | T | ((pt - KNIGHT) << 12));
+  return Move(T + ((pt - KNIGHT) << 12) + (from << 6) + to);
 }
 
 inline bool is_ok(Move m) {

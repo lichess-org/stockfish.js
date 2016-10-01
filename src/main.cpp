@@ -21,7 +21,6 @@
 #include <iostream>
 
 #include "bitboard.h"
-#include "evaluate.h"
 #include "position.h"
 #include "search.h"
 #include "thread.h"
@@ -30,6 +29,10 @@
 #ifndef __EMSCRIPTEN__
 #include "syzygy/tbprobe.h"
 #endif
+
+namespace PSQT {
+  void init();
+}
 
 int main(int argc, char* argv[]) {
 
@@ -41,7 +44,6 @@ int main(int argc, char* argv[]) {
   Position::init();
   Bitbases::init();
   Search::init();
-  Eval::init();
   Pawns::init();
   Threads.init();
 #ifndef __EMSCRIPTEN__

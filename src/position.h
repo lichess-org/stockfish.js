@@ -22,38 +22,25 @@
 #define POSITION_H_INCLUDED
 
 #include <cassert>
-#include <cstddef>  // For offsetof()
 #include <deque>
-#include <memory>   // For std::unique_ptr
+#include <memory> // For std::unique_ptr
 #include <string>
-#include <vector>
 
 #include "bitboard.h"
 #include "types.h"
 
-#define STANDARD_VARIANT 0
-#define CHESS960_VARIANT 1 << 1
-#define ATOMIC_VARIANT 1 << 2
-#define HORDE_VARIANT 1 << 3
-#define HOUSE_VARIANT 1 << 4
-#define KOTH_VARIANT 1 << 5
-#define RACE_VARIANT 1 << 6
-#define THREECHECK_VARIANT 1 << 7
-#define ANTI_VARIANT 1 << 8
-
-class Position;
-class Thread;
-
-namespace PSQT {
-
-  extern Score psq[PIECE_NB][SQUARE_NB];
-#ifdef ANTI
-  extern Score psqAnti[PIECE_NB][SQUARE_NB];
-#endif
-
-  void init();
-}
-
+enum Variant {
+  CHESS_VARIANT,
+  ANTI_VARIANT,
+  ATOMIC_VARIANT,
+  HORDE_VARIANT,
+  KOTH_VARIANT,
+  RACE_VARIANT,
+  RELAY_VARIANT,
+  THREECHECK_VARIANT,
+  HOUSE_VARIANT,
+  VARIANT_NB = 8
+};
 
 /// StateInfo struct stores information needed to restore a Position object to
 /// its previous state when we retract a move. Whenever a move is made on the
@@ -69,12 +56,12 @@ struct StateInfo {
   int    rule50;
   int    pliesFromNull;
 #ifdef THREECHECK
-  Checks checksGiven[COLOR_NB];
+  CheckCount checksGiven[COLOR_NB];
 #endif
   Score  psq;
   Square epSquare;
 
-  // Not copied when making a move
+  // Not copied when making a move (will be recomputed anyhow)
   Key        key;
   Bitboard   checkersBB;
   Piece      capturedPiece;
@@ -83,6 +70,7 @@ struct StateInfo {
 #endif
   StateInfo* previous;
   Bitboard   blockersForKing[COLOR_NB];
+  Bitboard   pinnersForKing[COLOR_NB];
   Bitboard   checkSquares[PIECE_TYPE_NB];
 };
 
@@ -94,9 +82,9 @@ typedef std::unique_ptr<std::deque<StateInfo>> StateListPtr;
 /// pieces, side to move, hash keys, castling info, etc. Important methods are
 /// do_move() and undo_move(), used by the search to update node info when
 /// traversing the search tree.
+class Thread;
 
 class Position {
-
 public:
   static void init();
 
@@ -105,7 +93,7 @@ public:
   Position& operator=(const Position&) = delete;
 
   // FEN string input/output
-  Position& set(const std::string& fenStr, int v, StateInfo* si, Thread* th);
+  Position& set(const std::string& fenStr, bool isChess960, Variant v, StateInfo* si, Thread* th);
   const std::string fen() const;
 
   // Position representation
@@ -126,6 +114,9 @@ public:
   int can_castle(Color c) const;
   int can_castle(CastlingRight cr) const;
   bool castling_impeded(CastlingRight cr) const;
+#ifdef ANTI
+  Square castling_king_square(CastlingRight cr) const;
+#endif
   Square castling_rook_square(CastlingRight cr) const;
 
   // Checking
@@ -140,7 +131,7 @@ public:
   Bitboard attacks_from(Piece pc, Square s) const;
   template<PieceType> Bitboard attacks_from(Square s) const;
   template<PieceType> Bitboard attacks_from(Square s, Color c) const;
-  Bitboard slider_blockers(Bitboard sliders, Square s) const;
+  Bitboard slider_blockers(Bitboard sliders, Square s, Bitboard& pinners) const;
 
   // Properties of moves
   bool legal(Move m) const;
@@ -162,7 +153,7 @@ public:
   void do_null_move(StateInfo& st);
   void undo_null_move();
 
-  // Static exchange evaluation
+  // Static Exchange Evaluation
   Value see(Move m) const;
   Value see_sign(Move m) const;
 
@@ -176,8 +167,8 @@ public:
   Color side_to_move() const;
   Phase game_phase() const;
   int game_ply() const;
-  int variant() const;
   bool is_chess960() const;
+  Variant variant() const;
 #ifdef ATOMIC
   bool is_atomic() const;
   bool is_atomic_win() const;
@@ -185,6 +176,7 @@ public:
 #endif
 #ifdef HORDE
   bool is_horde() const;
+  bool is_horde_color(Color c) const;
   bool is_horde_loss() const;
 #endif
 #ifdef HOUSE
@@ -202,13 +194,15 @@ public:
   bool is_race_draw() const;
   bool is_race_loss() const;
 #endif
+#ifdef RELAY
+  bool is_relay() const;
+#endif
 #ifdef THREECHECK
   bool is_three_check() const;
   bool is_three_check_win() const;
   bool is_three_check_loss() const;
   int checks_count() const;
-  Checks checks_given() const;
-  Checks checks_taken() const;
+  CheckCount checks_given(Color c) const;
 #endif
 #ifdef ANTI
   bool is_anti() const;
@@ -230,7 +224,7 @@ public:
 
 private:
   // Initialization helpers (used while setting up a position)
-  void set_castling_right(Color c, Square rfrom);
+  void set_castling_right(Color c, Square kfrom, Square rfrom);
   void set_state(StateInfo* si) const;
   void set_check_info(StateInfo* si) const;
 
@@ -253,6 +247,9 @@ private:
 #endif
   int index[SQUARE_NB];
   int castlingRightsMask[SQUARE_NB];
+#ifdef ANTI
+  Square castlingKingSquare[CASTLING_RIGHT_NB];
+#endif
   Square castlingRookSquare[CASTLING_RIGHT_NB];
   Bitboard castlingPath[CASTLING_RIGHT_NB];
   uint64_t nodes;
@@ -260,7 +257,8 @@ private:
   Color sideToMove;
   Thread* thisThread;
   StateInfo* st;
-  int var;
+  bool chess960;
+  Variant var;
 
 };
 
@@ -316,11 +314,8 @@ template<PieceType Pt> inline const Square* Position::squares(Color c) const {
 
 template<PieceType Pt> inline Square Position::square(Color c) const {
 #ifdef HORDE
-  if (is_horde() && c == WHITE)
-  {
-      assert(pieceCount[make_piece(c, Pt)] == 0);
+  if (is_horde() && pieceCount[make_piece(c, Pt)] == 0)
       return SQ_NONE;
-  }
 #endif
 #ifdef ATOMIC
   if (is_atomic() && pieceCount[make_piece(c, Pt)] == 0)
@@ -328,7 +323,7 @@ template<PieceType Pt> inline Square Position::square(Color c) const {
 #endif
 #ifdef ANTI
   // There may be zero, one, or multiple kings
-  if (is_anti())
+  if (is_anti() && Pt == KING)
       return SQ_NONE;
 #endif
   assert(pieceCount[make_piece(c, Pt)] == 1);
@@ -337,7 +332,7 @@ template<PieceType Pt> inline Square Position::square(Color c) const {
 
 #ifdef THREECHECK
 inline bool Position::is_three_check() const {
-  return var & THREECHECK_VARIANT;
+  return var == THREECHECK_VARIANT;
 }
 
 inline bool Position::is_three_check_win() const {
@@ -352,12 +347,8 @@ inline int Position::checks_count() const {
   return st->checksGiven[WHITE] + st->checksGiven[BLACK];
 }
 
-inline Checks Position::checks_given() const {
-  return st->checksGiven[sideToMove];
-}
-
-inline Checks Position::checks_taken() const {
-  return st->checksGiven[~sideToMove];
+inline CheckCount Position::checks_given(Color c) const {
+  return st->checksGiven[c];
 }
 #endif
 
@@ -376,6 +367,12 @@ inline int Position::can_castle(Color c) const {
 inline bool Position::castling_impeded(CastlingRight cr) const {
   return byTypeBB[ALL_PIECES] & castlingPath[cr];
 }
+
+#ifdef ANTI
+inline Square Position::castling_king_square(CastlingRight cr) const {
+  return castlingKingSquare[cr];
+}
+#endif
 
 inline Square Position::castling_rook_square(CastlingRight cr) const {
   return castlingRookSquare[cr];
@@ -423,7 +420,7 @@ inline bool Position::pawn_passed(Color c, Square s) const {
     return true;
 #endif
 #ifdef HORDE
-  if (is_horde() && c == WHITE)
+  if (is_horde() && is_horde_color(c))
       return !(pieces(~c, PAWN) & forward_bb(c, s));
 #endif
   return !(pieces(~c, PAWN) & passed_pawn_mask(c, s));
@@ -483,7 +480,7 @@ inline bool Position::opposite_bishops() const {
 
 #ifdef ATOMIC
 inline bool Position::is_atomic() const {
-  return var & ATOMIC_VARIANT;
+  return var == ATOMIC_VARIANT;
 }
 
 // Loss if king is captured (Atomic)
@@ -499,18 +496,22 @@ inline bool Position::is_atomic_loss() const {
 
 #ifdef HORDE
 inline bool Position::is_horde() const {
-  return var & HORDE_VARIANT;
+  return var == HORDE_VARIANT;
+}
+
+inline bool Position::is_horde_color(Color c) const {
+  return pieceCount[make_piece(c, KING)] == 0;
 }
 
 // Loss if horde is captured (Horde)
 inline bool Position::is_horde_loss() const {
-  return count<ALL_PIECES>(WHITE) == 0;
+  return count<ALL_PIECES>(is_horde_color(WHITE) ? WHITE : BLACK) == 0;
 }
 #endif
 
 #ifdef ANTI
 inline bool Position::is_anti() const {
-  return var & ANTI_VARIANT;
+  return var == ANTI_VARIANT;
 }
 
 inline bool Position::is_anti_loss() const {
@@ -538,13 +539,13 @@ inline bool Position::can_capture() const {
 
 #ifdef HOUSE
 inline bool Position::is_house() const {
-  return var & HOUSE_VARIANT;
+  return var == HOUSE_VARIANT;
 }
 #endif
 
 #ifdef KOTH
 inline bool Position::is_koth() const {
-  return var & KOTH_VARIANT;
+  return var == KOTH_VARIANT;
 }
 
 // Win if king is in the center (KOTH)
@@ -570,7 +571,7 @@ inline int Position::koth_distance(Color c) const {
 
 #ifdef RACE
 inline bool Position::is_race() const {
-  return var & RACE_VARIANT;
+  return var == RACE_VARIANT;
 }
 
 // Win if king is on the eighth rank (Racing Kings)
@@ -592,16 +593,21 @@ inline bool Position::is_race_loss() const {
 }
 #endif
 
-inline int Position::variant() const {
+#ifdef RELAY
+inline bool Position::is_relay() const {
+  return var == RELAY_VARIANT;
+}
+#endif
+
+inline bool Position::is_chess960() const {
+  return chess960;
+}
+
+inline Variant Position::variant() const {
   return var;
 }
 
-inline bool Position::is_chess960() const {
-  return var & CHESS960_VARIANT;
-}
-
 inline bool Position::capture_or_promotion(Move m) const {
-
   assert(is_ok(m));
 #ifdef RACE
   if (is_race())
@@ -614,9 +620,8 @@ inline bool Position::capture_or_promotion(Move m) const {
 }
 
 inline bool Position::capture(Move m) const {
-
-  // Castling is encoded as "king captures the rook"
   assert(is_ok(m));
+  // Castling is encoded as "king captures rook"
   return (!empty(to_sq(m)) && type_of(m) != CASTLING) || type_of(m) == ENPASSANT;
 }
 
@@ -644,7 +649,7 @@ inline void Position::remove_piece(Piece pc, Square s) {
   // WARNING: This is not a reversible operation. If we remove a piece in
   // do_move() and then replace it in undo_move() we will put it at the end of
   // the list and not in its original place, it means index[] and pieceList[]
-  // are not guaranteed to be invariant to a do_move() + undo_move() sequence.
+  // are not invariant to a do_move() + undo_move() sequence.
   byTypeBB[ALL_PIECES] ^= s;
   byTypeBB[type_of(pc)] ^= s;
   byColorBB[color_of(pc)] ^= s;
