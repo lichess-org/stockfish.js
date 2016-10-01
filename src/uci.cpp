@@ -254,6 +254,7 @@ extern "C" void uci_command(const char *c_cmd) {
       else if (token == "setoption")  setoption(is);
 
       // Additional custom non-UCI commands, useful for debugging
+#ifndef __EMSCRIPTEN__
       else if (token == "flip")       pos.flip();
       else if (token == "bench")      benchmark(pos, is);
       else if (token == "d")          sync_cout << pos << sync_endl;
@@ -269,6 +270,7 @@ extern "C" void uci_command(const char *c_cmd) {
 
           benchmark(pos, ss);
       }
+#endif
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
 #ifndef __EMSCRIPTEN__

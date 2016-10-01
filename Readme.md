@@ -49,6 +49,7 @@ Changes to original Stockfish
 * Break down main iterative deepening loop to allow interrupting search.
 * Limit total memory to 32 MB.
 * Disable Syzygy tablebases.
+* Disable benchmark.
 
 Acknowledgements
 ----------------
