@@ -125,6 +125,20 @@ namespace {
     return moveList;
   }
 
+#ifdef CRAZYHOUSE
+  template<Color Us, PieceType Pt, bool Checks>
+  ExtMove* generate_drops(const Position& pos, ExtMove* moveList, Bitboard b) {
+    if (pos.has_in_hand(Us, Pt))
+    {
+        if (Checks)
+            b &= pos.check_squares(Pt);
+        while (b)
+            *moveList++ = make_drop(pop_lsb(&b), make_piece(Us, Pt));
+    }
+
+    return moveList;
+  }
+#endif
 
   template<Color Us, GenType Type>
   ExtMove* generate_pawn_moves(const Position& pos, ExtMove* moveList, Bitboard target) {
@@ -193,6 +207,14 @@ namespace {
                 b2 |= dc2;
             }
         }
+#ifdef CRAZYHOUSE
+        // Do not require drops to be check (unless already required by target)
+        if (pos.is_house())
+        {
+            Bitboard b = (Type == EVASIONS ? emptySquares & target : emptySquares) & ~(Rank1BB | Rank8BB);
+            moveList = generate_drops<Us, PAWN, false>(pos, moveList, b);
+        }
+#endif
 
         while (b1)
         {
@@ -300,11 +322,7 @@ namespace {
   ExtMove* generate_moves(const Position& pos, ExtMove* moveList, Color us,
                           Bitboard target) {
 
-#ifdef RELAY
-    assert((pos.is_relay() || Pt != KING) && Pt != PAWN);
-#else
     assert(Pt != KING && Pt != PAWN);
-#endif
 
     const Square* pl = pos.squares<Pt>(us);
 
@@ -324,20 +342,15 @@ namespace {
 #ifdef RELAY
         if (pos.is_relay())
         {
-            const PieceType pt = type_of(pos.piece_on(from));
-            if (pt == KNIGHT || PseudoAttacks[KNIGHT][from] & pos.pieces(us, KNIGHT))
+            const Bitboard defenders = pos.attackers_to(from) & pos.pieces(us);
+            if (defenders & pos.pieces(KNIGHT))
                 b |= pos.attacks_from<KNIGHT>(from) & target;
-            if (pt == QUEEN || PseudoAttacks[QUEEN][from] & pos.pieces(us, QUEEN))
-                b |= pos.attacks_from<QUEEN>(from) & target;
-            else
-            {
-                if (PseudoAttacks[BISHOP][from] & pos.pieces(us, BISHOP))
-                    b |= pos.attacks_from<BISHOP>(from) & target;
-                if (PseudoAttacks[ROOK][from] & pos.pieces(us, ROOK))
-                    b |= pos.attacks_from<ROOK>(from) & target;
-                if (PseudoAttacks[KING][from] & pos.pieces(us, KING))
-                    b |= pos.attacks_from<KING>(from) & target;
-            }
+            if (defenders & pos.pieces(QUEEN, BISHOP))
+                b |= pos.attacks_from<BISHOP>(from) & target;
+            if (defenders & pos.pieces(QUEEN, ROOK))
+                b |= pos.attacks_from<ROOK>(from) & target;
+            if (defenders & pos.pieces(KING))
+                b |= pos.attacks_from<KING>(from) & target;
         }
 #endif
 
@@ -358,6 +371,17 @@ namespace {
     const bool Checks = Type == QUIET_CHECKS;
 
     moveList = generate_pawn_moves<Us, Type>(pos, moveList, target);
+#ifdef CRAZYHOUSE
+    if (pos.is_house() && Type != CAPTURES)
+    {
+        Bitboard b = Type == EVASIONS ? target ^ pos.checkers() :
+                     Type == NON_EVASIONS ? target ^ pos.pieces(~Us) : target;
+        moveList = generate_drops<Us, KNIGHT, Checks>(pos, moveList, b);
+        moveList = generate_drops<Us, BISHOP, Checks>(pos, moveList, b);
+        moveList = generate_drops<Us,   ROOK, Checks>(pos, moveList, b);
+        moveList = generate_drops<Us,  QUEEN, Checks>(pos, moveList, b);
+    }
+#endif
     moveList = generate_moves<KNIGHT, Checks>(pos, moveList, Us, target);
     moveList = generate_moves<BISHOP, Checks>(pos, moveList, Us, target);
     moveList = generate_moves<  ROOK, Checks>(pos, moveList, Us, target);
@@ -383,6 +407,18 @@ namespace {
     {
         Square ksq = pos.square<KING>(Us);
         Bitboard b = pos.attacks_from<KING>(ksq) & target;
+#ifdef RELAY
+        if (pos.is_relay())
+        {
+            const Bitboard defenders = pos.attackers_to(ksq) & pos.pieces(Us);
+            if (defenders & pos.pieces(KNIGHT))
+                b |= pos.attacks_from<KNIGHT>(ksq) & target;
+            if (defenders & pos.pieces(QUEEN, BISHOP))
+                b |= pos.attacks_from<BISHOP>(ksq) & target;
+            if (defenders & pos.pieces(QUEEN, ROOK))
+                b |= pos.attacks_from<ROOK>(ksq) & target;
+        }
+#endif
         while (b)
             *moveList++ = make_move(ksq, pop_lsb(&b));
     }
@@ -597,6 +633,9 @@ ExtMove* generate<LEGAL>(const Position& pos, ExtMove* moveList) {
                             : generate<NON_EVASIONS>(pos, moveList);
   while (cur != moveList)
       if (   (validate || from_sq(*cur) == ksq || type_of(*cur) == ENPASSANT)
+#ifdef CRAZYHOUSE
+          && type_of(*cur) != DROP
+#endif
           && !pos.legal(*cur))
           *cur = (--moveList)->move;
 #ifdef ATOMIC

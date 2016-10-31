@@ -52,7 +52,6 @@ namespace Search {
 namespace Tablebases {
 
   int Cardinality;
-  uint64_t Hits;
   bool RootInTB;
   bool UseRule50;
   Depth ProbeDepth;
@@ -71,8 +70,61 @@ namespace {
   enum NodeType { NonPV, PV };
 
   // Razoring and futility margin based on depth
-  const int razor_margin[4] = { 483, 570, 603, 554 };
-  Value futility_margin(Depth d) { return Value(150 * d / ONE_PLY); }
+  const int razor_margin[VARIANT_NB][4] = {
+  { 483, 570, 603, 554 },
+#ifdef ANTI
+  { 1932, 2280, 2412, 2216 },
+#endif
+#ifdef ATOMIC
+  { 1867, 2341, 2501, 2218 },
+#endif
+#ifdef CRAZYHOUSE
+  { 483, 570, 603, 554 },
+#endif
+#ifdef HORDE
+  { 483, 570, 603, 554 },
+#endif
+#ifdef KOTH
+  { 483, 570, 603, 554 },
+#endif
+#ifdef RACE
+  { 1017, 986, 1017, 990 },
+#endif
+#ifdef RELAY
+  { 483, 570, 603, 554 },
+#endif
+#ifdef THREECHECK
+  { 2000, 2000, 2000, 2000 },
+#endif
+  };
+  const int futility_margin_factor[VARIANT_NB] = {
+  150,
+#ifdef ANTI
+  600,
+#endif
+#ifdef ATOMIC
+  560,
+#endif
+#ifdef CRAZYHOUSE
+  150,
+#endif
+#ifdef HORDE
+  150,
+#endif
+#ifdef KOTH
+  150,
+#endif
+#ifdef RACE
+  365,
+#endif
+#ifdef RELAY
+  150,
+#endif
+#ifdef THREECHECK
+  300,
+#endif
+  };
+  Value futility_margin(Variant var, Depth d) { return Value(futility_margin_factor[var] * d / ONE_PLY); }
 
   // Futility and reductions lookup tables, initialized at startup
   int FutilityMoveCounts[2][16]; // [improving][depth]
@@ -520,11 +572,7 @@ void Thread::search_iteration() {
           if (!mainThread_)
               continue;
 
-          if (Signals.stop)
-              sync_cout << "info nodes " << Threads.nodes_searched()
-                        << " time " << Time.elapsed() << sync_endl;
-
-          else if (PVIdx + 1 == multiPV_ || Time.elapsed() > 3000)
+          if (Signals.stop || PVIdx + 1 == multiPV_ || Time.elapsed() > 3000)
               sync_cout << UCI::pv(rootPos, rootDepth, alpha_, beta_) << sync_endl;
       }
 
@@ -646,19 +694,12 @@ namespace {
     bool captureOrPromotion, doFullDepthSearch, moveCountPruning;
     Piece moved_piece;
     int moveCount, quietCount;
-    int variantScale;
 
     // Step 1. Initialize node
     Thread* thisThread = pos.this_thread();
     inCheck = pos.checkers();
-#ifdef RACE
-    int raceRank = pos.is_race() ?
-        rank_of(pos.square<KING>(pos.side_to_move())) + rank_of(pos.square<KING>(~pos.side_to_move())) : 0;
-#endif
-#ifdef THREECHECK
-    int checks = pos.is_three_check() ? pos.checks_count() : CHECKS_0;
-#endif
     moveCount = quietCount =  ss->moveCount = 0;
+    ss->history = VALUE_ZERO;
     bestValue = -VALUE_INFINITE;
     ss->ply = (ss-1)->ply + 1;
 
@@ -777,8 +818,6 @@ namespace {
         && (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
                             : (tte->bound() & BOUND_UPPER)))
     {
-        ss->currentMove = ttMove; // Can be MOVE_NONE
-
         // If ttMove is quiet, update killers, history, counter move on TT hit
         if (ttValue >= beta && ttMove)
         {
@@ -821,6 +860,9 @@ namespace {
 #ifdef ANTI
     if (pos.is_anti()) {} else
 #endif
+#ifdef CRAZYHOUSE
+    if (pos.is_house()) {} else
+#endif
     if (!rootNode && TB::Cardinality)
     {
         int piecesCnt = pos.count<ALL_PIECES>(WHITE) + pos.count<ALL_PIECES>(BLACK);
@@ -834,7 +876,7 @@ namespace {
 
             if (found)
             {
-                TB::Hits++;
+                thisThread->tbHits++;
 
                 int drawScore = TB::UseRule50 ? 1 : 0;
 
@@ -884,32 +926,15 @@ namespace {
         goto moves_loop;
 
     // Step 6. Razoring (skipped when in check)
-    variantScale = 1;
-#ifdef ATOMIC
-    if (pos.is_atomic())
-        variantScale += 3;
-#endif
-#ifdef ANTI
-    if (pos.is_anti())
-        variantScale += 3;
-#endif
-#ifdef RACE
-    if (pos.is_race())
-        variantScale += raceRank / 2;
-#endif
-#ifdef THREECHECK
-    if (pos.is_three_check())
-        variantScale += checks;
-#endif
     if (   !PvNode
         &&  depth < 4 * ONE_PLY
         &&  ttMove == MOVE_NONE
-        &&  eval + (razor_margin[depth / ONE_PLY] * variantScale) <= alpha)
+        &&  eval + razor_margin[pos.variant()][depth / ONE_PLY] <= alpha)
     {
         if (depth <= ONE_PLY)
             return qsearch<NonPV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
 
-        Value ralpha = alpha - (razor_margin[depth / ONE_PLY] * variantScale);
+        Value ralpha = alpha - razor_margin[pos.variant()][depth / ONE_PLY];
         Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha+1, DEPTH_ZERO);
         if (v <= ralpha)
             return v;
@@ -918,14 +943,17 @@ namespace {
     // Step 7. Futility pruning: child node (skipped when in check)
     if (   !rootNode
         &&  depth < 7 * ONE_PLY
-        &&  eval - (futility_margin(depth) * variantScale) >= beta
+        &&  eval - futility_margin(pos.variant(), depth) >= beta
         &&  eval < VALUE_KNOWN_WIN  // Do not return unproven wins
         &&  pos.non_pawn_material(pos.side_to_move()))
-        return eval - (futility_margin(depth) * variantScale);
+        return eval;
 
     // Step 8. Null move search with verification search (is omitted in PV nodes)
 #ifdef ANTI
     if (pos.is_anti() && pos.can_capture()) {} else
+#endif
+#ifdef HORDE
+    if (pos.is_horde()) {} else
 #endif
     if (   !PvNode
         &&  eval >= beta
@@ -974,19 +1002,7 @@ namespace {
     if (pos.is_anti()) {} else
 #endif
     if (   !PvNode
-#ifdef RACE
-#ifdef THREECHECK
-        &&  depth >= (5 + checks + raceRank) * ONE_PLY
-#else
-        &&  depth >= (5 + raceRank) * ONE_PLY
-#endif
-#else
-#ifdef THREECHECK
-        &&  depth >= (5 + checks) * ONE_PLY
-#else
         &&  depth >= 5 * ONE_PLY
-#endif
-#endif
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
         Value rbeta = std::min(beta + 200, VALUE_INFINITE);
@@ -1038,19 +1054,7 @@ moves_loop: // When in check search starts from here
                ||(ss-2)->staticEval == VALUE_NONE;
 
     singularExtensionNode =   !rootNode
-#ifdef RACE
-#ifdef THREECHECK
-                           &&  depth >= 8 * ONE_PLY - checks - raceRank
-#else
-                           &&  depth >= 8 * ONE_PLY - raceRank
-#endif
-#else
-#ifdef THREECHECK
-                           &&  depth >= 8 * ONE_PLY - checks
-#else
                            &&  depth >= 8 * ONE_PLY
-#endif
-#endif
                            &&  ttMove != MOVE_NONE
                            &&  ttValue != VALUE_NONE
                            && !excludedMove // Recursive singular search is not allowed
@@ -1097,25 +1101,13 @@ moves_loop: // When in check search starts from here
                   ? pos.check_squares(type_of(pos.piece_on(from_sq(move)))) & to_sq(move)
                   : pos.gives_check(move);
 
-#ifdef RACE
-#ifdef THREECHECK
-      moveCountPruning =   depth < (16 - checks - raceRank) * ONE_PLY
-#else
-      moveCountPruning =   depth < (16 - raceRank) * ONE_PLY
-#endif
-#else
-#ifdef THREECHECK
-      moveCountPruning =   depth < (16 - checks) * ONE_PLY
-#else
       moveCountPruning =   depth < 16 * ONE_PLY
-#endif
-#endif
                         && moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
 
       // Step 12. Extend checks
       if (    givesCheck
           && !moveCountPruning
-          &&  pos.see_sign(move) >= VALUE_ZERO)
+          &&  pos.see_ge(move, VALUE_ZERO))
           extension = ONE_PLY;
 
       // Singular extension search. If all moves but one fail low on a search of
@@ -1148,8 +1140,7 @@ moves_loop: // When in check search starts from here
       if (pos.is_race() && type_of(moved_piece) == KING && rank_of(to_sq(move)) > rank_of(from_sq(move))) {} else
 #endif
       if (  !rootNode
-          && !inCheck
-          &&  bestValue > VALUE_MATED_IN_MAX_PLY)
+          && bestValue > VALUE_MATED_IN_MAX_PLY)
       {
           if (   !captureOrPromotion
               && !givesCheck
@@ -1161,12 +1152,6 @@ moves_loop: // When in check search starts from here
 
               // Reduced depth of the next LMR search
               int lmrDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO) / ONE_PLY;
-#ifdef RACE
-              lmrDepth -= raceRank * ONE_PLY;
-#endif
-#ifdef THREECHECK
-              lmrDepth -= checks * ONE_PLY;
-#endif
 
               // Countermoves based pruning
               if (   lmrDepth < 3
@@ -1177,6 +1162,7 @@ moves_loop: // When in check search starts from here
 
               // Futility pruning: parent node
               if (   lmrDepth < 7
+                  && !inCheck
                   && ss->staticEval + 256 + 200 * lmrDepth <= alpha)
                   continue;
 
@@ -1188,11 +1174,12 @@ moves_loop: // When in check search starts from here
               if (pos.is_race()) {} else
 #endif
               if (   lmrDepth < 8
-                  && pos.see_sign(move) < Value(-35 * lmrDepth * lmrDepth))
+                  && !pos.see_ge(move, Value(-35 * lmrDepth * lmrDepth)))
                   continue;
           }
           else if (   depth < 7 * ONE_PLY
-                   && pos.see_sign(move) < Value(-35 * depth / ONE_PLY * depth / ONE_PLY))
+                   && !extension
+                   && !pos.see_ge(move, Value(-35 * depth / ONE_PLY * depth / ONE_PLY)))
                   continue;
       }
 
@@ -1214,19 +1201,7 @@ moves_loop: // When in check search starts from here
 
       // Step 15. Reduced depth search (LMR). If the move fails high it will be
       // re-searched at full depth.
-#ifdef RACE
-#ifdef THREECHECK
-      if (    depth >= (3 + checks + raceRank) * ONE_PLY
-#else
-      if (    depth >= (3 + raceRank) * ONE_PLY
-#endif
-#else
-#ifdef THREECHECK
-      if (    depth >= (3 + checks) * ONE_PLY
-#else
       if (    depth >= 3 * ONE_PLY
-#endif
-#endif
           &&  moveCount > 1
           && (!captureOrPromotion || moveCountPruning))
       {
@@ -1246,17 +1221,25 @@ moves_loop: // When in check search starts from here
               // because the destination square is empty.
               else if (   type_of(move) == NORMAL
                        && type_of(pos.piece_on(to_sq(move))) != PAWN
-                       && pos.see(make_move(to_sq(move), from_sq(move))) < VALUE_ZERO)
+                       && !pos.see_ge(make_move(to_sq(move), from_sq(move)),  VALUE_ZERO))
                   r -= 2 * ONE_PLY;
 
+              ss->history = thisThread->history[moved_piece][to_sq(move)]
+                           +    (cmh  ? (*cmh )[moved_piece][to_sq(move)] : VALUE_ZERO)
+                           +    (fmh  ? (*fmh )[moved_piece][to_sq(move)] : VALUE_ZERO)
+                           +    (fmh2 ? (*fmh2)[moved_piece][to_sq(move)] : VALUE_ZERO)
+                           +    thisThread->fromTo.get(~pos.side_to_move(), move)
+                           -    8000; // Correction factor
+
+              // Decrease/increase reduction by comparing opponent's stat score
+              if (ss->history > VALUE_ZERO && (ss-1)->history < VALUE_ZERO)
+                  r -= ONE_PLY;
+
+              else if (ss->history < VALUE_ZERO && (ss-1)->history > VALUE_ZERO)
+                  r += ONE_PLY;
+
               // Decrease/increase reduction for moves with a good/bad history
-              Value val = thisThread->history[moved_piece][to_sq(move)]
-                         +    (cmh  ? (*cmh )[moved_piece][to_sq(move)] : VALUE_ZERO)
-                         +    (fmh  ? (*fmh )[moved_piece][to_sq(move)] : VALUE_ZERO)
-                         +    (fmh2 ? (*fmh2)[moved_piece][to_sq(move)] : VALUE_ZERO)
-                         +    thisThread->fromTo.get(~pos.side_to_move(), move);
-              int rHist = (val - 8000) / 20000;
-              r = std::max(DEPTH_ZERO, (r / ONE_PLY - rHist) * ONE_PLY);
+              r = std::max(DEPTH_ZERO, (r / ONE_PLY - ss->history / 20000) * ONE_PLY);
           }
 
           Depth d = std::max(newDepth - r, ONE_PLY);
@@ -1374,6 +1357,9 @@ moves_loop: // When in check search starts from here
     // All legal moves have been searched and if there are no legal moves, it
     // must be a mate or a stalemate. If we are in a singular extension search then
     // return a fail low score.
+
+    assert(moveCount || !inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
+
     if (!moveCount)
     {
 #ifdef RACE
@@ -1561,10 +1547,7 @@ moves_loop: // When in check search starts from here
         && ttValue != VALUE_NONE // Only in case of TT access race
         && (ttValue >= beta ? (tte->bound() &  BOUND_LOWER)
                             : (tte->bound() &  BOUND_UPPER)))
-    {
-        ss->currentMove = ttMove; // Can be MOVE_NONE
         return ttValue;
-    }
 
     // Evaluate the position statically
     if (InCheck)
@@ -1640,7 +1623,7 @@ moves_loop: // When in check search starts from here
       {
           assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
 
-          futilityValue = futilityBase + PieceValue[EG][pos.piece_on(to_sq(move))];
+          futilityValue = futilityBase + PieceValue[pos.variant()][EG][pos.piece_on(to_sq(move))];
 
           if (futilityValue <= alpha)
           {
@@ -1648,7 +1631,7 @@ moves_loop: // When in check search starts from here
               continue;
           }
 
-          if (futilityBase <= alpha && pos.see(move) <= VALUE_ZERO)
+          if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
           {
               bestValue = std::max(bestValue, futilityBase);
               continue;
@@ -1663,7 +1646,7 @@ moves_loop: // When in check search starts from here
       // Don't search moves with negative SEE values
       if (  (!InCheck || evasionPrunable)
           &&  type_of(move) != PROMOTION
-          &&  pos.see_sign(move) < VALUE_ZERO)
+          &&  !pos.see_ge(move, VALUE_ZERO))
           continue;
 
       // Speculative prefetch as early as possible
@@ -1869,7 +1852,7 @@ moves_loop: // When in check search starts from here
 
     if (   (Limits.use_time_management() && elapsed > Time.maximum() - 10)
         || (Limits.movetime && elapsed >= Limits.movetime)
-        || (Limits.nodes && Threads.nodes_searched() >= Limits.nodes))
+        || (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
             Signals.stop = true;
   }
 
@@ -1886,7 +1869,8 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
   const RootMoves& rootMoves = pos.this_thread()->rootMoves;
   size_t PVIdx = pos.this_thread()->PVIdx;
   size_t multiPV = std::min((size_t)Options["MultiPV"], rootMoves.size());
-  uint64_t nodes_searched = Threads.nodes_searched();
+  uint64_t nodesSearched = Threads.nodes_searched();
+  uint64_t tbHits = Threads.tb_hits() + (TB::RootInTB ? rootMoves.size() : 0);
 
   for (size_t i = 0; i < multiPV; ++i)
   {
@@ -1913,13 +1897,13 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       if (!tb && i == PVIdx)
           ss << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
 
-      ss << " nodes "    << nodes_searched
-         << " nps "      << nodes_searched * 1000 / elapsed;
+      ss << " nodes "    << nodesSearched
+         << " nps "      << nodesSearched * 1000 / elapsed;
 
       if (elapsed > 1000) // Earlier makes little sense
           ss << " hashfull " << TT.hashfull();
 
-      ss << " tbhits "   << TB::Hits
+      ss << " tbhits "   << tbHits
          << " time "     << elapsed
          << " pv";
 
@@ -1965,7 +1949,6 @@ bool RootMove::extract_ponder_from_tt(Position& pos) {
 #ifndef __EMSCRIPTEN__
 void Tablebases::filter_root_moves(Position& pos, Search::RootMoves& rootMoves) {
 
-    Hits = 0;
     RootInTB = false;
     UseRule50 = Options["Syzygy50MoveRule"];
     ProbeDepth = Options["SyzygyProbeDepth"] * ONE_PLY;
@@ -1998,14 +1981,9 @@ void Tablebases::filter_root_moves(Position& pos, Search::RootMoves& rootMoves) 
             Cardinality = 0;
     }
 
-    if (RootInTB)
-    {
-        Hits = rootMoves.size();
-
-        if (!UseRule50)
-            TB::Score =  TB::Score > VALUE_DRAW ?  VALUE_MATE - MAX_PLY - 1
-                       : TB::Score < VALUE_DRAW ? -VALUE_MATE + MAX_PLY + 1
-                                                :  VALUE_DRAW;
-    }
+    if (RootInTB && !UseRule50)
+        TB::Score =  TB::Score > VALUE_DRAW ?  VALUE_MATE - MAX_PLY - 1
+                   : TB::Score < VALUE_DRAW ? -VALUE_MATE + MAX_PLY + 1
+                                            :  VALUE_DRAW;
 }
 #endif  // ifndef __EMSCRIPTEN__

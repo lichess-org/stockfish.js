@@ -102,8 +102,41 @@ const bool Is64Bit = false;
 typedef uint64_t Key;
 typedef uint64_t Bitboard;
 
+#ifdef CRAZYHOUSE
+const int MAX_MOVES = 512;
+#else
 const int MAX_MOVES = 256;
+#endif
 const int MAX_PLY   = 128;
+
+enum Variant {
+  CHESS_VARIANT,
+#ifdef ANTI
+  ANTI_VARIANT,
+#endif
+#ifdef ATOMIC
+  ATOMIC_VARIANT,
+#endif
+#ifdef CRAZYHOUSE
+  CRAZYHOUSE_VARIANT,
+#endif
+#ifdef HORDE
+  HORDE_VARIANT,
+#endif
+#ifdef KOTH
+  KOTH_VARIANT,
+#endif
+#ifdef RACE
+  RACE_VARIANT,
+#endif
+#ifdef RELAY
+  RELAY_VARIANT,
+#endif
+#ifdef THREECHECK
+  THREECHECK_VARIANT,
+#endif
+  VARIANT_NB
+};
 
 //static const constexpr char* variants[] doesn't play nicely with uci.h
 static std::vector<std::string> variants = {"chess"
@@ -112,6 +145,9 @@ static std::vector<std::string> variants = {"chess"
 #endif
 #ifdef ANTI
 ,"giveaway"
+#endif
+#ifdef CRAZYHOUSE
+,"crazyhouse"
 #endif
 #ifdef HORDE
 ,"horde"
@@ -142,7 +178,7 @@ static std::vector<std::string> variants = {"chess"
 /// any normal move destination square is always different from origin square
 /// while MOVE_NONE and MOVE_NULL have the same origin and destination square.
 
-enum Move {
+enum Move : int {
   MOVE_NONE,
   MOVE_NULL = 65
 };
@@ -152,6 +188,9 @@ enum MoveType {
   PROMOTION = 1 << 14,
   ENPASSANT = 2 << 14,
   CASTLING  = 3 << 14
+#ifdef CRAZYHOUSE
+  ,DROP = 1 << 17
+#endif
 };
 
 enum Color {
@@ -231,6 +270,41 @@ enum Value : int {
   QueenValueMgAnti  = -936,  QueenValueEgAnti  = -829,
   KingValueMgAnti   = -230,  KingValueEgAnti   = -168,
 #endif
+#ifdef ATOMIC
+  PawnValueMgAtomic   = 366,   PawnValueEgAtomic   = 445,
+  KnightValueMgAtomic = 519,   KnightValueEgAtomic = 787,
+  BishopValueMgAtomic = 655,   BishopValueEgAtomic = 876,
+  RookValueMgAtomic   = 887,   RookValueEgAtomic   = 1356,
+  QueenValueMgAtomic  = 2027,  QueenValueEgAtomic  = 2915,
+#endif
+#ifdef CRAZYHOUSE
+  PawnValueMgHouse   = 251,   PawnValueEgHouse   = 271,
+  KnightValueMgHouse = 515,   KnightValueEgHouse = 615,
+  BishopValueMgHouse = 598,   BishopValueEgHouse = 622,
+  RookValueMgHouse   = 695,   RookValueEgHouse   = 732,
+  QueenValueMgHouse  = 1014,  QueenValueEgHouse  = 1139,
+#endif
+#ifdef HORDE
+  PawnValueMgHorde   = 406,   PawnValueEgHorde   = 427,
+  KnightValueMgHorde = 708,   KnightValueEgHorde = 851,
+  BishopValueMgHorde = 736,   BishopValueEgHorde = 859,
+  RookValueMgHorde   = 1341,  RookValueEgHorde   = 1175,
+  QueenValueMgHorde  = 2777,  QueenValueEgHorde  = 3182,
+  KingValueMgHorde   = 2041,  KingValueEgHorde   = 975,
+#endif
+#ifdef RACE
+  KnightValueMgRace = 720,   KnightValueEgRace = 801,
+  BishopValueMgRace = 904,   BishopValueEgRace = 929,
+  RookValueMgRace   = 1265,  RookValueEgRace  = 1731,
+  QueenValueMgRace  = 2198,  QueenValueEgRace = 2226,
+#endif
+#ifdef THREECHECK
+  PawnValueMgThreeCheck   = 181,   PawnValueEgThreeCheck   = 245,
+  KnightValueMgThreeCheck = 691,   KnightValueEgThreeCheck = 850,
+  BishopValueMgThreeCheck = 829,   BishopValueEgThreeCheck = 845,
+  RookValueMgThreeCheck   = 1222,  RookValueEgThreeCheck   = 1386,
+  QueenValueMgThreeCheck  = 2274,  QueenValueEgThreeCheck  = 2573,
+#endif
 
   MidgameLimit  = 15258, EndgameLimit  = 3915
 };
@@ -250,10 +324,7 @@ enum Piece {
 
 const Piece Pieces[] = { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
                          B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING };
-extern Value PieceValue[PHASE_NB][PIECE_NB];
-#ifdef ANTI
-extern Value PieceValueAnti[PHASE_NB][PIECE_NB];
-#endif
+extern Value PieceValue[VARIANT_NB][PHASE_NB][PIECE_NB];
 
 enum Depth {
 
@@ -294,22 +365,23 @@ enum Square {
   NORTH_WEST = NORTH + WEST
 };
 
-enum File {
+enum File : int {
   FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_NB
 };
 
-enum Rank {
+enum Rank : int {
   RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NB
 };
 
 
 /// Score enum stores a middlegame and an endgame value in a single integer
 /// (enum). The least significant 16 bits are used to store the endgame value
-/// and the upper 16 bits are used to store the middlegame value.
+/// and the upper 16 bits are used to store the middlegame value. Take some
+/// care to avoid left-shifting a signed int to avoid undefined behavior.
 enum Score : int { SCORE_ZERO };
 
 inline Score make_score(int mg, int eg) {
-  return Score((eg << 16) + mg);
+  return Score((int)((unsigned int)eg << 16) + mg);
 }
 
 /// Extracting the signed lower and upper 16 bits is not so trivial because
@@ -345,6 +417,7 @@ inline T operator/(T d, int i) { return T(int(d) / i); }        \
 inline int operator/(T d1, T d2) { return int(d1) / int(d2); }  \
 inline T& operator/=(T& d, int i) { return d = T(int(d) / i); }
 
+ENABLE_FULL_OPERATORS_ON(Variant)
 ENABLE_FULL_OPERATORS_ON(Value)
 ENABLE_FULL_OPERATORS_ON(PieceType)
 ENABLE_FULL_OPERATORS_ON(Piece)
@@ -452,6 +525,10 @@ inline Square pawn_push(Color c) {
 }
 
 inline Square from_sq(Move m) {
+#ifdef CRAZYHOUSE
+  if (m & DROP)
+      return SQ_NONE;
+#endif
   return Square((m >> 6) & 0x3F);
 }
 
@@ -460,6 +537,10 @@ inline Square to_sq(Move m) {
 }
 
 inline MoveType type_of(Move m) {
+#ifdef CRAZYHOUSE
+  if (m & DROP)
+      return DROP;
+#endif
   return MoveType(m & (3 << 14));
 }
 
@@ -483,6 +564,16 @@ inline Move make(Square from, Square to, PieceType pt = KNIGHT) {
 #endif
   return Move(T + ((pt - KNIGHT) << 12) + (from << 6) + to);
 }
+
+#ifdef CRAZYHOUSE
+inline Move make_drop(Square to, Piece pc) {
+  return Move(DROP + (pc << 18) + to);
+}
+
+inline Piece dropped_piece(Move m) {
+  return Piece((m >> 18) & 15);
+}
+#endif
 
 inline bool is_ok(Move m) {
   return from_sq(m) != to_sq(m); // Catch MOVE_NULL and MOVE_NONE

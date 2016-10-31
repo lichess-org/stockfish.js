@@ -38,6 +38,10 @@ namespace {
 
   // FEN string of the initial position, normal variant
   const char* StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+#ifdef CRAZYHOUSE
+  // FEN string of the initial position, crazyhouse variant
+  const char* StartFENCrazyhouse = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1";
+#endif
 #ifdef HORDE
   // FEN string of the initial position, horde variant
   const char* StartFENHorde = "rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1";
@@ -47,7 +51,7 @@ namespace {
   const char* StartFENRace = "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1";
 #endif
 #ifdef THREECHECK
-  // FEN string of the initial position, horde variant
+  // FEN string of the initial position, three-check variant
   const char* StartFENThreeCheck = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1";
 #endif
 
@@ -72,9 +76,9 @@ namespace {
     if (!(Options["UCI_Variant"].compare("atomic")))
         variant = ATOMIC_VARIANT;
 #endif
-#ifdef HOUSE
+#ifdef CRAZYHOUSE
     if (!(Options["UCI_Variant"].compare("crazyhouse")))
-        variant = HOUSE_VARIANT;
+        variant = CRAZYHOUSE_VARIANT;
 #endif
 #ifdef ANTI
     if (!(Options["UCI_Variant"].compare("giveaway")))
@@ -104,10 +108,16 @@ namespace {
     is >> token;
     if (token == "startpos")
     {
+#ifdef CRAZYHOUSE
+        if(variant == CRAZYHOUSE_VARIANT)
+            fen = StartFENCrazyhouse;
+        else
+#endif
 #ifdef HORDE
         if(variant == HORDE_VARIANT)
             fen = StartFENHorde;
         else
+#endif
 #ifdef RACE
         if(variant == RACE_VARIANT)
             fen = StartFENRace;
@@ -119,7 +129,6 @@ namespace {
         else
 #endif
         fen = StartFEN;
-#endif
         is >> token; // Consume "moves" token if any
     }
     else if (token == "fen")
@@ -340,7 +349,11 @@ string UCI::move(Move m, bool chess960) {
   if (type_of(m) == CASTLING && !chess960)
       to = make_square(to > from ? FILE_G : FILE_C, rank_of(from));
 
+#ifdef CRAZYHOUSE
+  string move = ((type_of(m) == DROP) ? std::string{" PNBRQK  PNBRQK "[dropped_piece(m)], '@'} : UCI::square(from)) + UCI::square(to);
+#else
   string move = UCI::square(from) + UCI::square(to);
+#endif
 
   if (type_of(m) == PROMOTION)
       move += " pnbrqk"[promotion_type(m)];

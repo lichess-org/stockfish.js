@@ -115,7 +115,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th)
   ttMove =   ttm
           && pos.pseudo_legal(ttm)
           && pos.capture(ttm)
-          && pos.see(ttm) > threshold ? ttm : MOVE_NONE;
+          && pos.see_ge(ttm, threshold + 1)? ttm : MOVE_NONE;
 
   stage += (ttMove == MOVE_NONE);
 }
@@ -135,10 +135,10 @@ void MovePicker::score<CAPTURES>() {
   for (auto& m : *this)
 #ifdef RACE
       if (pos.is_race())
-          m.value = PieceValue[MG][pos.piece_on(to_sq(m))] - Value(200 * relative_rank(BLACK, to_sq(m)));
+          m.value = PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))] - Value(200 * relative_rank(BLACK, to_sq(m)));
       else
 #endif
-      m.value =  PieceValue[MG][pos.piece_on(to_sq(m))]
+      m.value =  PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
                - Value(200 * relative_rank(pos.side_to_move(), to_sq(m)));
 }
 
@@ -164,20 +164,14 @@ void MovePicker::score<QUIETS>() {
 
 template<>
 void MovePicker::score<EVASIONS>() {
-  // Try winning and equal captures ordered by MVV/LVA, then non-captures ordered
-  // by history value, then bad captures and quiet moves with a negative SEE ordered
-  // by SEE value.
+  // Try captures ordered by MVV/LVA, then non-captures ordered by history value
   const HistoryStats& history = pos.this_thread()->history;
   const FromToStats& fromTo = pos.this_thread()->fromTo;
   Color c = pos.side_to_move();
-  Value see;
 
   for (auto& m : *this)
-      if ((see = pos.see_sign(m)) < VALUE_ZERO)
-          m.value = see - HistoryStats::Max; // At the bottom
-
-      else if (pos.capture(m))
-          m.value =  PieceValue[MG][pos.piece_on(to_sq(m))]
+      if (pos.capture(m))
+          m.value =  PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
                    - Value(type_of(pos.moved_piece(m))) + HistoryStats::Max;
       else
           m.value = history[pos.moved_piece(m)][to_sq(m)] + fromTo.get(c, m);
@@ -212,7 +206,7 @@ Move MovePicker::next_move() {
           move = pick_best(cur++, endMoves);
           if (move != ttMove)
           {
-              if (pos.see_sign(move) >= VALUE_ZERO)
+              if (pos.see_ge(move, VALUE_ZERO))
                   return move;
 
               // Losing capture, move it to the beginning of the array
@@ -282,8 +276,7 @@ Move MovePicker::next_move() {
   case EVASIONS_INIT:
       cur = moves;
       endMoves = generate<EVASIONS>(pos, cur);
-      if (endMoves - cur - (ttMove != MOVE_NONE) > 1)
-          score<EVASIONS>();
+      score<EVASIONS>();
       ++stage;
 
   case ALL_EVASIONS:
@@ -306,7 +299,7 @@ Move MovePicker::next_move() {
       {
           move = pick_best(cur++, endMoves);
           if (   move != ttMove
-              && pos.see(move) > threshold)
+              && pos.see_ge(move, threshold + 1))
               return move;
       }
       break;
