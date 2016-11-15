@@ -171,18 +171,62 @@ namespace {
   // pawns or pieces which are not pawn-defended.
   const Score ThreatByKing[2] = { S(3, 62), S(9, 138) };
 
-  // Passed[mg/eg][Rank] contains midgame and endgame bonuses for passed pawns.
+  // Passed[variant][mg/eg][Rank] contains midgame and endgame bonuses for passed pawns.
   // We don't use a Score because we process the two components independently.
-  const Value Passed[][RANK_NB] = {
-    { V(5), V( 5), V(31), V(73), V(166), V(252) },
-    { V(7), V(14), V(38), V(73), V(166), V(252) }
-  };
-#ifdef ATOMIC
-  const Value PassedAtomic[][RANK_NB] = {
-    { V(106), V(124), V(147), V(165), V(169), V(177) },
-    { V(103), V(118), V(148), V(155), V(142), V(153) }
-  };
+  const Value Passed[VARIANT_NB][2][RANK_NB] = {
+    {
+      { V(5), V( 5), V(31), V(73), V(166), V(252) },
+      { V(7), V(14), V(38), V(73), V(166), V(252) }
+    },
+#ifdef ANTI
+    {
+      { V(5), V( 5), V(31), V(73), V(166), V(252) },
+      { V(7), V(14), V(38), V(73), V(166), V(252) }
+    },
 #endif
+#ifdef ATOMIC
+    {
+      { V(106), V(124), V(147), V(165), V(169), V(177) },
+      { V(103), V(118), V(148), V(155), V(142), V(153) }
+    },
+#endif
+#ifdef CRAZYHOUSE
+    {
+      { V(15), V(23), V(13), V( 88), V(177), V(229) },
+      { V(27), V(13), V(19), V(111), V(140), V(203) }
+    },
+#endif
+#ifdef HORDE
+    {
+      { V(5), V( 5), V(31), V(73), V(166), V(252) },
+      { V(7), V(14), V(38), V(73), V(166), V(252) }
+    },
+#endif
+#ifdef KOTH
+    {
+      { V(5), V( 5), V(31), V(73), V(166), V(252) },
+      { V(7), V(14), V(38), V(73), V(166), V(252) }
+    },
+#endif
+#ifdef RACE
+    {
+      { V(5), V( 5), V(31), V(73), V(166), V(252) },
+      { V(7), V(14), V(38), V(73), V(166), V(252) }
+    },
+#endif
+#ifdef RELAY
+    {
+      { V(5), V( 5), V(31), V(73), V(166), V(252) },
+      { V(7), V(14), V(38), V(73), V(166), V(252) }
+    },
+#endif
+#ifdef THREECHECK
+    {
+      { V(5), V( 5), V(31), V(73), V(166), V(252) },
+      { V(7), V(14), V(38), V(73), V(166), V(252) }
+    },
+#endif
+  };
 
 #ifdef THREECHECK
   const Score ChecksGivenBonus[CHECKS_NB] = {
@@ -201,13 +245,30 @@ namespace {
 #endif
 
 #ifdef ANTI
-  const Score ForcedCaptureAnti = S(1135, 1470);
-  const Score PieceCountAnti    = S(122, 124);
-  const Score ThreatsAnti[]     = { S(234, 293), S(468, 382) };
+  const Score PieceCountAnti    = S(122, 119);
+  const Score ThreatsAnti[]     = { S(216, 279), S(441, 341) };
+  const Score AttacksAnti[2][2][PIECE_TYPE_NB] = {
+    {
+      { S(111, 127), S(102,  95), S(121, 183), S(140,  37), S(120,  99), S( 55, 11), S( 88,  93) },
+      { S( 56,  69), S( 72, 124), S(109, 154), S( 98, 149), S(129, 113), S(147, 72), S(157, 152) }
+    },
+    {
+      { S( 27, 140), S( 23,  95), S(160, 112), S( 78, 129), S( 65,  75), S( 70, 13), S(146, 123) },
+      { S( 58,  82), S( 80, 112), S(124,  87), S(103, 110), S(185, 107), S( 72, 60), S(126,  62) }
+    }
+  };
 #endif
 
 #ifdef ATOMIC
   const Score CloseEnemiesAtomic = S( 17,   0);
+#endif
+
+#ifdef CRAZYHOUSE
+  const int KingDangerInHand[PIECE_TYPE_NB] = {
+    0, 124, 129, 27, 73, 71
+  };
+
+  const Score CloseEnemiesHouse = S( 5,   10);
 #endif
 
 #ifdef RACE
@@ -330,15 +391,26 @@ namespace {
             ei.kingAdjacentZoneAttacksCount[Us] += popcount(b & ei.attackedBy[Them][KING]);
         }
 
+#ifdef ANTI
+        if (pos.is_anti()) {} else
+#endif
         if (Pt == QUEEN)
             b &= ~(  ei.attackedBy[Them][KNIGHT]
                    | ei.attackedBy[Them][BISHOP]
                    | ei.attackedBy[Them][ROOK]);
 
         int mob = popcount(b & mobilityArea[Us]);
+#ifdef ANTI
+        if (pos.is_anti())
+            mob = popcount(b);
+#endif
 
         mobility[Us] += MobilityBonus[Pt][mob];
 
+#ifdef ANTI
+        if (pos.is_anti())
+            continue;
+#endif
         if (Pt == BISHOP || Pt == KNIGHT)
         {
             // Bonus for outpost squares
@@ -474,6 +546,12 @@ namespace {
                     - 717 * !pos.count<QUEEN>(Them)
                     -   7 * mg_value(score) / 5 - 5;
 
+#ifdef CRAZYHOUSE
+        if (pos.is_house())
+            for (PieceType pt = PAWN; pt <= QUEEN; ++pt)
+                kingDanger += KingDangerInHand[pt] * pos.count_in_hand(Them, pt);
+#endif
+
         // Analyse the enemy's safe queen contact checks. Firstly, find the
         // undefended squares around the king reachable by the enemy queen...
         b = undefended & ei.attackedBy[Them][QUEEN] & ~pos.pieces(Them);
@@ -577,6 +655,11 @@ namespace {
         score -= CloseEnemiesAtomic * popcount(b);
     else
 #endif
+#ifdef CRAZYHOUSE
+    if (pos.is_house())
+        score -= CloseEnemiesHouse * popcount(b);
+    else
+#endif
     score -= CloseEnemies * popcount(b);
 
     // Penalty when our king is on a pawnless flank
@@ -614,28 +697,42 @@ namespace {
 #ifdef ANTI
     if (pos.is_anti())
     {
-        // Penalty if we attack only unprotected pieces and opponent does not attack any pieces
-        if ((ei.attackedBy[Us][ALL_PIECES] & pos.pieces(Them) & ~ei.attackedBy[Them][ALL_PIECES])
-            && !(ei.attackedBy[Us][ALL_PIECES] & pos.pieces(Them) & ei.attackedBy[Them][ALL_PIECES])
-            && !(ei.attackedBy[Them][ALL_PIECES] & pos.pieces(Us)))
-            score -= ForcedCaptureAnti;
-        // if both colors attack pieces, penalize more the color with more pieces
-        else if ((ei.attackedBy[Us][ALL_PIECES] & pos.pieces(Them)) && (ei.attackedBy[Them][ALL_PIECES] & pos.pieces(Us)))
-            score -= pos.count<ALL_PIECES>(Us) * PieceCountAnti;
+        bool we_attack = ei.attackedBy[Us][ALL_PIECES] & pos.pieces(Them);
+        bool they_attack = ei.attackedBy[Them][ALL_PIECES] & pos.pieces(Us);
 
+        // Penalties for possible captures
+        if (we_attack)
+        {
+            // Penalty if we attack only unprotected pieces and opponent does not attack any pieces
+            bool only_unprotected = (ei.attackedBy[Us][ALL_PIECES] & pos.pieces(Them) & ~ei.attackedBy[Them][ALL_PIECES])
+                && !(ei.attackedBy[Us][ALL_PIECES] & pos.pieces(Them) & ei.attackedBy[Them][ALL_PIECES]);
+            for (PieceType pt = PAWN; pt <= KING; ++pt)
+            {
+                if (ei.attackedBy[Us][pt] & pos.pieces(Them) & ~ei.attackedBy2[Us])
+                    score -= AttacksAnti[they_attack][only_unprotected][pt];
+                else if (ei.attackedBy[Us][pt] & pos.pieces(Them))
+                    score -= AttacksAnti[they_attack][only_unprotected][NO_PIECE_TYPE];
+            }
+            // if both colors attack pieces, penalize more the color with more pieces
+            if (they_attack)
+                score -= pos.count<ALL_PIECES>(Us) * PieceCountAnti;
+        }
         // Bonus if we threaten to force captures
-        Bitboard push1 = shift<Up>(pos.pieces(Us, PAWN)) & ~pos.pieces();
-        Bitboard push2 = shift<Up>(shift<Up>(TRank2BB & pos.pieces(Us, PAWN)) & ~pos.pieces()) & ~pos.pieces();
-        Bitboard pawn_pushes = push1 | push2;
-        Bitboard piece_moves =  (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP] | ei.attackedBy[Us][ROOK]
-                              | ei.attackedBy[Us][QUEEN] | ei.attackedBy[Us][KING]) & ~pos.pieces();
-        Bitboard movesbb = pawn_pushes | piece_moves;
-        Bitboard unprotected_pawn_pushes = pawn_pushes & ~ei.attackedBy[Us][ALL_PIECES];
-        Bitboard unprotected_piece_moves = piece_moves & ~ei.attackedBy2[Us];
-        Bitboard unprotected_moves = unprotected_pawn_pushes | unprotected_piece_moves;
+        if (!we_attack || they_attack)
+        {
+            Bitboard push1 = shift<Up>(pos.pieces(Us, PAWN)) & ~pos.pieces();
+            Bitboard push2 = shift<Up>(shift<Up>(TRank2BB & pos.pieces(Us, PAWN)) & ~pos.pieces()) & ~pos.pieces();
+            Bitboard pawn_pushes = push1 | push2;
+            Bitboard piece_moves =  (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP] | ei.attackedBy[Us][ROOK]
+                                | ei.attackedBy[Us][QUEEN] | ei.attackedBy[Us][KING]) & ~pos.pieces();
+            Bitboard movesbb = pawn_pushes | piece_moves;
+            Bitboard unprotected_pawn_pushes = pawn_pushes & ~ei.attackedBy[Us][ALL_PIECES];
+            Bitboard unprotected_piece_moves = piece_moves & ~ei.attackedBy2[Us];
+            Bitboard unprotected_moves = unprotected_pawn_pushes | unprotected_piece_moves;
 
-        score += popcount(ei.attackedBy[Them][ALL_PIECES] & movesbb) * ThreatsAnti[0];
-        score += popcount(ei.attackedBy[Them][ALL_PIECES] & unprotected_moves) * ThreatsAnti[1];
+            score += popcount(ei.attackedBy[Them][ALL_PIECES] & movesbb) * ThreatsAnti[0];
+            score += popcount(ei.attackedBy[Them][ALL_PIECES] & unprotected_moves) * ThreatsAnti[1];
+        }
     }
     else
     {
@@ -819,11 +916,7 @@ namespace {
         int r = relative_rank(Us, s) - RANK_2;
         int rr = r * (r - 1);
 
-        Value mbonus = Passed[MG][r], ebonus = Passed[EG][r];
-#ifdef ATOMIC
-        if (pos.is_atomic())
-            mbonus = PassedAtomic[MG][r], ebonus = PassedAtomic[EG][r];
-#endif
+        Value mbonus = Passed[pos.variant()][MG][r], ebonus = Passed[pos.variant()][EG][r];
 
         if (rr)
         {
@@ -841,23 +934,7 @@ namespace {
             else
 #endif
 #ifdef ANTI
-            if (pos.is_anti())
-            {
-                // Adjust bonus based on the kings' proximities
-                Square ksq;
-                const Square* kl = pos.squares<KING>(Them);
-                while ((ksq = *kl++) != SQ_NONE)
-                    ebonus += distance(ksq, blockSq) * 5 * rr;
-                kl = pos.squares<KING>(Us);
-                while ((ksq = *kl++) != SQ_NONE)
-                {
-                    ebonus -= distance(ksq, blockSq) * 2 * rr;
-                    // If blockSq is not the queening square then consider also a second push
-                    if (relative_rank(Us, blockSq) != RANK_8)
-                        ebonus -= distance(ksq, blockSq + pawnPush) * rr;
-                }
-            }
-            else
+            if (pos.is_anti()) {} else
 #endif
             {
             // Adjust bonus based on the king's proximity
@@ -1233,6 +1310,9 @@ Value Eval::evaluate(const Position& pos) {
               - evaluate_space<BLACK>(pos, ei);
 
   // Evaluate position potential for the winning side
+#ifdef ANTI
+  if (pos.is_anti()) {} else
+#endif
   score += evaluate_initiative(pos, ei.pi->pawn_asymmetry(), eg_value(score));
 #ifdef HORDE
   }

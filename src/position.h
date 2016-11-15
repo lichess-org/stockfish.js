@@ -88,6 +88,7 @@ public:
 
   // FEN string input/output
   Position& set(const std::string& fenStr, bool isChess960, Variant v, StateInfo* si, Thread* th);
+  Position& set(const std::string& code, Color c, StateInfo* si);
   const std::string fen() const;
 
   // Position representation
@@ -142,9 +143,10 @@ public:
   bool opposite_bishops() const;
 
   // Doing and undoing moves
-  void do_move(Move m, StateInfo& st, bool givesCheck);
+  void do_move(Move m, StateInfo& newSt);
+  void do_move(Move m, StateInfo& newSt, bool givesCheck);
   void undo_move(Move m);
-  void do_null_move(StateInfo& st);
+  void do_null_move(StateInfo& newSt);
   void undo_null_move();
 
   // Static Exchange Evaluation
@@ -174,7 +176,7 @@ public:
 #endif
 #ifdef CRAZYHOUSE
   bool is_house() const;
-  bool has_in_hand(Color c, PieceType pt) const;
+  int count_in_hand(Color c, PieceType pt) const;
   void add_to_hand(Color c, PieceType pt);
   void remove_from_hand(Color c, PieceType pt);
   bool is_promoted(Square s) const;
@@ -264,7 +266,7 @@ private:
 
 };
 
-extern std::ostream& operator<<(std::ostream& os, const Position& pos);
+extern std::ostream& operator<<(std::ostream& os, Position& pos);
 
 inline Color Position::side_to_move() const {
   return sideToMove;
@@ -544,7 +546,7 @@ inline bool Position::is_house() const {
   return var == CRAZYHOUSE_VARIANT;
 }
 
-inline bool Position::has_in_hand(Color c, PieceType pt) const {
+inline int Position::count_in_hand(Color c, PieceType pt) const {
   return pieceCountInHand[c][pt];
 }
 
@@ -715,5 +717,9 @@ inline void Position::undrop_piece(Piece pc, Square s) {
   assert(pieceCountInHand[color_of(pc)][type_of(pc)]);
 }
 #endif
+
+inline void Position::do_move(Move m, StateInfo& newSt) {
+  do_move(m, newSt, gives_check(m));
+}
 
 #endif // #ifndef POSITION_H_INCLUDED

@@ -32,6 +32,7 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+#include "syzygy/tbprobe.h"
 
 using std::string;
 
@@ -45,10 +46,11 @@ namespace PSQT {
 
 namespace Zobrist {
 
-  Key psq[VARIANT_NB][PIECE_NB][SQUARE_NB];
+  Key psq[PIECE_NB][SQUARE_NB];
   Key enpassant[FILE_NB];
   Key castling[CASTLING_RIGHT_NB];
   Key side;
+  Key variant[VARIANT_NB];
 #ifdef CRAZYHOUSE
   Key inHand[PIECE_NB][17];
 #endif
@@ -61,7 +63,7 @@ namespace {
 
 const string PieceToChar(" PNBRQK  pnbrqk");
 
-// min_attacker() is a helper function used by see() to locate the least
+// min_attacker() is a helper function used by see_ge() to locate the least
 // valuable attacker for the side to move, remove the attacker we just found
 // from the bitboards and scan for new X-ray attacks behind it.
 
@@ -125,7 +127,7 @@ PieceType min_attacker_anti<NO_PIECE_TYPE>(const Bitboard* bb, Square to, Bitboa
 
 /// operator<<(Position) returns an ASCII representation of the position
 
-std::ostream& operator<<(std::ostream& os, const Position& pos) {
+std::ostream& operator<<(std::ostream& os, Position& pos) {
 
   os << "\n +---+---+---+---+---+---+---+---+\n";
 
@@ -138,10 +140,21 @@ std::ostream& operator<<(std::ostream& os, const Position& pos) {
   }
 
   os << "\nFen: " << pos.fen() << "\nKey: " << std::hex << std::uppercase
-     << std::setfill('0') << std::setw(16) << pos.key() << std::dec << "\nCheckers: ";
+     << std::setfill('0') << std::setw(16) << pos.key()
+     << std::setfill(' ') << std::dec << "\nCheckers: ";
 
   for (Bitboard b = pos.checkers(); b; )
       os << UCI::square(pop_lsb(&b)) << " ";
+
+  if (    int(Tablebases::MaxCardinality) >= popcount(pos.pieces())
+      && !pos.can_castle(ANY_CASTLING))
+  {
+      Tablebases::ProbeState s1, s2;
+      Tablebases::WDLScore wdl = Tablebases::probe_wdl(pos, &s1);
+      int dtz = Tablebases::probe_dtz(pos, &s2);
+      os << "\nTablebases WDL: " << std::setw(4) << wdl << " (" << s1 << ")"
+         << "\nTablebases DTZ: " << std::setw(4) << dtz << " (" << s2 << ")";
+  }
 
   return os;
 }
@@ -156,7 +169,7 @@ void Position::init() {
 
   for (Piece pc : Pieces)
       for (Square s = SQ_A1; s <= SQ_H8; ++s)
-          Zobrist::psq[CHESS_VARIANT][pc][s] = rng.rand<Key>();
+          Zobrist::psq[pc][s] = rng.rand<Key>();
 
   for (File f = FILE_A; f <= FILE_H; ++f)
       Zobrist::enpassant[f] = rng.rand<Key>();
@@ -174,10 +187,9 @@ void Position::init() {
 
   Zobrist::side = rng.rand<Key>();
 
-  for (Variant var = Variant(CHESS_VARIANT + 1); var < VARIANT_NB; ++var)
-      for (Piece pc : Pieces)
-          for (Square s = SQ_A1; s <= SQ_H8; ++s)
-              Zobrist::psq[var][pc][s] = rng.rand<Key>();
+  for (Variant var = CHESS_VARIANT; var < VARIANT_NB; ++var)
+      Zobrist::variant[var] = var == CHESS_VARIANT ? 0 : rng.rand<Key>();
+
 #ifdef THREECHECK
   for (Color c = WHITE; c <= BLACK; ++c)
       for (CheckCount n : Checks)
@@ -219,8 +231,9 @@ Position& Position::set(const string& fenStr, bool isChess960, Variant v, StateI
 
    4) En passant target square (in algebraic notation). If there's no en passant
       target square, this is "-". If a pawn has just made a 2-square move, this
-      is the position "behind" the pawn. This is recorded regardless of whether
-      there is a pawn in position to make an en passant capture.
+      is the position "behind" the pawn. This is recorded only if there is a pawn
+      in position to make an en passant capture, and if there really is a pawn
+      that might have advanced two squares.
 
    5) Halfmove clock. This is the number of halfmoves since the last pawn advance
       or capture. This is used to determine if a draw can be claimed under the
@@ -339,7 +352,8 @@ Position& Position::set(const string& fenStr, bool isChess960, Variant v, StateI
   {
       st->epSquare = make_square(File(col - 'a'), Rank(row - '1'));
 
-      if (!(attackers_to(st->epSquare) & pieces(sideToMove, PAWN)))
+      if (   !(attackers_to(st->epSquare) & pieces(sideToMove, PAWN))
+          || !(pieces(~sideToMove, PAWN) & (st->epSquare + pawn_push(~sideToMove))))
           st->epSquare = SQ_NONE;
       else if (SquareBB[st->epSquare] & pieces())
           st->epSquare = SQ_NONE;
@@ -493,7 +507,8 @@ void Position::set_check_info(StateInfo* si) const {
 
 void Position::set_state(StateInfo* si) const {
 
-  si->key = si->pawnKey = si->materialKey = var;
+  si->key = si->pawnKey = si->materialKey = 0;
+  si->key ^= Zobrist::variant[var];
   si->nonPawnMaterial[WHITE] = si->nonPawnMaterial[BLACK] = VALUE_ZERO;
   si->psq = SCORE_ZERO;
   set_check_info(si);
@@ -529,7 +544,7 @@ void Position::set_state(StateInfo* si) const {
   {
       Square s = pop_lsb(&b);
       Piece pc = piece_on(s);
-      si->key ^= Zobrist::psq[var][pc][s];
+      si->key ^= Zobrist::psq[pc][s];
       si->psq += PSQT::psq[var][pc][s];
   }
 #ifdef CRAZYHOUSE
@@ -551,7 +566,7 @@ void Position::set_state(StateInfo* si) const {
   for (Bitboard b = pieces(PAWN); b; )
   {
       Square s = pop_lsb(&b);
-      si->pawnKey ^= Zobrist::psq[var][piece_on(s)][s];
+      si->pawnKey ^= Zobrist::psq[piece_on(s)][s];
   }
 
   for (Piece pc : Pieces)
@@ -560,7 +575,7 @@ void Position::set_state(StateInfo* si) const {
           si->nonPawnMaterial[color_of(pc)] += pieceCount[pc] * PieceValue[CHESS_VARIANT][MG][pc];
 
       for (int cnt = 0; cnt < pieceCount[pc]; ++cnt)
-          si->materialKey ^= Zobrist::psq[var][pc][cnt];
+          si->materialKey ^= Zobrist::psq[pc][cnt];
 
 #ifdef CRAZYHOUSE
       if (is_house())
@@ -573,6 +588,28 @@ void Position::set_state(StateInfo* si) const {
       for (Color c = WHITE; c <= BLACK; ++c)
           si->key ^= Zobrist::checks[c][si->checksGiven[c]];
 #endif
+}
+
+
+/// Position::set() is an overload to initialize the position object with
+/// the given endgame code string like "KBPKN". It is manily an helper to
+/// get the material key out of an endgame code. Position is not playable,
+/// indeed is even not guaranteed to be legal.
+
+Position& Position::set(const string& code, Color c, StateInfo* si) {
+
+  assert(code.length() > 0 && code.length() < 8);
+  assert(code[0] == 'K');
+
+  string sides[] = { code.substr(code.find('K', 1)),      // Weak
+                     code.substr(0, code.find('K', 1)) }; // Strong
+
+  std::transform(sides[c].begin(), sides[c].end(), sides[c].begin(), tolower);
+
+  string fenStr =  sides[0] + char(8 - sides[0].length() + '0') + "/8/8/8/8/8/8/"
+                 + sides[1] + char(8 - sides[1].length() + '0') + " w - - 0 10";
+
+  return set(fenStr, false, CHESS_VARIANT, si, nullptr);
 }
 
 
@@ -1152,7 +1189,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       do_castling<true>(us, from, to, rfrom, rto);
 
       st->psq += PSQT::psq[var][captured][rto] - PSQT::psq[var][captured][rfrom];
-      k ^= Zobrist::psq[var][captured][rfrom] ^ Zobrist::psq[var][captured][rto];
+      k ^= Zobrist::psq[captured][rfrom] ^ Zobrist::psq[captured][rto];
       captured = NO_PIECE;
   }
 
@@ -1177,7 +1214,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
               board[capsq] = NO_PIECE; // Not done by remove_piece()
           }
 
-          st->pawnKey ^= Zobrist::psq[var][captured][capsq];
+          st->pawnKey ^= Zobrist::psq[captured][capsq];
       }
       else
           st->nonPawnMaterial[them] -= PieceValue[CHESS_VARIANT][MG][captured];
@@ -1198,8 +1235,8 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
 #endif
 
       // Update material hash key and prefetch access to materialTable
-      k ^= Zobrist::psq[var][captured][capsq];
-      st->materialKey ^= Zobrist::psq[var][captured][pieceCount[captured]];
+      k ^= Zobrist::psq[captured][capsq];
+      st->materialKey ^= Zobrist::psq[captured][pieceCount[captured]];
 #ifdef ATOMIC
       if (is_atomic()) // Remove the blast piece(s)
       {
@@ -1218,8 +1255,8 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
                   remove_piece(bpc, bsq);
 
                   // Update material hash key
-                  k ^= Zobrist::psq[var][bpc][bsq];
-                  st->materialKey ^= Zobrist::psq[var][bpc][pieceCount[bpc]];
+                  k ^= Zobrist::psq[bpc][bsq];
+                  st->materialKey ^= Zobrist::psq[bpc][pieceCount[bpc]];
 
                   // Update incremental scores
                   st->psq -= PSQT::psq[var][bpc][bsq];
@@ -1247,17 +1284,17 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
 
 #ifdef ATOMIC
   if (is_atomic() && captured)
-      k ^= Zobrist::psq[var][pc][from];
+      k ^= Zobrist::psq[pc][from];
   else
 #endif
   // Update hash key
 #ifdef CRAZYHOUSE
   if (type_of(m) == DROP)
-      k ^= Zobrist::psq[var][pc][to] ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)]]
+      k ^= Zobrist::psq[pc][to] ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)]]
           ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)] + 1];
   else
 #endif
-  k ^= Zobrist::psq[var][pc][from] ^ Zobrist::psq[var][pc][to];
+  k ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
 
   // Reset en passant square
   if (st->epSquare != SQ_NONE)
@@ -1293,7 +1330,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       st->blast[from] = piece_on(from);
       remove_piece(pc, from);
       // Update material (hash key already updated)
-      st->materialKey ^= Zobrist::psq[var][pc][pieceCount[pc]];
+      st->materialKey ^= Zobrist::psq[pc][pieceCount[pc]];
       if (type_of(pc) != PAWN)
           st->nonPawnMaterial[us] -= PieceValue[CHESS_VARIANT][MG][type_of(pc)];
   }
@@ -1343,10 +1380,10 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
 #endif
 
           // Update hash keys
-          k ^= Zobrist::psq[var][pc][to] ^ Zobrist::psq[var][promotion][to];
-          st->pawnKey ^= Zobrist::psq[var][pc][to];
-          st->materialKey ^=  Zobrist::psq[var][promotion][pieceCount[promotion]-1]
-                            ^ Zobrist::psq[var][pc][pieceCount[pc]];
+          k ^= Zobrist::psq[pc][to] ^ Zobrist::psq[promotion][to];
+          st->pawnKey ^= Zobrist::psq[pc][to];
+          st->materialKey ^=  Zobrist::psq[promotion][pieceCount[promotion]-1]
+                            ^ Zobrist::psq[pc][pieceCount[pc]];
 
           // Update incremental score
           st->psq += PSQT::psq[var][promotion][to] - PSQT::psq[var][pc][to];
@@ -1358,15 +1395,15 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       // Update pawn hash key and prefetch access to pawnsTable
 #ifdef ATOMIC
       if (is_atomic() && captured)
-          st->pawnKey ^= Zobrist::psq[var][make_piece(us, PAWN)][from];
+          st->pawnKey ^= Zobrist::psq[make_piece(us, PAWN)][from];
       else
 #endif
 #ifdef CRAZYHOUSE
       if (type_of(m) == DROP)
-          st->pawnKey ^= Zobrist::psq[var][pc][to];
+          st->pawnKey ^= Zobrist::psq[pc][to];
       else
 #endif
-      st->pawnKey ^= Zobrist::psq[var][pc][from] ^ Zobrist::psq[var][pc][to];
+      st->pawnKey ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
       prefetch(thisThread->pawnsTable[st->pawnKey]);
 
       // Reset rule 50 draw counter
@@ -1628,7 +1665,7 @@ Key Position::key_after(Move m) const {
 
   if (captured)
   {
-      k ^= Zobrist::psq[var][captured][to];
+      k ^= Zobrist::psq[captured][to];
 #ifdef ATOMIC
       if (is_atomic())
       {
@@ -1637,9 +1674,9 @@ Key Position::key_after(Move m) const {
           {
               Square bsq = pop_lsb(&blast);
               Piece bpc = piece_on(bsq);
-              k ^= Zobrist::psq[var][bpc][bsq];
+              k ^= Zobrist::psq[bpc][bsq];
           }
-          return k ^ Zobrist::psq[var][pc][from];
+          return k ^ Zobrist::psq[pc][from];
       }
 #endif
 #ifdef CRAZYHOUSE
@@ -1654,10 +1691,10 @@ Key Position::key_after(Move m) const {
 
 #ifdef CRAZYHOUSE
   if (type_of(m) == DROP)
-      return k ^ Zobrist::psq[var][pc][to] ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)]]
+      return k ^ Zobrist::psq[pc][to] ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)]]
             ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)] - 1];
 #endif
-  return k ^ Zobrist::psq[var][pc][to] ^ Zobrist::psq[var][pc][from];
+  return k ^ Zobrist::psq[pc][to] ^ Zobrist::psq[pc][from];
 }
 
 

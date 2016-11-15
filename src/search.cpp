@@ -172,8 +172,8 @@ namespace {
           std::copy(newPv.begin(), newPv.begin() + 3, pv);
 
           StateInfo st[2];
-          pos.do_move(newPv[0], st[0], pos.gives_check(newPv[0]));
-          pos.do_move(newPv[1], st[1], pos.gives_check(newPv[1]));
+          pos.do_move(newPv[0], st[0]);
+          pos.do_move(newPv[1], st[1]);
           expectedPosKey = pos.key();
           pos.undo_move(newPv[1]);
           pos.undo_move(newPv[0]);
@@ -242,8 +242,6 @@ void Search::init() {
           for (int mc = 1; mc < 64; ++mc)
           {
               double r = log(d) * log(mc) / 2;
-              if (r < 0.80)
-                continue;
 
               Reductions[NonPV][imp][d][mc] = int(std::round(r));
               Reductions[PV][imp][d][mc] = std::max(Reductions[NonPV][imp][d][mc] - 1, 0);
@@ -273,6 +271,7 @@ void Search::clear() {
       th->counterMoves.clear();
       th->fromTo.clear();
       th->counterMoveHistory.clear();
+      th->resetCalls = true;
   }
 
   Threads.main()->previousScore = VALUE_INFINITE;
@@ -294,7 +293,7 @@ uint64_t Search::perft(Position& pos, Depth depth) {
           cnt = 1, nodes++;
       else
       {
-          pos.do_move(m, st, pos.gives_check(m));
+          pos.do_move(m, st);
           cnt = leaf ? MoveList<LEGAL>(pos).size() : perft<false>(pos, depth - ONE_PLY);
           nodes += cnt;
           pos.undo_move(m);
@@ -419,7 +418,7 @@ void MainThread::after_search() {
 // repeatedly with increasing depth until the allocated thinking time has been
 // consumed, the user stops the search, or the maximum search depth is reached.
 
-Stack stack_[MAX_PLY+7], *ss_ = stack_ + 5; // To allow referencing (ss-5) and (ss+2)
+Stack stack_[MAX_PLY+7], *ss_ = stack_ + 4; // To allow referencing (ss-4) and (ss+2)
 Value bestValue_, alpha_, beta_, delta_;
 Move easyMove_;
 MainThread* mainThread_;
@@ -438,7 +437,7 @@ void Thread::search() {
   easyMove_ = MOVE_NONE;
   mainThread_ = (this == Threads.main() ? Threads.main() : nullptr);
 
-  std::memset(ss_-5, 0, 8 * sizeof(Stack));
+  std::memset(ss_-4, 0, 7 * sizeof(Stack));
 
   bestValue_ = delta_ = alpha_ = -VALUE_INFINITE;
   beta_ = VALUE_INFINITE;
@@ -872,9 +871,10 @@ namespace {
             &&  pos.rule50_count() == 0
             && !pos.can_castle(ANY_CASTLING))
         {
-            int found, v = Tablebases::probe_wdl(pos, &found);
+            TB::ProbeState err;
+            TB::WDLScore v = Tablebases::probe_wdl(pos, &err);
 
-            if (found)
+            if (err != TB::ProbeState::FAIL)
             {
                 thisThread->tbHits++;
 
@@ -921,6 +921,10 @@ namespace {
         tte->save(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
                   ss->staticEval, TT.generation());
     }
+#ifdef ANTI
+    if (pos.is_anti() && pos.can_capture())
+        goto moves_loop;
+#endif
 
     if (ss->skipEarlyPruning)
         goto moves_loop;
@@ -949,9 +953,6 @@ namespace {
         return eval;
 
     // Step 8. Null move search with verification search (is omitted in PV nodes)
-#ifdef ANTI
-    if (pos.is_anti() && pos.can_capture()) {} else
-#endif
 #ifdef HORDE
     if (pos.is_horde()) {} else
 #endif
@@ -1019,7 +1020,7 @@ namespace {
             {
                 ss->currentMove = move;
                 ss->counterMoves = &thisThread->counterMoveHistory[pos.moved_piece(move)][to_sq(move)];
-                pos.do_move(move, st, pos.gives_check(move));
+                pos.do_move(move, st);
                 value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth, !cutNode);
                 pos.undo_move(move);
                 if (value >= rbeta)
@@ -1217,8 +1218,7 @@ moves_loop: // When in check search starts from here
 
               // Decrease reduction for moves that escape a capture. Filter out
               // castling moves, because they are coded as "king captures rook" and
-              // hence break make_move(). Also use see() instead of see_sign(),
-              // because the destination square is empty.
+              // hence break make_move().
               else if (   type_of(move) == NORMAL
                        && type_of(pos.piece_on(to_sq(move))) != PAWN
                        && !pos.see_ge(make_move(to_sq(move), from_sq(move)),  VALUE_ZERO))
@@ -1932,7 +1932,7 @@ bool RootMove::extract_ponder_from_tt(Position& pos) {
     if (!pv[0])
         return false;
 
-    pos.do_move(pv[0], st, pos.gives_check(pv[0]));
+    pos.do_move(pv[0], st);
     TTEntry* tte = TT.probe(pos.key(), ttHit);
 
     if (ttHit)

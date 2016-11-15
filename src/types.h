@@ -140,11 +140,11 @@ enum Variant {
 
 //static const constexpr char* variants[] doesn't play nicely with uci.h
 static std::vector<std::string> variants = {"chess"
-#ifdef ATOMIC
-,"atomic"
-#endif
 #ifdef ANTI
 ,"giveaway"
+#endif
+#ifdef ATOMIC
+,"atomic"
 #endif
 #ifdef CRAZYHOUSE
 ,"crazyhouse"
@@ -263,12 +263,12 @@ enum Value : int {
   RookValueMg   = 1285,  RookValueEg   = 1371,
   QueenValueMg  = 2513,  QueenValueEg  = 2650,
 #ifdef ANTI
-  PawnValueMgAnti   = -353,  PawnValueEgAnti   = -568,
-  KnightValueMgAnti = -420,  KnightValueEgAnti = -293,
-  BishopValueMgAnti = -680,  BishopValueEgAnti = -119,
-  RookValueMgAnti   = -949,  RookValueEgAnti   = -234,
-  QueenValueMgAnti  = -936,  QueenValueEgAnti  = -829,
-  KingValueMgAnti   = -230,  KingValueEgAnti   = -168,
+  PawnValueMgAnti   = -113,  PawnValueEgAnti   = -350,
+  KnightValueMgAnti = -127,  KnightValueEgAnti = -137,
+  BishopValueMgAnti = -256,  BishopValueEgAnti = -99,
+  RookValueMgAnti   = -461,  RookValueEgAnti   = -180,
+  QueenValueMgAnti  = -230,  QueenValueEgAnti  = -327,
+  KingValueMgAnti   = -51,   KingValueEgAnti   =  191,
 #endif
 #ifdef ATOMIC
   PawnValueMgAtomic   = 332,   PawnValueEgAtomic   = 438,
@@ -278,11 +278,11 @@ enum Value : int {
   QueenValueMgAtomic  = 1904,  QueenValueEgAtomic  = 2918,
 #endif
 #ifdef CRAZYHOUSE
-  PawnValueMgHouse   = 251,   PawnValueEgHouse   = 271,
-  KnightValueMgHouse = 515,   KnightValueEgHouse = 615,
-  BishopValueMgHouse = 598,   BishopValueEgHouse = 622,
-  RookValueMgHouse   = 695,   RookValueEgHouse   = 732,
-  QueenValueMgHouse  = 1014,  QueenValueEgHouse  = 1139,
+  PawnValueMgHouse   = 174,   PawnValueEgHouse   = 259,
+  KnightValueMgHouse = 445,   KnightValueEgHouse = 667,
+  BishopValueMgHouse = 513,   BishopValueEgHouse = 690,
+  RookValueMgHouse   = 699,   RookValueEgHouse   = 790,
+  QueenValueMgHouse  = 936,   QueenValueEgHouse  = 1222,
 #endif
 #ifdef HORDE
   PawnValueMgHorde   = 406,   PawnValueEgHorde   = 427,
