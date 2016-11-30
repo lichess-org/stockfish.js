@@ -32,19 +32,123 @@ namespace {
   #define S(mg, eg) make_score(mg, eg)
 
   // Isolated pawn penalty by opposed flag
-  const Score Isolated[2] = { S(45, 40), S(30, 27) };
+  const Score Isolated[VARIANT_NB][2] = {
+    { S(45, 40), S(30, 27) },
+#ifdef ANTI
+    { S(50, 80), S(54, 69) },
+#endif
+#ifdef ATOMIC
+    { S(25, 27), S(27, 18) },
+#endif
+#ifdef CRAZYHOUSE
+    { S(45, 40), S(30, 27) },
+#endif
+#ifdef HORDE
+    { S(60, 44), S(18, 38) },
+#endif
+#ifdef KOTH
+    { S(45, 40), S(30, 27) },
+#endif
+#ifdef RACE
+    {},
+#endif
+#ifdef RELAY
+    { S(45, 40), S(30, 27) },
+#endif
+#ifdef THREECHECK
+    { S(45, 40), S(30, 27) },
+#endif
+  };
 
   // Backward pawn penalty by opposed flag
-  const Score Backward[2] = { S(56, 33), S(41, 19) };
+  const Score Backward[VARIANT_NB][2] = {
+    { S(56, 33), S(41, 19) },
+#ifdef ANTI
+    { S(64, 25), S(26, 50) },
+#endif
+#ifdef ATOMIC
+    { S(41, 25), S(41, 13) },
+#endif
+#ifdef CRAZYHOUSE
+    { S(56, 33), S(41, 19) },
+#endif
+#ifdef HORDE
+    { S(48, 26), S(80, 15) },
+#endif
+#ifdef KOTH
+    { S(56, 33), S(41, 19) },
+#endif
+#ifdef RACE
+    {},
+#endif
+#ifdef RELAY
+    { S(56, 33), S(41, 19) },
+#endif
+#ifdef THREECHECK
+    { S(56, 33), S(41, 19) },
+#endif
+  };
 
   // Unsupported pawn penalty for pawns which are neither isolated or backward
-  const Score Unsupported = S(17, 8);
+  const Score Unsupported[VARIANT_NB] = {
+    S( 17,   8),
+#ifdef ANTI
+    S(-45, -48),
+#endif
+#ifdef ATOMIC
+    S( 45,   0),
+#endif
+#ifdef CRAZYHOUSE
+    S( 17,   8),
+#endif
+#ifdef HORDE
+    S( 47,  50),
+#endif
+#ifdef KOTH
+    S( 17,   8),
+#endif
+#ifdef RACE
+    S(  0,   0),
+#endif
+#ifdef RELAY
+    S( 17,   8),
+#endif
+#ifdef THREECHECK
+    S( 17,   8),
+#endif
+  };
 
   // Connected pawn bonus by opposed, phalanx, twice supported and rank
   Score Connected[2][2][2][RANK_NB];
 
   // Doubled pawn penalty
-  const Score Doubled = S(18,38);
+  const Score Doubled[VARIANT_NB] = {
+    S(18, 38),
+#ifdef ANTI
+    S( 4, 51),
+#endif
+#ifdef ATOMIC
+    S( 5, 42),
+#endif
+#ifdef CRAZYHOUSE
+    S(18, 38),
+#endif
+#ifdef HORDE
+    S(-26, 78),
+#endif
+#ifdef KOTH
+    S(18, 38),
+#endif
+#ifdef RACE
+    S( 0,  0),
+#endif
+#ifdef RELAY
+    S(18, 38),
+#endif
+#ifdef THREECHECK
+    S(18, 38),
+#endif
+  };
 
   // Lever bonus by rank
   const Score Lever[RANK_NB] = {
@@ -52,28 +156,28 @@ namespace {
     S(17, 16), S(33, 32), S(0, 0), S(0, 0)
   };
 
-  // Weakness of our pawn shelter in front of the king by [variant][distance from edge][rank]
+  // Weakness of our pawn shelter in front of the king by [distance from edge][rank]
   const Value ShelterWeakness[VARIANT_NB][4][RANK_NB] = {
   {
-    { V( 97), V(21), V(26), V(51), V(87), V( 89), V( 99) },
-    { V(120), V( 0), V(28), V(76), V(88), V(103), V(104) },
-    { V(101), V( 7), V(54), V(78), V(77), V( 92), V(101) },
-    { V( 80), V(11), V(44), V(68), V(87), V( 90), V(119) }
+    { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) },
+    { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
+    { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
+    { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) }
   },
 #ifdef ANTI
   {
-    { V( 97), V(21), V(26), V(51), V(87), V( 89), V( 99) },
-    { V(120), V( 0), V(28), V(76), V(88), V(103), V(104) },
-    { V(101), V( 7), V(54), V(78), V(77), V( 92), V(101) },
-    { V( 80), V(11), V(44), V(68), V(87), V( 90), V(119) }
+    { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) },
+    { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
+    { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
+    { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) }
   },
 #endif
 #ifdef ATOMIC
   {
-    { V( 97), V(21), V(26), V(51), V(87), V( 89), V( 99) },
-    { V(120), V( 0), V(28), V(76), V(88), V(103), V(104) },
-    { V(101), V( 7), V(54), V(78), V(77), V( 92), V(101) },
-    { V( 80), V(11), V(44), V(68), V(87), V( 90), V(119) }
+    { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) },
+    { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
+    { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
+    { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) }
   },
 #endif
 #ifdef CRAZYHOUSE
@@ -86,18 +190,18 @@ namespace {
 #endif
 #ifdef HORDE
   {
-    { V( 97), V(21), V(26), V(51), V(87), V( 89), V( 99) },
-    { V(120), V( 0), V(28), V(76), V(88), V(103), V(104) },
-    { V(101), V( 7), V(54), V(78), V(77), V( 92), V(101) },
-    { V( 80), V(11), V(44), V(68), V(87), V( 90), V(119) }
+    { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) },
+    { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
+    { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
+    { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) }
   },
 #endif
 #ifdef KOTH
   {
-    { V( 97), V(21), V(26), V(51), V(87), V( 89), V( 99) },
-    { V(120), V( 0), V(28), V(76), V(88), V(103), V(104) },
-    { V(101), V( 7), V(54), V(78), V(77), V( 92), V(101) },
-    { V( 80), V(11), V(44), V(68), V(87), V( 90), V(119) }
+    { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) },
+    { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
+    { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
+    { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) }
   },
 #endif
 #ifdef RACE
@@ -105,40 +209,41 @@ namespace {
 #endif
 #ifdef RELAY
   {
-    { V( 97), V(21), V(26), V(51), V(87), V( 89), V( 99) },
-    { V(120), V( 0), V(28), V(76), V(88), V(103), V(104) },
-    { V(101), V( 7), V(54), V(78), V(77), V( 92), V(101) },
-    { V( 80), V(11), V(44), V(68), V(87), V( 90), V(119) }
+    { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) },
+    { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
+    { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
+    { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) }
   },
 #endif
 #ifdef THREECHECK
   {
-    { V( 97), V(21), V(26), V(51), V(87), V( 89), V( 99) },
-    { V(120), V( 0), V(28), V(76), V(88), V(103), V(104) },
-    { V(101), V( 7), V(54), V(78), V(77), V( 92), V(101) },
-    { V( 80), V(11), V(44), V(68), V(87), V( 90), V(119) }
+    { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) },
+    { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
+    { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
+    { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) }
   },
 #endif
   };
 
   // Danger of enemy pawns moving toward our king by [type][distance from edge][rank]
   const Value StormDanger[][4][RANK_NB] = {
-    { { V( 0),  V(  67), V( 134), V(38), V(32) },
-      { V( 0),  V(  57), V( 139), V(37), V(22) },
-      { V( 0),  V(  43), V( 115), V(43), V(27) },
-      { V( 0),  V(  68), V( 124), V(57), V(32) } },
-    { { V(20),  V(  43), V( 100), V(56), V(20) },
-      { V(23),  V(  20), V(  98), V(40), V(15) },
-      { V(23),  V(  39), V( 103), V(36), V(18) },
-      { V(28),  V(  19), V( 108), V(42), V(26) } },
-    { { V( 0),  V(   0), V(  75), V(14), V( 2) },
-      { V( 0),  V(   0), V( 150), V(30), V( 4) },
-      { V( 0),  V(   0), V( 160), V(22), V( 5) },
-      { V( 0),  V(   0), V( 166), V(24), V(13) } },
-    { { V( 0),  V(-283), V(-281), V(57), V(31) },
-      { V( 0),  V(  58), V( 141), V(39), V(18) },
-      { V( 0),  V(  65), V( 142), V(48), V(32) },
-      { V( 0),  V(  60), V( 126), V(51), V(19) } }
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } }
+
   };
 
   // Max bonus for king safety. Corresponds to start position with all the pawns
@@ -217,19 +322,19 @@ namespace {
 
         // Score this pawn
         if (!neighbours)
-            score -= Isolated[opposed];
+            score -= Isolated[pos.variant()][opposed];
 
         else if (backward)
-            score -= Backward[opposed];
+            score -= Backward[pos.variant()][opposed];
 
         else if (!supported)
-            score -= Unsupported;
+            score -= Unsupported[pos.variant()];
 
         if (connected)
             score += Connected[opposed][!!phalanx][more_than_one(supported)][relative_rank(Us, s)];
 
         if (doubled)
-            score -= Doubled;
+            score -= Doubled[pos.variant()];
 
         if (lever)
             score += Lever[relative_rank(Us, s)];

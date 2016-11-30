@@ -301,6 +301,7 @@ namespace {
   const Score Unstoppable         = S( 0, 20);
   const Score PawnlessFlank       = S(20, 80);
   const Score HinderPassedPawn    = S( 7,  0);
+  const Score ThreatByRank        = S(16,  3);
 
   // Penalty for a bishop on a1/h1 (a8/h8 for black) which is trapped by
   // a friendly pawn on b2/g2 (b7/g7 for black). This can obviously only
@@ -466,7 +467,6 @@ namespace {
                 Square ksq = pos.square<KING>(Us);
 
                 if (   ((file_of(ksq) < FILE_E) == (file_of(s) < file_of(ksq)))
-                    && (rank_of(ksq) == rank_of(s) || relative_rank(Us, ksq) == RANK_1)
                     && !ei.pi->semiopen_side(Us, file_of(ksq), file_of(s) < file_of(ksq)))
                     score -= (TrappedRook - make_score(mob * 22, 0)) * (1 + !pos.can_castle(Us));
             }
@@ -507,6 +507,34 @@ namespace {
       CenterFiles & WhiteCamp, KingSide  & WhiteCamp, KingSide  & WhiteCamp, KingSide    & WhiteCamp },
     { QueenSide   & BlackCamp, QueenSide & BlackCamp, QueenSide & BlackCamp, CenterFiles & BlackCamp,
       CenterFiles & BlackCamp, KingSide  & BlackCamp, KingSide  & BlackCamp, KingSide    & BlackCamp },
+  };
+
+  const int maxDanger[VARIANT_NB] = {
+    2 * int(BishopValueMg),
+#ifdef ANTI
+    2 * int(BishopValueMg),
+#endif
+#ifdef ATOMIC
+    2 * int(BishopValueMg),
+#endif
+#ifdef CRAZYHOUSE
+    2 * int(BishopValueMg),
+#endif
+#ifdef HORDE
+    2 * int(BishopValueMg),
+#endif
+#ifdef KOTH
+    2 * int(BishopValueMg),
+#endif
+#ifdef RACE
+    2 * int(BishopValueMg),
+#endif
+#ifdef RELAY
+    2 * int(BishopValueMg),
+#endif
+#ifdef THREECHECK
+    4 * int(BishopValueMg),
+#endif
   };
 
   template<Color Us, bool DoTrace>
@@ -634,7 +662,7 @@ namespace {
                 }
             }
 #endif
-            score -= make_score(std::min(kingDanger * kingDanger / 4096,  2 * int(BishopValueMg)), 0);
+            score -= make_score(std::min(kingDanger * kingDanger / 4096, maxDanger[pos.variant()]), 0);
         }
     }
 
@@ -791,11 +819,21 @@ namespace {
     {
         b = (defended | weak) & (ei.attackedBy[Us][KNIGHT] | ei.attackedBy[Us][BISHOP]);
         while (b)
-            score += Threat[Minor][type_of(pos.piece_on(pop_lsb(&b)))];
+        {
+            Square s = pop_lsb(&b);
+            score += Threat[Minor][type_of(pos.piece_on(s))];
+            if (type_of(pos.piece_on(s)) != PAWN)
+                score += ThreatByRank * (int)relative_rank(Them, s);
+        }
 
         b = (pos.pieces(Them, QUEEN) | weak) & ei.attackedBy[Us][ROOK];
         while (b)
-            score += Threat[Rook ][type_of(pos.piece_on(pop_lsb(&b)))];
+        {
+            Square s = pop_lsb(&b);
+            score += Threat[Rook][type_of(pos.piece_on(s))];
+            if (type_of(pos.piece_on(s)) != PAWN)
+                score += ThreatByRank * (int)relative_rank(Them, s);
+        }
 
         score += Hanging * popcount(weak & ~ei.attackedBy[Them][ALL_PIECES]);
 
@@ -1263,6 +1301,11 @@ Value Eval::evaluate(const Position& pos) {
 
   // Evaluate all pieces but king and pawns
   score += evaluate_pieces<DoTrace>(pos, ei, mobility, mobilityArea);
+#ifdef ANTI
+  if (pos.is_anti())
+      score += 2 * (mobility[WHITE] - mobility[BLACK]);
+  else
+#endif
   score += mobility[WHITE] - mobility[BLACK];
 
 #ifdef ANTI
@@ -1334,12 +1377,13 @@ Value Eval::evaluate(const Position& pos) {
       Trace::add(IMBALANCE, ei.me->imbalance());
       Trace::add(PAWN, ei.pi->pawns_score());
       Trace::add(MOBILITY, mobility[WHITE], mobility[BLACK]);
-      Trace::add(SPACE, evaluate_space<WHITE>(pos, ei)
-                      , evaluate_space<BLACK>(pos, ei));
+      if (pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK) >= 12222)
+          Trace::add(SPACE, evaluate_space<WHITE>(pos, ei)
+                          , evaluate_space<BLACK>(pos, ei));
       Trace::add(TOTAL, score);
   }
 
-  return (pos.side_to_move() == WHITE ? v : -v) + Eval::Tempo; // Side to move point of view
+  return (pos.side_to_move() == WHITE ? v : -v) + Eval::Tempo[pos.variant()]; // Side to move point of view
 }
 
 // Explicit template instantiations

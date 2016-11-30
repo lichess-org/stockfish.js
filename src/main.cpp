@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
   Pawns::init();
   Threads.init();
 #ifndef __EMSCRIPTEN__
-  Tablebases::init(Options["SyzygyPath"]);
+  Tablebases::init(Options["SyzygyPath"], CHESS_VARIANT);
 #endif
   TT.resize(Options["Hash"]);
 

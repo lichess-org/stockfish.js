@@ -263,12 +263,12 @@ enum Value : int {
   RookValueMg   = 1285,  RookValueEg   = 1371,
   QueenValueMg  = 2513,  QueenValueEg  = 2650,
 #ifdef ANTI
-  PawnValueMgAnti   = -113,  PawnValueEgAnti   = -350,
-  KnightValueMgAnti = -127,  KnightValueEgAnti = -137,
-  BishopValueMgAnti = -256,  BishopValueEgAnti = -99,
-  RookValueMgAnti   = -461,  RookValueEgAnti   = -180,
-  QueenValueMgAnti  = -230,  QueenValueEgAnti  = -327,
-  KingValueMgAnti   = -51,   KingValueEgAnti   =  191,
+  PawnValueMgAnti   = -137,  PawnValueEgAnti   = -360,
+  KnightValueMgAnti = -130,  KnightValueEgAnti = -41,
+  BishopValueMgAnti = -322,  BishopValueEgAnti = -64,
+  RookValueMgAnti   = -496,  RookValueEgAnti   =  62,
+  QueenValueMgAnti  = -187,  QueenValueEgAnti  = -318,
+  KingValueMgAnti   = -20,   KingValueEgAnti   =  130,
 #endif
 #ifdef ATOMIC
   PawnValueMgAtomic   = 332,   PawnValueEgAtomic   = 438,
@@ -285,7 +285,7 @@ enum Value : int {
   QueenValueMgHouse  = 936,   QueenValueEgHouse  = 1222,
 #endif
 #ifdef HORDE
-  PawnValueMgHorde   = 406,   PawnValueEgHorde   = 427,
+  PawnValueMgHorde   = 370,   PawnValueEgHorde   = 427,
   KnightValueMgHorde = 708,   KnightValueEgHorde = 851,
   BishopValueMgHorde = 736,   BishopValueEgHorde = 859,
   RookValueMgHorde   = 1341,  RookValueEgHorde   = 1175,
@@ -326,7 +326,7 @@ const Piece Pieces[] = { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
                          B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING };
 extern Value PieceValue[VARIANT_NB][PHASE_NB][PIECE_NB];
 
-enum Depth {
+enum Depth : int {
 
   ONE_PLY = 1,
 

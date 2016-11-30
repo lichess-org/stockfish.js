@@ -49,7 +49,7 @@ namespace Zobrist {
   Key psq[PIECE_NB][SQUARE_NB];
   Key enpassant[FILE_NB];
   Key castling[CASTLING_RIGHT_NB];
-  Key side;
+  Key side, noPawns;
   Key variant[VARIANT_NB];
 #ifdef CRAZYHOUSE
   Key inHand[PIECE_NB][17];
@@ -127,7 +127,7 @@ PieceType min_attacker_anti<NO_PIECE_TYPE>(const Bitboard* bb, Square to, Bitboa
 
 /// operator<<(Position) returns an ASCII representation of the position
 
-std::ostream& operator<<(std::ostream& os, Position& pos) {
+std::ostream& operator<<(std::ostream& os, const Position& pos) {
 
   os << "\n +---+---+---+---+---+---+---+---+\n";
 
@@ -149,9 +149,12 @@ std::ostream& operator<<(std::ostream& os, Position& pos) {
   if (    int(Tablebases::MaxCardinality) >= popcount(pos.pieces())
       && !pos.can_castle(ANY_CASTLING))
   {
+      StateInfo st;
+      Position p;
+      p.set(pos.fen(), pos.is_chess960(), pos.variant(), &st, pos.this_thread());
       Tablebases::ProbeState s1, s2;
-      Tablebases::WDLScore wdl = Tablebases::probe_wdl(pos, &s1);
-      int dtz = Tablebases::probe_dtz(pos, &s2);
+      Tablebases::WDLScore wdl = Tablebases::probe_wdl(p, &s1);
+      int dtz = Tablebases::probe_dtz(p, &s2);
       os << "\nTablebases WDL: " << std::setw(4) << wdl << " (" << s1 << ")"
          << "\nTablebases DTZ: " << std::setw(4) << dtz << " (" << s2 << ")";
   }
@@ -186,6 +189,7 @@ void Position::init() {
   }
 
   Zobrist::side = rng.rand<Key>();
+  Zobrist::noPawns = rng.rand<Key>();
 
   for (Variant var = CHESS_VARIANT; var < VARIANT_NB; ++var)
       Zobrist::variant[var] = var == CHESS_VARIANT ? 0 : rng.rand<Key>();
@@ -507,8 +511,9 @@ void Position::set_check_info(StateInfo* si) const {
 
 void Position::set_state(StateInfo* si) const {
 
-  si->key = si->pawnKey = si->materialKey = 0;
+  si->key = si->materialKey = 0;
   si->key ^= Zobrist::variant[var];
+  si->pawnKey = Zobrist::noPawns;
   si->nonPawnMaterial[WHITE] = si->nonPawnMaterial[BLACK] = VALUE_ZERO;
   si->psq = SCORE_ZERO;
   set_check_info(si);
@@ -1290,8 +1295,12 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   // Update hash key
 #ifdef CRAZYHOUSE
   if (type_of(m) == DROP)
+  {
       k ^= Zobrist::psq[pc][to] ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)]]
           ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)] + 1];
+      if (type_of(pc) != PAWN)
+          st->nonPawnMaterial[us] += PieceValue[CHESS_VARIANT][MG][type_of(pc)];
+  }
   else
 #endif
   k ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
@@ -1867,14 +1876,24 @@ bool Position::is_draw() const {
   if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
       return true;
 
-  StateInfo* stp = st;
-  for (int i = 2, rep = 1, e = std::min(st->rule50, st->pliesFromNull); i <= e; i += 2)
-  {
+#ifdef CRAZYHOUSE
+  int e = is_house() ? st->pliesFromNull : std::min(st->rule50, st->pliesFromNull);
+#else
+  int e = std::min(st->rule50, st->pliesFromNull);
+#endif
+
+  if (e < 4)
+    return false;
+
+  StateInfo* stp = st->previous->previous;
+
+  do {
       stp = stp->previous->previous;
 
-      if (stp->key == st->key && (++rep >= 2 + (gamePly - i < thisThread->rootPos.game_ply())))
-          return true; // Draw at first repetition in search, and second repetition in game tree.
-  }
+      if (stp->key == st->key)
+          return true; // Draw at first repetition
+
+  } while ((e -= 2) >= 4);
 
   return false;
 }

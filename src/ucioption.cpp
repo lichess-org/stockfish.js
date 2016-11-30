@@ -43,7 +43,7 @@ void on_hash_size(const Option& o) { TT.resize(o); }
 void on_logger(const Option& o) { start_logger(o); }
 void on_threads(const Option&) { Threads.read_uci_options(); }
 #ifndef  __EMSCRIPTEN__
-void on_tb_path(const Option& o) { Tablebases::init(o); }
+void on_tb_path(const Option& o) { Tablebases::init(o, UCI::variant_from_name(Options["UCI_Variant"])); }
 #endif  // ifndef __EMSCRIPTEN__
 
 
