@@ -54,7 +54,7 @@ int Tablebases::MaxCardinality;
 
 namespace {
 
-const char* WdlSuffixes[VARIANT_NB] = {
+const char* WdlSuffixes[SUBVARIANT_NB] = {
     ".rtbw",
 #ifdef ANTI
     ".gtbw",
@@ -71,6 +71,9 @@ const char* WdlSuffixes[VARIANT_NB] = {
 #ifdef KOTH
     nullptr,
 #endif
+#ifdef LOSERS
+    nullptr,
+#endif
 #ifdef RACE
     nullptr,
 #endif
@@ -78,11 +81,17 @@ const char* WdlSuffixes[VARIANT_NB] = {
     nullptr,
 #endif
 #ifdef THREECHECK
-    nullptr
+    nullptr,
+#endif
+#ifdef SUICIDE
+    ".stbw",
+#endif
+#ifdef LOOP
+    nullptr,
 #endif
 };
 
-const char* PawnlessWdlSuffixes[VARIANT_NB] = {
+const char* PawnlessWdlSuffixes[SUBVARIANT_NB] = {
     nullptr,
 #ifdef ANTI
     ".stbw",
@@ -99,6 +108,9 @@ const char* PawnlessWdlSuffixes[VARIANT_NB] = {
 #ifdef KOTH
     nullptr,
 #endif
+#ifdef LOSERS
+    nullptr,
+#endif
 #ifdef RACE
     nullptr,
 #endif
@@ -106,11 +118,17 @@ const char* PawnlessWdlSuffixes[VARIANT_NB] = {
     nullptr,
 #endif
 #ifdef THREECHECK
-    nullptr
+    nullptr,
+#endif
+#ifdef SUICIDE
+    ".gtbw",
+#endif
+#ifdef LOOP
+    nullptr,
 #endif
 };
 
-const char* DtzSuffixes[VARIANT_NB] = {
+const char* DtzSuffixes[SUBVARIANT_NB] = {
     ".rtbz",
 #ifdef ANTI
     ".gtbz",
@@ -127,6 +145,9 @@ const char* DtzSuffixes[VARIANT_NB] = {
 #ifdef KOTH
     nullptr,
 #endif
+#ifdef LOSERS
+    nullptr,
+#endif
 #ifdef RACE
     nullptr,
 #endif
@@ -134,11 +155,17 @@ const char* DtzSuffixes[VARIANT_NB] = {
     nullptr,
 #endif
 #ifdef THREECHECK
-    nullptr
+    nullptr,
+#endif
+#ifdef SUICIDE
+    ".stbz",
+#endif
+#ifdef LOOP
+    nullptr,
 #endif
 };
 
-const char* PawnlessDtzSuffixes[VARIANT_NB] = {
+const char* PawnlessDtzSuffixes[SUBVARIANT_NB] = {
     nullptr,
 #ifdef ANTI
     ".stbz",
@@ -155,6 +182,9 @@ const char* PawnlessDtzSuffixes[VARIANT_NB] = {
 #ifdef KOTH
     nullptr,
 #endif
+#ifdef LOSERS
+    nullptr,
+#endif
 #ifdef RACE
     nullptr,
 #endif
@@ -162,7 +192,13 @@ const char* PawnlessDtzSuffixes[VARIANT_NB] = {
     nullptr,
 #endif
 #ifdef THREECHECK
-    nullptr
+    nullptr,
+#endif
+#ifdef SUICIDE
+    ".gtbz",
+#endif
+#ifdef LOOP
+    nullptr,
 #endif
 };
 
@@ -177,10 +213,10 @@ inline Square operator^(Square s, int i) { return Square(int(s) ^ i); }
 // like captures and pawn moves but we can easily recover the correct dtz of the
 // previous move if we know the position's WDL score.
 int dtz_before_zeroing(WDLScore wdl) {
-    return wdl == WDLWin        ?  1   :
-           wdl == WDLCursedWin  ?  101 :
-           wdl == WDLCursedLoss ? -101 :
-           wdl == WDLLoss       ? -1   : 0;
+    return wdl == WDLWin         ?  1   :
+           wdl == WDLCursedWin   ?  101 :
+           wdl == WDLBlessedLoss ? -101 :
+           wdl == WDLLoss        ? -1   : 0;
 }
 
 // Return the sign of a number (-1, 0, 1)
@@ -259,7 +295,7 @@ struct WDLEntryPawn {
 
 struct DTZEntryPiece {
     PairsData* precomp;
-    uint16_t map_idx[4]; // WDLWin, WDLLoss, WDLCursedWin, WDLCursedLoss
+    uint16_t map_idx[4]; // WDLWin, WDLLoss, WDLCursedWin, WDLBlessedLoss
     uint8_t* map;
 };
 
@@ -923,7 +959,7 @@ int map_score(DTZEntry* entry, File f, int value, WDLScore wdl) {
     if (   (wdl == WDLWin  && !(flags & TBFlag::WinPlies))
         || (wdl == WDLLoss && !(flags & TBFlag::LossPlies))
         ||  wdl == WDLCursedWin
-        ||  wdl == WDLCursedLoss)
+        ||  wdl == WDLBlessedLoss)
         value *= 2;
 
     return value + 1;
@@ -1122,7 +1158,7 @@ T do_probe_table(const Position& pos,  Entry* entry, WDLScore wdl, ProbeState* r
         connectedKings = connectedKings || entry->variant == ATOMIC_VARIANT;
 #endif
 #ifdef ANTI
-        connectedKings = connectedKings || entry->variant == ANTI_VARIANT;
+        connectedKings = connectedKings || main_variant(entry->variant) == ANTI_VARIANT;
 #endif
 
         if (connectedKings) {
@@ -1452,7 +1488,7 @@ void do_init(Entry& e, T& p, uint8_t* data) {
             data = set_sizes(item(p, i, f).precomp, data);
 
 #ifdef ANTI
-            if (!IsWDL && e.variant == ANTI_VARIANT && item(p, i, f).precomp->flags & TBFlag::SingleValue)
+            if (!IsWDL && main_variant(e.variant) == ANTI_VARIANT && item(p, i, f).precomp->flags & TBFlag::SingleValue)
                 item(p, i, f).precomp->minSymLen = 1;
 #endif
         }
@@ -1504,7 +1540,7 @@ void* init(Entry& e, const Position& pos) {
         b += std::string(popcount(pos.pieces(BLACK, pt)), PieceToChar[pt]);
     }
 
-    const uint8_t TB_MAGIC[VARIANT_NB][2][4] = {
+    const uint8_t TB_MAGIC[SUBVARIANT_NB][2][4] = {
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
             { 0x71, 0xE8, 0x23, 0x5D }
@@ -1539,6 +1575,12 @@ void* init(Entry& e, const Position& pos) {
             { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
+#ifdef LOSERS
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
 #ifdef RACE
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
@@ -1557,9 +1599,21 @@ void* init(Entry& e, const Position& pos) {
             { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
+#ifdef SUICIDE
+        {
+            { 0xE4, 0xCF, 0xE7, 0x23 },
+            { 0x7B, 0xF6, 0x93, 0x15 }
+        },
+#endif
+#ifdef LOOP
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
     };
 
-    const uint8_t PAWNLESS_TB_MAGIC[VARIANT_NB][2][4] = {
+    const uint8_t PAWNLESS_TB_MAGIC[SUBVARIANT_NB][2][4] = {
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
             { 0x71, 0xE8, 0x23, 0x5D }
@@ -1594,6 +1648,12 @@ void* init(Entry& e, const Position& pos) {
             { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
+#ifdef LOSERS
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
 #ifdef RACE
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
@@ -1607,6 +1667,18 @@ void* init(Entry& e, const Position& pos) {
         },
 #endif
 #ifdef THREECHECK
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
+#ifdef SUICIDE
+        {
+            { 0xD6, 0xF5, 0x1B, 0x50 },
+            { 0xBC, 0x55, 0xBC, 0x21 }
+        },
+#endif
+#ifdef LOOP
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
             { 0x71, 0xE8, 0x23, 0x5D }
@@ -1646,7 +1718,7 @@ void* init(Entry& e, const Position& pos) {
 
             Position pos2;
             StateInfo st;
-            Key key = pos2.set(w2 + "v" + b2, WHITE, pos.variant(), &st).material_key();
+            Key key = pos2.set(w2 + "v" + b2, WHITE, pos.subvariant(), &st).material_key();
 
             if (key != e.key)
                 std::swap(e.key, e.key2);
@@ -1660,25 +1732,29 @@ void* init(Entry& e, const Position& pos) {
     return e.baseAddress;
 }
 
+template<typename T>
+T result_to_score(Value value) {
+    if (value > 0)
+        return std::is_same<T, WDLScore>::value ? T(WDLWin) : T(1);
+    else if (value < 0)
+        return std::is_same<T, WDLScore>::value ? T(WDLLoss) : T(-1);
+    else
+        return T(WDLDraw);
+}
+
 template<typename E, typename T = typename Ret<E>::type>
 T probe_table(const Position& pos, ProbeState* result, WDLScore wdl = WDLDraw) {
 
-#ifdef ATOMIC
-    if (pos.is_atomic()) {
-        if (pos.is_atomic_loss())
-            return std::is_same<T, WDLScore>::value ? T(WDLLoss) : T(-1);
-        if (pos.is_atomic_win())
-            return std::is_same<T, WDLScore>::value ? T(WDLWin) : T(1);
-    }
-#endif
+    // Check for variant end
+    if (pos.is_variant_end())
+        return result_to_score<T>(pos.variant_result());
+
+    // Check for checkmate and stalemate in variants
+    if (pos.variant() != CHESS_VARIANT && MoveList<LEGAL>(pos).size() == 0)
+        return result_to_score<T>(pos.checkers() ? pos.checkmate_value() : pos.stalemate_value());
 
 #ifdef ANTI
-    if (pos.is_anti()) {
-        if (pos.is_anti_loss())
-            return std::is_same<T, WDLScore>::value ? T(WDLLoss) : T(-1);
-        if (pos.is_anti_win())
-            return std::is_same<T, WDLScore>::value ? T(WDLWin) : T(1);
-    } else
+    if (!pos.is_anti())
 #endif
     if (!(pos.pieces() ^ pos.pieces(KING)))
         return T(WDLDraw); // KvK
@@ -1975,7 +2051,7 @@ void Tablebases::init(const std::string& paths, Variant variant) {
         }
 
 #ifdef ANTI
-    if (variant == ANTI_VARIANT) {
+    if (main_variant(variant) == ANTI_VARIANT) {
         for (PieceType p1 = PAWN; p1 <= KING; ++p1) {
             for (PieceType p2 = PAWN; p2 <= p1; ++p2) {
                 EntryTable.insert({p1}, {p2}, variant);
@@ -2113,7 +2189,7 @@ int Tablebases::probe_dtz(Position& pos, ProbeState* result) {
         return 0;
 
     if (*result != CHANGE_STM)
-        return (dtz + 100 * (wdl == WDLCursedLoss || wdl == WDLCursedWin)) * sign_of(wdl);
+        return (dtz + 100 * (wdl == WDLBlessedLoss || wdl == WDLCursedWin)) * sign_of(wdl);
 
     // DTZ stores results for the other side, so we need to do a 1-ply search and
     // find the winning move that minimizes DTZ.
@@ -2190,6 +2266,9 @@ bool Tablebases::root_probe(Position& pos, Search::RootMoves& rootMoves, Value& 
 #ifdef KOTH
     if (pos.is_koth()) return false;
 #endif
+#ifdef LOSERS
+    if (pos.is_losers()) return false;
+#endif
 #ifdef RACE
     if (pos.is_race()) return false;
 #endif
@@ -2252,12 +2331,12 @@ bool Tablebases::root_probe(Position& pos, Search::RootMoves& rootMoves, Value& 
 
     // Use 50-move counter to determine whether the root position is
     // won, lost or drawn.
-    int wdl = 0;
+    WDLScore wdl = WDLDraw;
 
     if (dtz > 0)
-        wdl = (dtz + cnt50 <= 100) ? 2 : 1;
+        wdl = (dtz + cnt50 <= 100) ? WDLWin : WDLCursedWin;
     else if (dtz < 0)
-        wdl = (-dtz + cnt50 <= 100) ? -2 : -1;
+        wdl = (-dtz + cnt50 <= 100) ? WDLLoss : WDLBlessedLoss;
 
     // Determine the score to report to the user.
     score = WDL_to_value[wdl + 2];
@@ -2265,9 +2344,9 @@ bool Tablebases::root_probe(Position& pos, Search::RootMoves& rootMoves, Value& 
     // If the position is winning or losing, but too few moves left, adjust the
     // score to show how close it is to winning or losing.
     // NOTE: int(PawnValueEg) is used as scaling factor in score_to_uci().
-    if (wdl == 1 && dtz <= 100)
+    if (wdl == WDLCursedWin && dtz <= 100)
         score = (Value)(((200 - dtz - cnt50) * int(PawnValueEg)) / 200);
-    else if (wdl == -1 && dtz >= -100)
+    else if (wdl == WDLBlessedLoss && dtz >= -100)
         score = -(Value)(((200 + dtz - cnt50) * int(PawnValueEg)) / 200);
 
     // Now be a bit smart about filtering out moves.
@@ -2336,6 +2415,9 @@ bool Tablebases::root_probe_wdl(Position& pos, Search::RootMoves& rootMoves, Val
 {
 #ifdef KOTH
     if (pos.is_koth()) return false;
+#endif
+#ifdef LOSERS
+    if (pos.is_losers()) return false;
 #endif
 #ifdef RACE
     if (pos.is_race()) return false;

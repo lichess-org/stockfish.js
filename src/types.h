@@ -110,6 +110,7 @@ const int MAX_MOVES = 256;
 const int MAX_PLY   = 128;
 
 enum Variant {
+  //main variants
   CHESS_VARIANT,
 #ifdef ANTI
   ANTI_VARIANT,
@@ -126,6 +127,9 @@ enum Variant {
 #ifdef KOTH
   KOTH_VARIANT,
 #endif
+#ifdef LOSERS
+  LOSERS_VARIANT,
+#endif
 #ifdef RACE
   RACE_VARIANT,
 #endif
@@ -135,34 +139,55 @@ enum Variant {
 #ifdef THREECHECK
   THREECHECK_VARIANT,
 #endif
-  VARIANT_NB
+  VARIANT_NB,
+  LAST_VARIANT = VARIANT_NB - 1,
+  //subvariants
+#ifdef SUICIDE
+  SUICIDE_VARIANT,
+#endif
+#ifdef LOOP
+  LOOP_VARIANT,
+#endif
+  SUBVARIANT_NB,
 };
 
 //static const constexpr char* variants[] doesn't play nicely with uci.h
-static std::vector<std::string> variants = {"chess"
+static std::vector<std::string> variants = {
+//main variants
+"chess",
 #ifdef ANTI
-,"giveaway"
+"giveaway",
 #endif
 #ifdef ATOMIC
-,"atomic"
+"atomic",
 #endif
 #ifdef CRAZYHOUSE
-,"crazyhouse"
+"crazyhouse",
 #endif
 #ifdef HORDE
-,"horde"
+"horde",
 #endif
 #ifdef KOTH
-,"kingofthehill"
+"kingofthehill",
+#endif
+#ifdef LOSERS
+"losers",
 #endif
 #ifdef RACE
-,"racingkings"
+"racingkings",
 #endif
 #ifdef RELAY
-,"relay"
+"relay",
 #endif
 #ifdef THREECHECK
-,"threecheck"
+"threecheck",
+#endif
+//subvariants
+#ifdef SUICIDE
+"suicide",
+#endif
+#ifdef LOOP
+"loop",
 #endif
 };
 
@@ -264,21 +289,21 @@ enum Value : int {
   RookValueMg   = 1285,  RookValueEg   = 1371,
   QueenValueMg  = 2513,  QueenValueEg  = 2650,
 #ifdef ANTI
-  TempoMgAnti       = 0,     TempoEgAnti       = 0,
-  PawnValueMgAnti   = -137,  PawnValueEgAnti   = -360,
-  KnightValueMgAnti = -130,  KnightValueEgAnti = -41,
-  BishopValueMgAnti = -322,  BishopValueEgAnti = -64,
-  RookValueMgAnti   = -496,  RookValueEgAnti   =  62,
-  QueenValueMgAnti  = -187,  QueenValueEgAnti  = -318,
-  KingValueMgAnti   = -20,   KingValueEgAnti   =  130,
+  TempoMgAnti       =  0,    TempoEgAnti       =  0,
+  PawnValueMgAnti   =  137,  PawnValueEgAnti   =  360,
+  KnightValueMgAnti =  130,  KnightValueEgAnti =  41,
+  BishopValueMgAnti =  322,  BishopValueEgAnti =  64,
+  RookValueMgAnti   =  496,  RookValueEgAnti   = -62,
+  QueenValueMgAnti  =  187,  QueenValueEgAnti  =  318,
+  KingValueMgAnti   =  20,   KingValueEgAnti   = -130,
 #endif
 #ifdef ATOMIC
   TempoMgAtomic       = 0,     TempoEgAtomic       = 0,
-  PawnValueMgAtomic   = 332,   PawnValueEgAtomic   = 438,
-  KnightValueMgAtomic = 478,   KnightValueEgAtomic = 736,
-  BishopValueMgAtomic = 614,   BishopValueEgAtomic = 823,
-  RookValueMgAtomic   = 957,   RookValueEgAtomic   = 1278,
-  QueenValueMgAtomic  = 1904,  QueenValueEgAtomic  = 2918,
+  PawnValueMgAtomic   = 329,   PawnValueEgAtomic   = 437,
+  KnightValueMgAtomic = 476,   KnightValueEgAtomic = 732,
+  BishopValueMgAtomic = 622,   BishopValueEgAtomic = 774,
+  RookValueMgAtomic   = 921,   RookValueEgAtomic   = 1155,
+  QueenValueMgAtomic  = 1812,  QueenValueEgAtomic  = 2636,
 #endif
 #ifdef CRAZYHOUSE
   TempoMgHouse       = 0,     TempoEgHouse       = 0,
@@ -305,12 +330,20 @@ enum Value : int {
   RookValueMgHill   = 1159,  RookValueEgHill   = 1289,
   QueenValueMgHill  = 2396,  QueenValueEgHill  = 2610,
 #endif
+#ifdef LOSERS
+  TempoMgLosers       = 0,     TempoEgLosers       = 0,
+  PawnValueMgLosers   = -137,  PawnValueEgLosers   = -360,
+  KnightValueMgLosers = -130,  KnightValueEgLosers = -41,
+  BishopValueMgLosers = -322,  BishopValueEgLosers = -64,
+  RookValueMgLosers   = -496,  RookValueEgLosers   =  62,
+  QueenValueMgLosers  = -187,  QueenValueEgLosers  = -318,
+#endif
 #ifdef RACE
   TempoMgRace       = 0,     TempoEgRace       = 0,
-  KnightValueMgRace = 720,   KnightValueEgRace = 801,
-  BishopValueMgRace = 904,   BishopValueEgRace = 929,
-  RookValueMgRace   = 1265,  RookValueEgRace  = 1731,
-  QueenValueMgRace  = 2198,  QueenValueEgRace = 2226,
+  KnightValueMgRace = 730,   KnightValueEgRace = 839,
+  BishopValueMgRace = 1006,  BishopValueEgRace = 1019,
+  RookValueMgRace   = 1274,  RookValueEgRace   = 1842,
+  QueenValueMgRace  = 2019,  QueenValueEgRace  = 2090,
 #endif
 #ifdef THREECHECK
   TempoMgThreeCheck       = 0,     TempoEgThreeCheck       = 0,
@@ -593,6 +626,25 @@ inline Piece dropped_piece(Move m) {
 
 inline bool is_ok(Move m) {
   return from_sq(m) != to_sq(m); // Catch MOVE_NULL and MOVE_NONE
+}
+
+inline Variant main_variant(Variant v) {
+  if (v < VARIANT_NB)
+      return v;
+  switch(v)
+  {
+#ifdef SUICIDE
+  case SUICIDE_VARIANT:
+      return ANTI_VARIANT;
+#endif
+#ifdef LOOP
+  case LOOP_VARIANT:
+      return CRAZYHOUSE_VARIANT;
+#endif
+  default:
+      assert(false);
+      return CHESS_VARIANT; // Silence a warning
+  }
 }
 
 #endif // #ifndef TYPES_H_INCLUDED

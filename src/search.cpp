@@ -79,13 +79,16 @@ namespace {
   { 1867, 2341, 2501, 2218 },
 #endif
 #ifdef CRAZYHOUSE
-  { 482, 607, 656, 603 },
+  { 475, 590, 651, 622 },
 #endif
 #ifdef HORDE
   { 483, 570, 603, 554 },
 #endif
 #ifdef KOTH
   { 483, 570, 603, 554 },
+#endif
+#ifdef LOSERS
+  { 1932, 2280, 2412, 2216 },
 #endif
 #ifdef RACE
   { 1017, 986, 1017, 990 },
@@ -113,6 +116,9 @@ namespace {
 #endif
 #ifdef KOTH
   150,
+#endif
+#ifdef LOSERS
+  600,
 #endif
 #ifdef RACE
   365,
@@ -319,7 +325,7 @@ Color us_;
 void MainThread::search() {
 
   us_ = rootPos.side_to_move();
-  Time.init(Limits, us_, rootPly = rootPos.game_ply());
+  Time.init(Limits, us_, rootPos.game_ply());
 
   int contempt = Options["Contempt"] * PawnValueEg / 100; // From centipawns
   DrawValue[ us_] = VALUE_DRAW - Value(contempt);
@@ -328,28 +334,10 @@ void MainThread::search() {
   if (rootMoves.empty())
   {
       rootMoves.push_back(RootMove(MOVE_NONE));
-      Value score = rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW;
-#ifdef KOTH
-      if (rootPos.is_koth() && rootPos.is_koth_loss())
-          score = -VALUE_MATE;
-#endif
-#ifdef RACE
-      if (rootPos.is_race())
-          score =  rootPos.is_race_draw() ? VALUE_DRAW
-                 : rootPos.is_race_loss() ? -VALUE_MATE : VALUE_MATE;
-#endif
-#ifdef HORDE
-      if (rootPos.is_horde() && rootPos.is_horde_loss())
-          score = -VALUE_MATE;
-#endif
-#ifdef ATOMIC
-      if (rootPos.is_atomic() && rootPos.is_atomic_loss())
-          score = -VALUE_MATE;
-#endif
-#ifdef ANTI
-      if (rootPos.is_anti())
-          score = rootPos.is_anti_loss() ? -VALUE_MATE : VALUE_MATE;
-#endif
+      Value score = rootPos.is_variant_end() ? rootPos.variant_result()
+                   : rootPos.checkers() ? rootPos.checkmate_value()
+                   : rootPos.stalemate_value();
+
       sync_cout << "info depth 0 score " << UCI::value(score) << sync_endl;
   }
   else
@@ -390,6 +378,13 @@ void MainThread::after_search() {
 
   // Check if there are threads with a better score than main thread
   Thread* bestThread = this;
+#ifdef USELONGESTPV
+  size_t longestPlies = 0;
+  Thread* longestPVThread = this;
+  const size_t minPlies = 6;
+  const int maxScoreDiff = 20;
+  const int maxDepthDiff = 2;
+#endif
   if (   !this->easyMovePlayed
       &&  Options["MultiPV"] == 1
       && !Limits.depth
@@ -397,9 +392,57 @@ void MainThread::after_search() {
       &&  rootMoves[0].pv[0] != MOVE_NONE)
   {
       for (Thread* th : Threads)
-          if (   th->completedDepth > bestThread->completedDepth
-              && th->rootMoves[0].score > bestThread->rootMoves[0].score)
+      {
+          Depth depthDiff = th->completedDepth - bestThread->completedDepth;
+          Value scoreDiff = th->rootMoves[0].score - bestThread->rootMoves[0].score;
+
+          if (   (depthDiff > 0 && scoreDiff >= 0)
+              || (scoreDiff > 0 && depthDiff >= 0))
               bestThread = th;
+#ifdef USELONGESTPV
+          longestPlies = std::max(bestThread->rootMoves[0].pv.size(), longestPlies);
+#endif
+      }
+
+#ifdef USELONGESTPV
+      longestPVThread = bestThread;
+      if (bestThread->rootMoves[0].pv.size() < std::min(minPlies, longestPlies))
+      {
+          // Select the best thread that meets the minimum move criteria
+          // and is within the appropriate range of score eval
+          for (Thread* th : Threads)
+          {
+              if (th->rootMoves[0].pv.size() <= bestThread->rootMoves[0].pv.size())
+                  continue;
+              auto begin = bestThread->rootMoves[0].pv.begin(),
+                     end = bestThread->rootMoves[0].pv.end();
+              if (std::mismatch(begin, end, th->rootMoves[0].pv.begin()).first != end)
+                  continue;
+
+              if (longestPVThread->rootMoves[0].pv.size() < std::min(minPlies, longestPlies))
+              {
+                  // If our current longest is short, allow a weakening of score
+                  // and depth to an absolute max of maxScoreDiff / maxDepthDiff
+                  // compared to the bestThread
+                  if (   th->rootMoves[0].pv.size() >= longestPVThread->rootMoves[0].pv.size()
+                      && abs(bestThread->rootMoves[0].score - th->rootMoves[0].score) < maxScoreDiff
+                      && (bestThread->completedDepth - th->completedDepth < maxDepthDiff))
+                      longestPVThread = th;
+              }
+              else
+              {
+                  // Since longestPVThread is already long, only select among
+                  // threads with long PVs with strong eval/depth
+                  if (   th->rootMoves[0].pv.size() >= std::min(minPlies, longestPlies)
+                      && abs(bestThread->rootMoves[0].score - th->rootMoves[0].score) < maxScoreDiff
+                      && (   th->rootMoves[0].score >= longestPVThread->rootMoves[0].score
+                          || th->completedDepth >= longestPVThread->completedDepth)
+                     )
+                     longestPVThread = th;
+              }
+          }
+      }
+#endif
   }
 
   previousScore = bestThread->rootMoves[0].score;
@@ -407,6 +450,12 @@ void MainThread::after_search() {
   // Send new PV when needed
   if (bestThread != this)
       sync_cout << UCI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+
+#ifdef USELONGESTPV
+  // Send longer PV when needed
+  if (longestPVThread != bestThread)
+      sync_cout << UCI::pv(longestPVThread->rootPos, longestPVThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+#endif
 
   // Best move could be MOVE_NONE when searching on a terminal position
   sync_cout << "bestmove " << UCI::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
@@ -729,61 +778,11 @@ namespace {
 
     if (!rootNode)
     {
-#ifdef KOTH
-        // Check for an instant win/loss (King of the Hill)
-        if (pos.is_koth())
-        {
-            if (pos.is_koth_win())
-                return mate_in(ss->ply + 1);
-            if (pos.is_koth_loss())
-                return mated_in(ss->ply);
-        }
-#endif
-#ifdef RACE
-        // Check for an instant win/loss (Racing Kings)
-        if (pos.is_race())
-        {
-            if (pos.is_race_draw())
-                return DrawValue[pos.side_to_move()];
-            if (pos.is_race_win())
-                return mate_in(ss->ply + 1);
-            if (pos.is_race_loss())
-                return mated_in(ss->ply);
-        }
-#endif
-#ifdef THREECHECK
-        // Check for an instant win/loss (Three-Check)
-        if (pos.is_three_check())
-        {
-            if (pos.is_three_check_win())
-                return mate_in(ss->ply + 1);
-            if (pos.is_three_check_loss())
-                return mated_in(ss->ply);
-        }
-#endif
-#ifdef HORDE
-        // Check for an instant loss (Horde)
-        if (pos.is_horde() && pos.is_horde_loss())
-            return mated_in(ss->ply);
-#endif
-#ifdef ANTI
-        // Check for an instant loss (Anti)
-        if (pos.is_anti())
-        {
-            if (pos.is_anti_win())
-                return mate_in(ss->ply + 1);
-            if (pos.is_anti_loss())
-                return mated_in(ss->ply);
-        }
-#endif
-#ifdef ATOMIC
-        // Check for an instant loss (Atomic)
-        if (pos.is_atomic() && pos.is_atomic_loss())
-            return mated_in(ss->ply);
-#endif
+        if (pos.is_variant_end())
+            return pos.variant_result(ss->ply, DrawValue[pos.side_to_move()]);
 
         // Step 2. Check for aborted search and immediate draw
-        if (Signals.stop.load(std::memory_order_relaxed) || pos.is_draw() || ss->ply >= MAX_PLY)
+        if (Signals.stop.load(std::memory_order_relaxed) || pos.is_draw(ss->ply) || ss->ply >= MAX_PLY)
             return ss->ply >= MAX_PLY && !inCheck ? evaluate(pos)
                                                   : DrawValue[pos.side_to_move()];
 
@@ -841,6 +840,9 @@ namespace {
     // Step 4a. Tablebase probe
 #ifdef KOTH
     if (pos.is_koth()) {} else
+#endif
+#ifdef LOSERS
+    if (pos.is_losers()) {} else
 #endif
 #ifdef RACE
     if (pos.is_race()) {} else
@@ -917,6 +919,10 @@ namespace {
     if (pos.is_anti() && pos.can_capture())
         goto moves_loop;
 #endif
+#ifdef LOSERS
+    if (pos.is_losers() && pos.can_capture_losers())
+        goto moves_loop;
+#endif
 
     if (skipEarlyPruning)
         goto moves_loop;
@@ -928,7 +934,7 @@ namespace {
         &&  eval + razor_margin[pos.variant()][depth / ONE_PLY] <= alpha)
     {
         if (depth <= ONE_PLY)
-            return qsearch<NonPV, false>(pos, ss, alpha, beta);
+            return qsearch<NonPV, false>(pos, ss, alpha, alpha+1);
 
         Value ralpha = alpha - razor_margin[pos.variant()][depth / ONE_PLY];
         Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha+1);
@@ -941,7 +947,11 @@ namespace {
         &&  depth < 7 * ONE_PLY
         &&  eval - futility_margin(pos.variant(), depth) >= beta
         &&  eval < VALUE_KNOWN_WIN  // Do not return unproven wins
+#ifdef HORDE
+        &&  (pos.non_pawn_material(pos.side_to_move()) || pos.is_horde()))
+#else
         &&  pos.non_pawn_material(pos.side_to_move()))
+#endif
         return eval;
 
     // Step 8. Null move search with verification search (is omitted in PV nodes)
@@ -951,7 +961,14 @@ namespace {
     if (   !PvNode
         &&  eval >= beta
         && (ss->staticEval >= beta - 35 * (depth / ONE_PLY - 6) || depth >= 13 * ONE_PLY)
+#ifdef CRAZYHOUSE
+        // Do not bother with null-move search if opponent can drop pieces
+        && (pos.is_house() ? (eval < 2 * VALUE_KNOWN_WIN
+            && !(depth > 4 * ONE_PLY && pos.count_in_hand(~pos.side_to_move(), ALL_PIECES))) :
+            pos.non_pawn_material(pos.side_to_move())))
+#else
         &&  pos.non_pawn_material(pos.side_to_move()))
+#endif
     {
         ss->currentMove = MOVE_NULL;
         ss->counterMoves = nullptr;
@@ -1302,13 +1319,6 @@ moves_loop: // When in check search starts from here
 
           if (value > alpha)
           {
-              // If there is an easy move for this position, clear it if unstable
-              if (    PvNode
-                  &&  thisThread == Threads.main()
-                  &&  EasyMove.get(pos.key())
-                  && (move != EasyMove.get(pos.key()) || moveCount > 1))
-                  EasyMove.clear();
-
               bestMove = move;
 
               if (PvNode && !rootNode) // Update pv even in fail-high case
@@ -1345,25 +1355,10 @@ moves_loop: // When in check search starts from here
 
     if (!moveCount)
     {
-#ifdef RACE
-        if (pos.is_race() && (pos.is_race_draw() || pos.is_race_loss() || pos.is_race_win()))
-            bestValue = excludedMove ? alpha
-                : pos.is_race_draw() ? DrawValue[pos.side_to_move()]
-                : pos.is_race_loss() ? mated_in(ss->ply) : mate_in(ss->ply+1);
-        else
-#endif
-#ifdef HORDE
-        if (pos.is_horde() && pos.is_horde_loss())
-            bestValue = excludedMove ? alpha : mated_in(ss->ply);
-        else
-#endif
-#ifdef ANTI
-        if (pos.is_anti())
-            bestValue = excludedMove ? alpha : mate_in(ss->ply+1);
-        else
-#endif
         bestValue = excludedMove ? alpha
-                   :     inCheck ? mated_in(ss->ply) : DrawValue[pos.side_to_move()];
+                    : pos.is_variant_end() ? pos.variant_result(ss->ply, DrawValue[pos.side_to_move()])
+                    : inCheck ? pos.checkmate_value(ss->ply)
+                    : pos.stalemate_value(ss->ply, DrawValue[pos.side_to_move()]);
     }
     else if (bestMove)
     {
@@ -1430,69 +1425,11 @@ moves_loop: // When in check search starts from here
     ss->currentMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
 
-#ifdef KOTH
-    // Check for an instant win or loss (King of the Hill)
-    if (pos.is_koth())
-    {
-        if (pos.is_koth_win())
-            return mate_in(ss->ply+1);
-        if (pos.is_koth_loss())
-            return mated_in(ss->ply);
-    }
-#endif
-#ifdef RACE
-    // Check for an instant win/loss (Racing Kings)
-    if (pos.is_race())
-    {
-        if (pos.is_race_draw())
-            return DrawValue[pos.side_to_move()];
-        if (pos.is_race_win())
-            return mate_in(ss->ply+1);
-        if (pos.is_race_loss())
-            return mated_in(ss->ply);
-    }
-#endif
-#ifdef THREECHECK
-    // Check for an instant win (Three-Check)
-    if (pos.is_three_check())
-    {
-        if (pos.is_three_check_win())
-            return mate_in(ss->ply + 1);
-        if (pos.is_three_check_loss())
-            return mated_in(ss->ply);
-    }
-#endif
-#ifdef HORDE
-    // Check for an instant win (Horde)
-    if (pos.is_horde())
-    {
-        if (pos.is_horde_loss())
-            return mated_in(ss->ply);
-    }
-#endif
-#ifdef ATOMIC
-    // Check for an instant win (Atomic)
-    if (pos.is_atomic())
-    {
-        if (pos.is_atomic_win())
-            return mate_in(ss->ply + 1);
-        if (pos.is_atomic_loss())
-            return mated_in(ss->ply);
-    }
-#endif
-#ifdef ANTI
-    // Check for an instant win (Anti)
-    if (pos.is_anti())
-    {
-        if (pos.is_anti_win())
-            return mate_in(ss->ply + 1);
-        if (pos.is_anti_loss())
-            return mated_in(ss->ply);
-    }
-#endif
+    if (pos.is_variant_end())
+        return pos.variant_result(ss->ply, DrawValue[pos.side_to_move()]);
 
     // Check for an instant draw or if the maximum ply has been reached
-    if (pos.is_draw() || ss->ply >= MAX_PLY)
+    if (pos.is_draw(ss->ply) || ss->ply >= MAX_PLY)
         return ss->ply >= MAX_PLY && !InCheck ? evaluate(pos)
                                               : DrawValue[pos.side_to_move()];
 
@@ -1592,6 +1529,11 @@ moves_loop: // When in check search starts from here
       {
           assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
 
+#ifdef ATOMIC
+          if (pos.is_atomic())
+              futilityValue = futilityBase + pos.see<ATOMIC_VARIANT>(move);
+          else
+#endif
 #ifdef CRAZYHOUSE
           if (pos.is_house())
               futilityValue = futilityBase + 2 * PieceValue[pos.variant()][EG][pos.piece_on(to_sq(move))];
@@ -1671,7 +1613,7 @@ moves_loop: // When in check search starts from here
     // All legal moves have been searched. A special case: If we're in check
     // and no legal moves were found, it is checkmate.
     if (InCheck && bestValue == -VALUE_INFINITE)
-        return mated_in(ss->ply); // Plies to mate from the root
+        return pos.checkmate_value(ss->ply); // Plies to mate from the root
 
     tte->save(posKey, value_to_tt(bestValue, ss->ply),
               PvNode && bestValue > oldAlpha ? BOUND_EXACT : BOUND_UPPER,
