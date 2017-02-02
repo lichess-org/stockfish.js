@@ -215,8 +215,8 @@ endif
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
-	CXXFLAGS += -O3 -s TOTAL_MEMORY=33550000
-	LDFLAGS += -O3 -s TOTAL_MEMORY=33550000 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" --pre-js pre.js --post-js post.js
+	CXXFLAGS += -s TOTAL_MEMORY=33550000
+	LDFLAGS += -s TOTAL_MEMORY=33550000 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" --pre-js pre.js --post-js post.js
 endif
 
 ifeq ($(COMP),clang)
@@ -248,9 +248,11 @@ else
 endif
 endif
 
+ifneq ($(COMP),emscripten)
 ifeq ($(KERNEL),Darwin)
 	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.9
 	LDFLAGS += -arch $(arch) -mmacosx-version-min=10.9
+endif
 endif
 
 ### Travis CI script uses COMPILER to overwrite CXX
