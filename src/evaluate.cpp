@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -73,6 +73,10 @@ namespace {
   // by the evaluation functions.
   struct EvalInfo {
 
+    Material::Entry* me;
+    Pawns::Entry* pe;
+    Bitboard mobilityArea[COLOR_NB];
+
     // attackedBy[color][piece type] is a bitboard representing all squares
     // attacked by a given color and piece type (can be also ALL_PIECES).
     Bitboard attackedBy[COLOR_NB][PIECE_TYPE_NB];
@@ -106,18 +110,15 @@ namespace {
     // a white knight on g5 and black's king is on g8, this white knight adds 2
     // to kingAdjacentZoneAttacksCount[WHITE].
     int kingAdjacentZoneAttacksCount[COLOR_NB];
-
-    Bitboard pinnedPieces[COLOR_NB];
-    Material::Entry* me;
-    Pawns::Entry* pi;
   };
 
   #define V(v) Value(v)
   #define S(mg, eg) make_score(mg, eg)
 
-  // MobilityBonus[PieceType][attacked] contains bonuses for middle and end
-  // game, indexed by piece type and number of attacked squares in the MobilityArea.
-  const Score MobilityBonus[][32] = {
+  // MobilityBonus[PieceType][attacked] contains bonuses for middle and end game,
+  // indexed by piece type and number of attacked squares in the mobility area.
+  const Score MobilityBonus[VARIANT_NB][PIECE_TYPE_NB][32] = {
+    {
     {}, {},
     { S(-75,-76), S(-56,-54), S( -9,-26), S( -2,-10), S(  6,  5), S( 15, 11), // Knights
       S( 22, 26), S( 30, 28), S( 36, 29) },
@@ -132,21 +133,178 @@ namespace {
       S( 60,111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
       S( 85,133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
       S(118,174), S(119,177), S(123,191), S(128,199) }
+    },
+#ifdef ANTI
+    {
+      {}, {},
+      { S(-150,-152), S(-112,-108), S(-18,-52), S( -4,-20), S( 12, 10), S( 30, 22), // Knights
+        S(  44,  52), S(  60,  56), S( 72, 58) },
+      { S(-96,-116), S(-42,-38), S( 32, -4), S( 52, 24), S( 74, 44), S(102, 84), // Bishops
+        S(108, 108), S(126,116), S(130,126), S(142,140), S(158,148), S(162,172),
+        S(184, 180), S(194,188) },
+      { S(-112,-156), S(-50,-36), S(-22, 52), S(-10,110), S( -8,140), S( -2,162), // Rooks
+        S(  16, 218), S( 28,240), S( 42,256), S( 46,286), S( 62,308), S( 64,320),
+        S(  86, 330), S( 98,336), S(118,338) },
+      { S(-80,-70), S(-50,-24), S(  4, 14), S(  8, 38), S( 28, 74), S( 48,110), // Queens
+        S( 50,124), S( 80,152), S( 86,158), S( 94,174), S(108,188), S(112,204),
+        S(120,222), S(140,232), S(144,236), S(146,244), S(150,256), S(154,260),
+        S(170,266), S(188,272), S(198,280), S(216,314), S(224,316), S(226,322),
+        S(236,348), S(238,354), S(246,382), S(256,398) }
+    },
+#endif
+#ifdef ATOMIC
+    {
+      {}, {},
+      { S(-75,-76), S(-56,-54), S( -9,-26), S( -2,-10), S(  6,  5), S( 15, 11), // Knights
+        S( 22, 26), S( 30, 28), S( 36, 29) },
+      { S(-48,-58), S(-21,-19), S( 16, -2), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
+        S( 54, 54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
+        S( 92, 90), S( 97, 94) },
+      { S(-56,-78), S(-25,-18), S(-11, 26), S( -5, 55), S( -4, 70), S( -1, 81), // Rooks
+        S(  8,109), S( 14,120), S( 21,128), S( 23,143), S( 31,154), S( 32,160),
+        S( 43,165), S( 49,168), S( 59,169) },
+      { S(-40,-35), S(-25,-12), S(  2,  7), S(  4, 19), S( 14, 37), S( 24, 55), // Queens
+        S( 25, 62), S( 40, 76), S( 43, 79), S( 47, 87), S( 54, 94), S( 56,102),
+        S( 60,111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
+        S( 85,133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
+        S(118,174), S(119,177), S(123,191), S(128,199) }
+    },
+#endif
+#ifdef CRAZYHOUSE
+    {
+      {}, {},
+      { S(-115,-112), S(-94,-51), S(-90,-24), S(-38, -5), S(  6,  5), S( 15, 11), // Knights
+        S(  22,  26), S( 30, 28), S( 36, 29) },
+      { S(-150, -63), S(-91,-41), S( 16, -8), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
+        S(  54,  54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
+        S(  92,  90), S( 97, 94) },
+      { S( -56, -78), S(-25,-18), S(-11, 26), S( -5, 55), S( -4, 70), S( -1, 81), // Rooks
+        S(   8, 109), S( 14,120), S( 21,128), S( 23,143), S( 31,154), S( 32,160),
+        S(  43, 165), S( 49,168), S( 59,169) },
+      { S( -40, -35), S(-25,-12), S(  2,  7), S(  4, 19), S( 14, 37), S( 24, 55), // Queens
+        S(  25,  62), S( 40, 76), S( 43, 79), S( 47, 87), S( 54, 94), S( 56,102),
+        S(  60, 111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
+        S(  85, 133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
+        S( 118, 174), S(119,177), S(123,191), S(128,199) }
+    },
+#endif
+#ifdef HORDE
+    {
+      {}, {},
+      { S(-75,-76), S(-56,-54), S( -9,-26), S( -2,-10), S(  6,  5), S( 15, 11), // Knights
+        S( 22, 26), S( 30, 28), S( 36, 29) },
+      { S(-48,-58), S(-21,-19), S( 16, -2), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
+        S( 54, 54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
+        S( 92, 90), S( 97, 94) },
+      { S(-56,-78), S(-25,-18), S(-11, 26), S( -5, 55), S( -4, 70), S( -1, 81), // Rooks
+        S(  8,109), S( 14,120), S( 21,128), S( 23,143), S( 31,154), S( 32,160),
+        S( 43,165), S( 49,168), S( 59,169) },
+      { S(-40,-35), S(-25,-12), S(  2,  7), S(  4, 19), S( 14, 37), S( 24, 55), // Queens
+        S( 25, 62), S( 40, 76), S( 43, 79), S( 47, 87), S( 54, 94), S( 56,102),
+        S( 60,111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
+        S( 85,133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
+        S(118,174), S(119,177), S(123,191), S(128,199) }
+    },
+#endif
+#ifdef KOTH
+    {
+      {}, {},
+      { S(-75,-76), S(-56,-54), S( -9,-26), S( -2,-10), S(  6,  5), S( 15, 11), // Knights
+        S( 22, 26), S( 30, 28), S( 36, 29) },
+      { S(-48,-58), S(-21,-19), S( 16, -2), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
+        S( 54, 54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
+        S( 92, 90), S( 97, 94) },
+      { S(-56,-78), S(-25,-18), S(-11, 26), S( -5, 55), S( -4, 70), S( -1, 81), // Rooks
+        S(  8,109), S( 14,120), S( 21,128), S( 23,143), S( 31,154), S( 32,160),
+        S( 43,165), S( 49,168), S( 59,169) },
+      { S(-40,-35), S(-25,-12), S(  2,  7), S(  4, 19), S( 14, 37), S( 24, 55), // Queens
+        S( 25, 62), S( 40, 76), S( 43, 79), S( 47, 87), S( 54, 94), S( 56,102),
+        S( 60,111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
+        S( 85,133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
+        S(118,174), S(119,177), S(123,191), S(128,199) }
+    },
+#endif
+#ifdef LOSERS
+    {
+      {}, {},
+      { S(-75,-76), S(-56,-54), S( -9,-26), S( -2,-10), S(  6,  5), S( 15, 11), // Knights
+        S( 22, 26), S( 30, 28), S( 36, 29) },
+      { S(-48,-58), S(-21,-19), S( 16, -2), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
+        S( 54, 54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
+        S( 92, 90), S( 97, 94) },
+      { S(-56,-78), S(-25,-18), S(-11, 26), S( -5, 55), S( -4, 70), S( -1, 81), // Rooks
+        S(  8,109), S( 14,120), S( 21,128), S( 23,143), S( 31,154), S( 32,160),
+        S( 43,165), S( 49,168), S( 59,169) },
+      { S(-40,-35), S(-25,-12), S(  2,  7), S(  4, 19), S( 14, 37), S( 24, 55), // Queens
+        S( 25, 62), S( 40, 76), S( 43, 79), S( 47, 87), S( 54, 94), S( 56,102),
+        S( 60,111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
+        S( 85,133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
+        S(118,174), S(119,177), S(123,191), S(128,199) }
+    },
+#endif
+#ifdef RACE
+    {
+      {}, {},
+      { S(-75,-76), S(-56,-54), S( -9,-26), S( -2,-10), S(  6,  5), S( 15, 11), // Knights
+        S( 22, 26), S( 30, 28), S( 36, 29) },
+      { S(-48,-58), S(-21,-19), S( 16, -2), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
+        S( 54, 54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
+        S( 92, 90), S( 97, 94) },
+      { S(-56,-78), S(-25,-18), S(-11, 26), S( -5, 55), S( -4, 70), S( -1, 81), // Rooks
+        S(  8,109), S( 14,120), S( 21,128), S( 23,143), S( 31,154), S( 32,160),
+        S( 43,165), S( 49,168), S( 59,169) },
+      { S(-40,-35), S(-25,-12), S(  2,  7), S(  4, 19), S( 14, 37), S( 24, 55), // Queens
+        S( 25, 62), S( 40, 76), S( 43, 79), S( 47, 87), S( 54, 94), S( 56,102),
+        S( 60,111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
+        S( 85,133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
+        S(118,174), S(119,177), S(123,191), S(128,199) }
+    },
+#endif
+#ifdef RELAY
+    {
+      {}, {},
+      { S(-75,-76), S(-56,-54), S( -9,-26), S( -2,-10), S(  6,  5), S( 15, 11), // Knights
+        S( 22, 26), S( 30, 28), S( 36, 29) },
+      { S(-48,-58), S(-21,-19), S( 16, -2), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
+        S( 54, 54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
+        S( 92, 90), S( 97, 94) },
+      { S(-56,-78), S(-25,-18), S(-11, 26), S( -5, 55), S( -4, 70), S( -1, 81), // Rooks
+        S(  8,109), S( 14,120), S( 21,128), S( 23,143), S( 31,154), S( 32,160),
+        S( 43,165), S( 49,168), S( 59,169) },
+      { S(-40,-35), S(-25,-12), S(  2,  7), S(  4, 19), S( 14, 37), S( 24, 55), // Queens
+        S( 25, 62), S( 40, 76), S( 43, 79), S( 47, 87), S( 54, 94), S( 56,102),
+        S( 60,111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
+        S( 85,133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
+        S(118,174), S(119,177), S(123,191), S(128,199) }
+    },
+#endif
+#ifdef THREECHECK
+    {
+      {}, {},
+      { S(-75,-76), S(-56,-54), S( -9,-26), S( -2,-10), S(  6,  5), S( 15, 11), // Knights
+        S( 22, 26), S( 30, 28), S( 36, 29) },
+      { S(-48,-58), S(-21,-19), S( 16, -2), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
+        S( 54, 54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
+        S( 92, 90), S( 97, 94) },
+      { S(-56,-78), S(-25,-18), S(-11, 26), S( -5, 55), S( -4, 70), S( -1, 81), // Rooks
+        S(  8,109), S( 14,120), S( 21,128), S( 23,143), S( 31,154), S( 32,160),
+        S( 43,165), S( 49,168), S( 59,169) },
+      { S(-40,-35), S(-25,-12), S(  2,  7), S(  4, 19), S( 14, 37), S( 24, 55), // Queens
+        S( 25, 62), S( 40, 76), S( 43, 79), S( 47, 87), S( 54, 94), S( 56,102),
+        S( 60,111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
+        S( 85,133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
+        S(118,174), S(119,177), S(123,191), S(128,199) }
+    },
+#endif
   };
 
-  // Outpost[knight/bishop][supported by pawn] contains bonuses for knights and
-  // bishops outposts, bigger if outpost piece is supported by a pawn.
+  // Outpost[knight/bishop][supported by pawn] contains bonuses for minor
+  // pieces if they can reach an outpost square, bigger if that square is
+  // supported by a pawn. If the minor piece occupies an outpost square
+  // then score is doubled.
   const Score Outpost[][2] = {
-    { S(43,11), S(65,20) }, // Knights
-    { S(20, 3), S(29, 8) }  // Bishops
-  };
-
-  // ReachableOutpost[knight/bishop][supported by pawn] contains bonuses for
-  // knights and bishops which can reach an outpost square in one move, bigger
-  // if outpost square is supported by a pawn.
-  const Score ReachableOutpost[][2] = {
-    { S(21, 5), S(35, 8) }, // Knights
-    { S( 8, 0), S(14, 4) }  // Bishops
+    { S(22, 6), S(33, 9) }, // Knight
+    { S( 9, 2), S(14, 4) }  // Bishop
   };
 
   // RookOnFile[semiopen/open] contains bonuses for each rook when there is no
@@ -337,7 +495,7 @@ namespace {
     S( 7,  0),
 #endif
 #ifdef THREECHECK
-    S(15,  0),
+    S(15,  10),
 #endif
   };
   const Score PawnlessFlank       = S(20, 80);
@@ -360,12 +518,13 @@ namespace {
   const int KingAttackWeights[PIECE_TYPE_NB] = { 0, 0, 78, 56, 45, 11 };
 
   // Penalties for enemy's safe checks
-  const int QueenContactCheck = 997;
   const int QueenCheck        = 745;
   const int RookCheck         = 688;
   const int BishopCheck       = 588;
   const int KnightCheck       = 924;
 
+  // Threshold for lazy evaluation
+  const Value LazyThreshold = Value(1500);
 
   // eval_init() initializes king and attack bitboards for a given color
   // adding pawn attacks. To be done at the beginning of the evaluation.
@@ -374,31 +533,52 @@ namespace {
   void eval_init(const Position& pos, EvalInfo& ei) {
 
     const Color  Them = (Us == WHITE ? BLACK : WHITE);
+    const Square Up   = (Us == WHITE ? NORTH : SOUTH);
     const Square Down = (Us == WHITE ? SOUTH : NORTH);
+    const Bitboard LowRanks = (Us == WHITE ? Rank2BB | Rank3BB: Rank7BB | Rank6BB);
 
-    ei.pinnedPieces[Us] = pos.pinned_pieces(Us);
-    Bitboard b = ei.attackedBy[Them][KING];
-    ei.attackedBy[Them][ALL_PIECES] |= b;
-    ei.attackedBy[Us][ALL_PIECES] |= ei.attackedBy[Us][PAWN] = ei.pi->pawn_attacks(Us);
-    ei.attackedBy2[Us] = ei.attackedBy[Us][PAWN] & ei.attackedBy[Us][KING];
+    // Find our pawns on the first two ranks, and those which are blocked
+    Bitboard b = pos.pieces(Us, PAWN) & (shift<Down>(pos.pieces()) | LowRanks);
 
-    // Init king safety tables only if we are going to use them
-    if (
+    // Squares occupied by those pawns, by our king, or controlled by enemy pawns
+    // are excluded from the mobility area.
+    ei.mobilityArea[Us] = ~(b | pos.square<KING>(Us) | ei.pe->pawn_attacks(Them));
+
+    // Initialise the attack bitboards with the king and pawn information
 #ifdef ANTI
-    !pos.is_anti() &&
-#endif
-    (pos.non_pawn_material(Us) >= QueenValueMg)
-#ifdef CRAZYHOUSE
-    || pos.is_house()
-#endif
-        )
-      {
-        ei.kingRing[Them] = b | shift<Down>(b);
-        ei.kingAttackersCount[Us] = popcount(b & ei.attackedBy[Us][PAWN]);
-        ei.kingAdjacentZoneAttacksCount[Us] = ei.kingAttackersWeight[Us] = 0;
+    if (pos.is_anti())
+    {
+        ei.attackedBy[Us][KING] = 0;
+        Bitboard kings = pos.pieces(Us, KING);
+        while (kings)
+            ei.attackedBy[Us][KING] |= pos.attacks_from<KING>(pop_lsb(&kings));
+        b = ei.attackedBy[Us][KING];
     }
     else
-        ei.kingRing[Them] = ei.kingAttackersCount[Us] = 0;
+#endif
+    b = ei.attackedBy[Us][KING] = pos.attacks_from<KING>(pos.square<KING>(Us));
+    ei.attackedBy[Us][PAWN] = ei.pe->pawn_attacks(Us);
+
+    ei.attackedBy2[Us]            = b & ei.attackedBy[Us][PAWN];
+    ei.attackedBy[Us][ALL_PIECES] = b | ei.attackedBy[Us][PAWN];
+
+    // Init our king safety tables only if we are going to use them
+    if ((
+#ifdef ANTI
+        !pos.is_anti() &&
+#endif
+        (pos.non_pawn_material(Them) >= QueenValueMg))
+#ifdef CRAZYHOUSE
+        || pos.is_house()
+#endif
+    )
+    {
+        ei.kingRing[Us] = b | shift<Up>(b);
+        ei.kingAttackersCount[Them] = popcount(b & ei.pe->pawn_attacks(Them));
+        ei.kingAdjacentZoneAttacksCount[Them] = ei.kingAttackersWeight[Them] = 0;
+    }
+    else
+        ei.kingRing[Us] = ei.kingAttackersCount[Them] = 0;
   }
 
 
@@ -406,8 +586,8 @@ namespace {
   // color and type.
 
   template<bool DoTrace, Color Us = WHITE, PieceType Pt = KNIGHT>
-  Score evaluate_pieces(const Position& pos, EvalInfo& ei, Score* mobility,
-                        const Bitboard* mobilityArea) {
+  Score evaluate_pieces(const Position& pos, EvalInfo& ei, Score* mobility) {
+
     const PieceType NextPt = (Us == WHITE ? Pt : PieceType(Pt + 1));
     const Color Them = (Us == WHITE ? BLACK : WHITE);
     const Bitboard OutpostRanks = (Us == WHITE ? Rank4BB | Rank5BB | Rank6BB
@@ -427,7 +607,7 @@ namespace {
           : Pt ==   ROOK ? attacks_bb<  ROOK>(s, pos.pieces() ^ pos.pieces(Us, ROOK, QUEEN))
                          : pos.attacks_from<Pt>(s);
 
-        if (ei.pinnedPieces[Us] & s)
+        if (pos.pinned_pieces(Us) & s)
             b &= LineBB[pos.square<KING>(Us)][s];
 
         ei.attackedBy2[Us] |= ei.attackedBy[Us][ALL_PIECES] & b;
@@ -440,21 +620,13 @@ namespace {
             ei.kingAdjacentZoneAttacksCount[Us] += popcount(b & ei.attackedBy[Them][KING]);
         }
 
-#ifdef ANTI
-        if (pos.is_anti()) {} else
-#endif
-        if (Pt == QUEEN)
-            b &= ~(  ei.attackedBy[Them][KNIGHT]
-                   | ei.attackedBy[Them][BISHOP]
-                   | ei.attackedBy[Them][ROOK]);
-
-        int mob = popcount(b & mobilityArea[Us]);
+        int mob = popcount(b & ei.mobilityArea[Us]);
 #ifdef ANTI
         if (pos.is_anti())
             mob = popcount(b);
 #endif
 
-        mobility[Us] += MobilityBonus[Pt][mob];
+        mobility[Us] += MobilityBonus[pos.variant()][Pt][mob];
 
 #ifdef ANTI
         if (pos.is_anti())
@@ -463,14 +635,14 @@ namespace {
         if (Pt == BISHOP || Pt == KNIGHT)
         {
             // Bonus for outpost squares
-            bb = OutpostRanks & ~ei.pi->pawn_attacks_span(Them);
+            bb = OutpostRanks & ~ei.pe->pawn_attacks_span(Them);
             if (bb & s)
-                score += Outpost[Pt == BISHOP][!!(ei.attackedBy[Us][PAWN] & s)];
+                score += Outpost[Pt == BISHOP][!!(ei.attackedBy[Us][PAWN] & s)] * 2;
             else
             {
                 bb &= b & ~pos.pieces(Us);
                 if (bb)
-                   score += ReachableOutpost[Pt == BISHOP][!!(ei.attackedBy[Us][PAWN] & bb)];
+                   score += Outpost[Pt == BISHOP][!!(ei.attackedBy[Us][PAWN] & bb)];
             }
 
             // Bonus when behind a pawn
@@ -480,7 +652,7 @@ namespace {
 
             // Penalty for pawns on the same color square as the bishop
             if (Pt == BISHOP)
-                score -= BishopPawns * ei.pi->pawns_on_same_color_squares(Us, s);
+                score -= BishopPawns * ei.pe->pawns_on_same_color_squares(Us, s);
 
             // An important Chess960 pattern: A cornered bishop blocked by a friendly
             // pawn diagonally in front of it is a very serious problem, especially
@@ -504,18 +676,16 @@ namespace {
                 score += RookOnPawn * popcount(pos.pieces(Them, PAWN) & PseudoAttacks[ROOK][s]);
 
             // Bonus when on an open or semi-open file
-            if (ei.pi->semiopen_file(Us, file_of(s)))
-            {
-                score += RookOnFile[!!ei.pi->semiopen_file(Them, file_of(s))];
-            }
+            if (ei.pe->semiopen_file(Us, file_of(s)))
+                score += RookOnFile[!!ei.pe->semiopen_file(Them, file_of(s))];
 
-            // Penalize when trapped by the king, even more if the king cannot castle
+            // Penalty when trapped by the king, even more if the king cannot castle
             else if (mob <= 3)
             {
                 Square ksq = pos.square<KING>(Us);
 
                 if (   ((file_of(ksq) < FILE_E) == (file_of(s) < file_of(ksq)))
-                    && !ei.pi->semiopen_side(Us, file_of(ksq), file_of(s) < file_of(ksq)))
+                    && !ei.pe->semiopen_side(Us, file_of(ksq), file_of(s) < file_of(ksq)))
                     score -= (TrappedRook - make_score(mob * 22, 0)) * (1 + !pos.can_castle(Us));
             }
         }
@@ -533,13 +703,13 @@ namespace {
         Trace::add(Pt, Us, score);
 
     // Recursively call evaluate_pieces() of next piece type until KING is excluded
-    return score - evaluate_pieces<DoTrace, Them, NextPt>(pos, ei, mobility, mobilityArea);
+    return score - evaluate_pieces<DoTrace, Them, NextPt>(pos, ei, mobility);
   }
 
   template<>
-  Score evaluate_pieces<false, WHITE, KING>(const Position&, EvalInfo&, Score*, const Bitboard*) { return SCORE_ZERO; }
+  Score evaluate_pieces<false, WHITE, KING>(const Position&, EvalInfo&, Score*) { return SCORE_ZERO; }
   template<>
-  Score evaluate_pieces< true, WHITE, KING>(const Position&, EvalInfo&, Score*, const Bitboard*) { return SCORE_ZERO; }
+  Score evaluate_pieces< true, WHITE, KING>(const Position&, EvalInfo&, Score*) { return SCORE_ZERO; }
 
 
   // evaluate_king() assigns bonuses and penalties to a king of a given color
@@ -595,17 +765,21 @@ namespace {
     int kingDanger;
 
     // King shelter and enemy pawns storm
-    Score score = ei.pi->king_safety<Us>(pos, ksq);
+    Score score = ei.pe->king_safety<Us>(pos, ksq);
 
     // Main king safety evaluation
     if (ei.kingAttackersCount[Them])
     {
-        // Find the attacked squares which are defended only by the king...
-        Bitboard dko = ei.attackedBy[Us][KING]
-                       & ~ei.attackedBy2[Us];
-        // Misleading name, kept for ease of merging with upstream.
-        // Contains squares defended only by the king which are attacked.
-        undefended = dko & ei.attackedBy[Them][ALL_PIECES];
+        // Find the attacked squares which are defended only by our king...
+#ifdef ATOMIC
+        if (pos.is_atomic())
+            undefended =   ei.attackedBy[Them][ALL_PIECES]
+                        &  ei.attackedBy[Us][KING];
+        else
+#endif
+        undefended =   ei.attackedBy[Them][ALL_PIECES]
+                    &  ei.attackedBy[Us][KING]
+                    & ~ei.attackedBy2[Us];
 
         // ... and those which are not defended at all in the larger king ring
         b =  ei.attackedBy[Them][ALL_PIECES] & ~ei.attackedBy[Us][ALL_PIECES]
@@ -619,7 +793,7 @@ namespace {
         kingDanger =  std::min(807, ei.kingAttackersCount[Them] * ei.kingAttackersWeight[Them])
                     + 101 * ei.kingAdjacentZoneAttacksCount[Them]
                     + 235 * popcount(undefended)
-                    + 134 * (popcount(b) + !!ei.pinnedPieces[Us])
+                    + 134 * (popcount(b) + !!pos.pinned_pieces(Us))
                     - 717 * (!(pos.count<QUEEN>(Them)
 #ifdef CRAZYHOUSE
                                || pos.is_house()
@@ -629,40 +803,20 @@ namespace {
         Bitboard h = 0;
 
 #ifdef CRAZYHOUSE
-        if (pos.is_house()) {
+        if (pos.is_house())
+        {
             for (PieceType pt = PAWN; pt <= QUEEN; ++pt)
                 kingDanger += KingDangerInHand[pt] * pos.count_in_hand(Them, pt);
-            h = pos.count_in_hand(Them, QUEEN) ? dko & ~pos.pieces() : 0;
+            h = pos.count_in_hand(Them, QUEEN) ? undefended & ~pos.pieces() : 0;
         }
 #endif
 
-        // Analyse the enemy's safe queen contact checks. Firstly, find the
-        // undefended squares around the king reachable by the enemy queen...
-        b = undefended & ei.attackedBy[Them][QUEEN] & ~pos.pieces(Them);
-#ifdef ATOMIC
-        if (pos.is_atomic())
-            b |= ei.attackedBy[Us][KING];
-#endif
-
-        // ...and keep squares supported by another enemy piece
-        kingDanger += QueenContactCheck * popcount(b & ei.attackedBy2[Them] |
-                              // or those where queen can be safely dropped
-                                                   h & ei.attackedBy[Them][ALL_PIECES]);
-
-        // Analyse the safe enemy's checks which are possible on next move...
-        safe  = ~(ei.attackedBy[Us][ALL_PIECES] | pos.pieces(Them));
+        // Analyse the safe enemy's checks which are possible on next move
+        safe  = ~pos.pieces(Them);
+        safe &= ~ei.attackedBy[Us][ALL_PIECES] | (undefended & ei.attackedBy2[Them]);
 #ifdef ATOMIC
         if (pos.is_atomic())
             safe |= ei.attackedBy[Us][KING];
-#endif
-
-        // ... and some other potential checks, only requiring the square to be
-        // safe from pawn-attacks, and not being occupied by a blocked pawn.
-        other = ~(   ei.attackedBy[Us][PAWN]
-                  | (pos.pieces(Them, PAWN) & shift<Up>(pos.pieces(PAWN))));
-#ifdef THREECHECK
-        if (pos.is_three_check() && pos.checks_given(Them))
-            other = safe = ~pos.pieces(Them);
 #endif
 
         b1 = pos.attacks_from<ROOK  >(ksq);
@@ -673,49 +827,61 @@ namespace {
             kingDanger += QueenCheck;
 
         // Defended by our queen only
-        Bitboard dqo = ~(ei.attackedBy2[Us] | pos.pieces(Them))
-                         & ei.attackedBy[Us][QUEEN];
-        // For other pieces, also consider the square safe if attacked twice,
-        // and only defended by a queen.
-        Bitboard dropSafe = (safe | ei.attackedBy[Them][ALL_PIECES] & dqo) & ~pos.pieces(Us);
-        safe |=  ei.attackedBy2[Them] & dqo;
+        Bitboard dqo =  ei.attackedBy2[Them]
+               & ~(ei.attackedBy2[Us] | pos.pieces(Them))
+               & ei.attackedBy[Us][QUEEN];
+        // For minors and rooks, also consider the square safe if attacked twice,
+        // and only defended by our queen.
+        Bitboard dropSafe = (safe | (ei.attackedBy[Them][ALL_PIECES] & dqo)) & ~pos.pieces(Us);
+        safe |=  dqo;
 
+        // Some other potential checks are also analysed, even from squares
+        // currently occupied by the opponent own pieces, as long as the square
+        // is not attacked by our pawns, and is not occupied by a blocked pawn.
+        other = ~(   ei.attackedBy[Us][PAWN]
+                  | (pos.pieces(Them, PAWN) & shift<Up>(pos.pieces(PAWN))));
+#ifdef THREECHECK
+        if (pos.is_three_check() && pos.checks_given(Them))
+            other = safe = ~pos.pieces(Them);
+#endif
+
+        // Enemy rooks safe and other checks
 #ifdef CRAZYHOUSE
         h = pos.is_house() && pos.count_in_hand(Them, ROOK) ? ~pos.pieces() : 0;
 #endif
-        // Enemy rooks safe and other checks
-        if (b1 & (ei.attackedBy[Them][ROOK] & safe | dropSafe & h))
+        if (b1 & ((ei.attackedBy[Them][ROOK] & safe) | (h & dropSafe)))
             kingDanger += RookCheck;
 
         else if (b1 & (h | ei.attackedBy[Them][ROOK]) & other)
             score -= OtherCheck;
+
+        // Enemy bishops safe and other checks
 #ifdef CRAZYHOUSE
         h = pos.is_house() && pos.count_in_hand(Them, BISHOP) ? ~pos.pieces() : 0;
 #endif
-
-        // Enemy bishops safe and other checks
-        if (b2 & (ei.attackedBy[Them][BISHOP] & safe | dropSafe & h))
+        if (b2 & ((ei.attackedBy[Them][BISHOP] & safe) | (h & dropSafe)))
             kingDanger += BishopCheck;
 
         else if (b2 & (h | ei.attackedBy[Them][BISHOP]) & other)
             score -= OtherCheck;
+
+        // Enemy knights safe and other checks
 #ifdef CRAZYHOUSE
         h = pos.is_house() && pos.count_in_hand(Them, KNIGHT) ? ~pos.pieces() : 0;
 #endif
-        // Enemy knights safe and other checks
         Bitboard k = pos.attacks_from<KNIGHT>(ksq);
         b = k & ei.attackedBy[Them][KNIGHT];
-        if (b & safe | k & h & dropSafe)
+        if ((b & safe) | (k & h & dropSafe))
             kingDanger += KnightCheck;
 
-        else if ((b | k & h) & other)
+        else if ((b | (k & h)) & other)
             score -= OtherCheck;
 
 #ifdef ATOMIC
     if (pos.is_atomic())
-        score -= popcount(ei.attackedBy[Us][KING] & pos.pieces()) * make_score(100, 100);
+        score -= make_score(100, 100) * popcount(ei.attackedBy[Us][KING] & pos.pieces());
 #endif
-        // Compute the king danger score and subtract it from the evaluation
+        // Transform the kingDanger units into a Score, and substract it from the evaluation
         if (kingDanger > 0)
         {
 #ifdef THREECHECK
@@ -735,6 +901,9 @@ namespace {
             score -=
 #ifdef CRAZYHOUSE
                      pos.is_house() ? make_score(v, v) :
+#endif
+#ifdef THREECHECK
+                     pos.is_three_check() ? make_score(v, v) :
 #endif
                      make_score(v, 0);
         }
@@ -800,7 +969,7 @@ namespace {
             }
             // If both colors attack pieces, increase penalty with piece count
             if (theyCapture)
-                score -= pos.count<ALL_PIECES>(Us) * PieceCountAnti;
+                score -= PieceCountAnti * pos.count<ALL_PIECES>(Us);
         }
         // Bonus if we threaten to force captures (ignoring possible discoveries)
         if (!weCapture || theyCapture)
@@ -814,8 +983,8 @@ namespace {
             Bitboard unprotectedPieceMoves = pieceMoves & ~ei.attackedBy2[Us];
             safeThreats = unprotectedPawnPushes | unprotectedPieceMoves;
 
-            score += popcount(ei.attackedBy[Them][ALL_PIECES] & threats) * ThreatsAnti[0];
-            score += popcount(ei.attackedBy[Them][ALL_PIECES] & safeThreats) * ThreatsAnti[1];
+            score += ThreatsAnti[0] * popcount(ei.attackedBy[Them][ALL_PIECES] & threats);
+            score += ThreatsAnti[1] * popcount(ei.attackedBy[Them][ALL_PIECES] & safeThreats);
         }
     }
     else
@@ -840,7 +1009,7 @@ namespace {
             }
             // If both colors attack pieces, increase penalty with piece count
             if (theyCapture)
-                score -= pos.count<ALL_PIECES>(Us) * PieceCountLosers;
+                score -= PieceCountLosers * pos.count<ALL_PIECES>(Us);
         }
         // Bonus if we threaten to force captures (ignoring possible discoveries)
         if (!weCapture || theyCapture)
@@ -854,8 +1023,8 @@ namespace {
             Bitboard unprotectedPieceMoves = pieceMoves & ~ei.attackedBy2[Us];
             safeThreats = unprotectedPawnPushes | unprotectedPieceMoves;
 
-            score += popcount(ei.attackedBy[Them][ALL_PIECES] & threats) * ThreatsLosers[0];
-            score += popcount(ei.attackedBy[Them][ALL_PIECES] & safeThreats) * ThreatsLosers[1];
+            score += ThreatsLosers[0] * popcount(ei.attackedBy[Them][ALL_PIECES] & threats);
+            score += ThreatsLosers[1] * popcount(ei.attackedBy[Them][ALL_PIECES] & safeThreats);
         }
     }
     else
@@ -995,10 +1164,11 @@ namespace {
   }
 
 
-  // evaluate_passed_pawns() evaluates the passed pawns of the given color
+  // evaluate_passer_pawns() evaluates the passed pawns and candidate passed
+  // pawns of the given color.
 
   template<Color Us, bool DoTrace>
-  Score evaluate_passed_pawns(const Position& pos, const EvalInfo& ei) {
+  Score evaluate_passer_pawns(const Position& pos, const EvalInfo& ei) {
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
@@ -1018,7 +1188,7 @@ namespace {
     else
     {
 #endif
-    b = ei.pi->passed_pawns(Us);
+    b = ei.pe->passed_pawns(Us);
 
 #ifdef KOTH
     if (pos.is_koth())
@@ -1039,7 +1209,6 @@ namespace {
     {
         Square s = pop_lsb(&b);
 
-        assert(pos.pawn_passed(Us, s));
         assert(!(pos.pieces(PAWN) & forward_bb(Us, s)));
 
         bb = forward_bb(Us, s) & (ei.attackedBy[Them][ALL_PIECES] | pos.pieces(Them));
@@ -1067,6 +1236,11 @@ namespace {
 #endif
 #ifdef ANTI
             if (pos.is_anti()) {} else
+#endif
+#ifdef ATOMIC
+            if (pos.is_atomic())
+                ebonus +=  distance(pos.square<KING>(Them), blockSq) * 5 * rr;
+            else
 #endif
             {
             // Adjust bonus based on the king's proximity
@@ -1116,6 +1290,11 @@ namespace {
         // Assign a small bonus when the opponent has no pieces left
         if (!pos.non_pawn_material(Them))
             ebonus += 20;
+
+        // Scale down bonus for candidate passers which need more than one pawn
+        // push to become passed.
+        if (!pos.pawn_passed(Us, s + pawn_push(Us)))
+            mbonus /= 2, ebonus /= 2;
 
         score += make_score(mbonus, ebonus) + PassedFile[file_of(s)];
     }
@@ -1173,7 +1352,7 @@ namespace {
     assert(unsigned(safe >> (Us == WHITE ? 32 : 0)) == 0);
 #endif
 
-    // ...count safe + (behind & safe) with a single popcount
+    // ...count safe + (behind & safe) with a single popcount.
     int bonus = popcount((Us == WHITE ? safe << 32 : safe >> 32) | (behind & safe));
 #ifdef HORDE
     if (pos.is_horde())
@@ -1181,7 +1360,7 @@ namespace {
     else
 #endif
     bonus = std::min(16, bonus);
-    int weight = pos.count<ALL_PIECES>(Us) - 2 * ei.pi->open_files();
+    int weight = pos.count<ALL_PIECES>(Us) - 2 * ei.pe->open_files();
 #ifdef THREECHECK
     if (pos.is_three_check())
         weight -= pos.checks_count();
@@ -1233,8 +1412,10 @@ namespace {
 
     // If we don't already have an unusual scale factor, check for certain
     // types of endgames, and use a lower scale for those.
-    if (    ei.me->game_phase() < PHASE_MIDGAME
-        && (sf == SCALE_FACTOR_NORMAL || sf == SCALE_FACTOR_ONEPAWN))
+#ifdef ATOMIC
+    if (pos.is_atomic()) {} else
+#endif
+    if (sf == SCALE_FACTOR_NORMAL || sf == SCALE_FACTOR_ONEPAWN)
     {
         if (pos.opposite_bishops())
         {
@@ -1242,20 +1423,25 @@ namespace {
             // is almost a draw, in case of KBP vs KB, it is even more a draw.
             if (   pos.non_pawn_material(WHITE) == BishopValueMg
                 && pos.non_pawn_material(BLACK) == BishopValueMg)
-                sf = more_than_one(pos.pieces(PAWN)) ? ScaleFactor(31) : ScaleFactor(9);
+                return more_than_one(pos.pieces(PAWN)) ? ScaleFactor(31) : ScaleFactor(9);
 
             // Endgame with opposite-colored bishops, but also other pieces. Still
             // a bit drawish, but not as drawish as with only the two bishops.
-            else
-                sf = ScaleFactor(46);
+            return ScaleFactor(46);
         }
         // Endings where weaker side can place his king in front of the opponent's
         // pawns are drawish.
         else if (    abs(eg) <= BishopValueEg
                  &&  pos.count<PAWN>(strongSide) <= 2
                  && !pos.pawn_passed(~strongSide, pos.square<KING>(~strongSide)))
-            sf = ScaleFactor(37 + 7 * pos.count<PAWN>(strongSide));
+            return ScaleFactor(37 + 7 * pos.count<PAWN>(strongSide));
     }
+#ifdef HORDE
+    if (   pos.is_horde()
+        && pos.non_pawn_material(pos.is_horde_color(WHITE) ? WHITE : BLACK) >= QueenValueMg
+        && !pos.is_horde_color(strongSide))
+        sf = ScaleFactor(10);
+#endif
 
     return sf;
   }
@@ -1271,6 +1457,7 @@ Value Eval::evaluate(const Position& pos) {
   assert(!pos.checkers());
 
   Score mobility[COLOR_NB] = { SCORE_ZERO, SCORE_ZERO };
+  Value v;
   EvalInfo ei;
 
   if (pos.is_variant_end())
@@ -1281,30 +1468,6 @@ Value Eval::evaluate(const Position& pos) {
 
   // If we have a specialized evaluation function for the current material
   // configuration, call it and return.
-#ifdef KOTH
-  if (pos.is_koth()) {} else
-#endif
-#ifdef LOSERS
-  if (pos.is_losers()) {} else
-#endif
-#ifdef RACE
-  if (pos.is_race()) {} else
-#endif
-#ifdef THREECHECK
-  if (pos.is_three_check()) {} else
-#endif
-#ifdef HORDE
-  if (pos.is_horde()) {} else
-#endif
-#ifdef ATOMIC
-  if (pos.is_atomic()) {} else
-#endif
-#ifdef ANTI
-  if (pos.is_anti()) {} else
-#endif
-#ifdef CRAZYHOUSE
-  if (pos.is_house()) {} else
-#endif
   if (ei.me->specialized_eval_exists())
       return ei.me->evaluate(pos);
 
@@ -1314,36 +1477,23 @@ Value Eval::evaluate(const Position& pos) {
   Score score = pos.psq_score() + ei.me->imbalance();
 
   // Probe the pawn hash table
-  ei.pi = Pawns::probe(pos);
-  score += ei.pi->pawns_score();
+  ei.pe = Pawns::probe(pos);
+  score += ei.pe->pawns_score();
+
+  if (pos.variant() == CHESS_VARIANT)
+  {
+  // Early exit if score is high
+  v = (mg_value(score) + eg_value(score)) / 2;
+  if (abs(v) > LazyThreshold)
+     return pos.side_to_move() == WHITE ? v : -v;
+  }
 
   // Initialize attack and king safety bitboards
-  ei.attackedBy[WHITE][ALL_PIECES] = ei.attackedBy[BLACK][ALL_PIECES] = 0;
-  ei.attackedBy[WHITE][KING] = pos.attacks_from<KING>(pos.square<KING>(WHITE));
-  ei.attackedBy[BLACK][KING] = pos.attacks_from<KING>(pos.square<KING>(BLACK));
   eval_init<WHITE>(pos, ei);
   eval_init<BLACK>(pos, ei);
 
-  // Pawns blocked or on ranks 2 and 3 will be excluded from the mobility area
-  Bitboard blockedPawns[] = {
-    pos.pieces(WHITE, PAWN) & (shift<SOUTH>(pos.pieces()) | Rank2BB | Rank3BB),
-    pos.pieces(BLACK, PAWN) & (shift<NORTH>(pos.pieces()) | Rank7BB | Rank6BB)
-  };
-
-  // Do not include in mobility area squares protected by enemy pawns, or occupied
-  // by our blocked pawns or king.
-  Bitboard mobilityArea[] = {
-    ~(ei.attackedBy[BLACK][PAWN] | blockedPawns[WHITE] | pos.square<KING>(WHITE)),
-    ~(ei.attackedBy[WHITE][PAWN] | blockedPawns[BLACK] | pos.square<KING>(BLACK))
-  };
-
   // Evaluate all pieces but king and pawns
-  score += evaluate_pieces<DoTrace>(pos, ei, mobility, mobilityArea);
-#ifdef ANTI
-  if (pos.is_anti())
-      score += 2 * (mobility[WHITE] - mobility[BLACK]);
-  else
-#endif
+  score += evaluate_pieces<DoTrace>(pos, ei, mobility);
   score += mobility[WHITE] - mobility[BLACK];
 
 #ifdef ANTI
@@ -1362,8 +1512,8 @@ Value Eval::evaluate(const Position& pos) {
           - evaluate_threats<BLACK, DoTrace>(pos, ei);
 
   // Evaluate passed pawns, we need full attack information including king
-  score +=  evaluate_passed_pawns<WHITE, DoTrace>(pos, ei)
-          - evaluate_passed_pawns<BLACK, DoTrace>(pos, ei);
+  score +=  evaluate_passer_pawns<WHITE, DoTrace>(pos, ei)
+          - evaluate_passer_pawns<BLACK, DoTrace>(pos, ei);
 
   // Evaluate space for both sides, only during opening
 #ifdef HORDE
@@ -1380,7 +1530,7 @@ Value Eval::evaluate(const Position& pos) {
               - evaluate_space<BLACK>(pos, ei);
 
   // Evaluate position potential for the winning side
-  score += evaluate_initiative(pos, ei.pi->pawn_asymmetry(), eg_value(score));
+  score += evaluate_initiative(pos, ei.pe->pawn_asymmetry(), eg_value(score));
 #ifdef HORDE
   }
 #endif
@@ -1389,8 +1539,8 @@ Value Eval::evaluate(const Position& pos) {
   ScaleFactor sf = evaluate_scale_factor(pos, ei, eg_value(score));
 
   // Interpolate between a middlegame and a (scaled by 'sf') endgame score
-  Value v =  mg_value(score) * int(ei.me->game_phase())
-           + eg_value(score) * int(PHASE_MIDGAME - ei.me->game_phase()) * sf / SCALE_FACTOR_NORMAL;
+  v =  mg_value(score) * int(ei.me->game_phase())
+     + eg_value(score) * int(PHASE_MIDGAME - ei.me->game_phase()) * sf / SCALE_FACTOR_NORMAL;
 
   v /= int(PHASE_MIDGAME);
 
@@ -1399,7 +1549,7 @@ Value Eval::evaluate(const Position& pos) {
   {
       Trace::add(MATERIAL, pos.psq_score());
       Trace::add(IMBALANCE, ei.me->imbalance());
-      Trace::add(PAWN, ei.pi->pawns_score());
+      Trace::add(PAWN, ei.pe->pawns_score());
       Trace::add(MOBILITY, mobility[WHITE], mobility[BLACK]);
       if (pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK) >= 12222)
           Trace::add(SPACE, evaluate_space<WHITE>(pos, ei)

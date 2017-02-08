@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -216,7 +216,7 @@ namespace {
         }
 #ifdef CRAZYHOUSE
         // Do not require drops to be check (unless already required by target)
-        if (pos.is_house())
+        if (pos.is_house() && pos.count_in_hand(Us, PAWN))
         {
             Bitboard b = (Type == EVASIONS ? emptySquares & target : emptySquares) & ~(Rank1BB | Rank8BB);
             moveList = generate_drops<Us, PAWN, false>(pos, moveList, b);
@@ -383,7 +383,7 @@ namespace {
 
     moveList = generate_pawn_moves<Us, Type>(pos, moveList, target);
 #ifdef CRAZYHOUSE
-    if (pos.is_house() && Type != CAPTURES)
+    if (pos.is_house() && Type != CAPTURES && (pos.count_in_hand(Us, ALL_PIECES) - pos.count_in_hand(Us, PAWN)))
     {
         Bitboard b = Type == EVASIONS ? target ^ pos.checkers() :
                      Type == NON_EVASIONS ? target ^ pos.pieces(~Us) : target;

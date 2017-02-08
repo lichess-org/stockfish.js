@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,36 @@
 
 #include "types.h"
 
+Value PhaseLimit[VARIANT_NB][PHASE_NB] = {
+  { MidgameLimit, EndgameLimit },
+#ifdef ANTI
+  { MidgameLimit, EndgameLimit },
+#endif
+#ifdef ATOMIC
+  { MidgameLimit, EndgameLimit },
+#endif
+#ifdef CRAZYHOUSE
+  { MidgameLimit, EndgameLimit },
+#endif
+#ifdef HORDE
+  { MidgameLimit, EndgameLimit },
+#endif
+#ifdef KOTH
+  { MidgameLimit, EndgameLimit },
+#endif
+#ifdef LOSERS
+  { MidgameLimit, EndgameLimit },
+#endif
+#ifdef RACE
+  { MidgameLimit, EndgameLimit },
+#endif
+#ifdef RELAY
+  { MidgameLimit, EndgameLimit },
+#endif
+#ifdef THREECHECK
+  { MidgameLimit, EndgameLimit },
+#endif
+};
 Value TempoValue[VARIANT_NB][PHASE_NB] = {
   { TempoMg, TempoEg },
 #ifdef ANTI
@@ -380,13 +410,13 @@ const Score Bonus[VARIANT_NB][PIECE_TYPE_NB][RANK_NB][int(FILE_NB) / 2] = {
   {
     { },
     { // Pawn
-      { S(  0, 0), S(  0, 0), S(  0, 0), S( 0, 0) },
-      { S(-11, 7), S(  6,-4), S(  7, 8), S( 3,-2) },
-      { S(-18,-4), S( -2,-5), S( 19, 5), S(24, 4) },
-      { S(-17, 3), S( -9, 3), S( 20,-8), S(35,-3) },
-      { S( -6, 8), S(  5, 9), S(  3, 7), S(21,-6) },
-      { S( -6, 8), S( -8,-5), S( -6, 2), S(-2, 4) },
-      { S( -4, 3), S( 20,-9), S( -8, 1), S(-4,18) }
+      { S(-32,-45), S(-30, -46), S(-23, -20), S( -7,  -7) },
+      { S(-27,-27), S( -6, -15), S( -8, -10), S( -7, -12) },
+      { S(-59,-21), S( -5,  -9), S(-11,   6), S(  4,   4) },
+      { S( -3, -7), S( 18,  13), S(  5,  10), S( 32,   2) },
+      { S( 11,  0), S( 15,  18), S( 11,  21), S( 30,  38) },
+      { S( 21, 13), S( 12,  20), S( 32,  35), S( 36,  33) },
+      { S( 21, 33), S( 32,  33), S( 44,  38), S( 50,  55) },
     },
     { // Knight
       { S(-143, -97), S(-96,-82), S(-80,-46), S(-73,-14) },

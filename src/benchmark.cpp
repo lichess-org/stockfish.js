@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -125,7 +125,21 @@ const vector<string> Defaults[SUBVARIANT_NB] = {
 #endif
 #ifdef CRAZYHOUSE
   {
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1"
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1",
+    "rnbqkb1r/ppp1pppp/5n2/3pP3/8/8/PPPP1PPP/RNBQKBNR[] w KQkq d6 4 3", // en passant
+    "r1bk3r/pppp1Bpp/2n5/4p1N1/4P3/3P4/PPP1p1PP/RNK4R[NQPBqb] b - - 23 12", // repetition detection
+    "r3k2r/pppb1ppp/4n3/2P1Q3/2p1n3/2Pb1N2/PP1NpPPP/R1BqR1K1[BP] w kq - 28 15",
+    "r1b1kb1r/p1p3pp/2pp4/8/4P3/2NR3P/PPP2P1P/5K1R[BBQNnqnppp] b kq - 39 20", // many pieces in hand
+    "r1b1r1k1/ppp1Pppp/8/3p4/3P2P1/PN6/2PBQP1P/q1q~1KB1R[NNbrnp] w - - 42 22", // promoted queen
+    "r3kb1r/1bpppppp/p1N2p2/2NPP3/2PP4/2N2Pb1/P3P1R1/R1Q2KBq[Pn] w kq - 54 28",
+    "7k/Q2P1pp1/2PPpn1p/3p1b2/3P4/P1n1P3/P1n1bPPP/R1B3KR[RRqbnp] w - - 48 25", // promotion
+
+    // Checkmate
+    "r1b2rk1/pppp1ppp/2P2b2/1N6/5N2/4P1K1/P1P4P/1Nrb1b1n~[NPPQQrp] w - - 64 33", // promoted knight
+    "1Rbk3r/p1pQ1ppp/2Bn3n/4p1b1/4Pn2/3p4/PbPP1PPP/3RK1R1[QPPn] b - - 45 23",
+
+    // Stalemate
+    "2R5/3Q2pk/2p1p3/1pP1P1Qp/1P3P1P/p1P1B3/P7/1R2K3[NRBNPBPRNPBN] b - - 98 55",
   },
 #endif
 #ifdef HORDE
@@ -192,7 +206,10 @@ const vector<string> Defaults[SUBVARIANT_NB] = {
 #endif
 #ifdef LOSERS
   {
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    "8/4P2p/2pk2p1/1p6/1B2P3/7N/3NKPPP/5B1R b - - 0 22",
+    "8/4P2p/2pk2p1/pp6/1B2P3/7N/3NKPPP/5B1R b - - 0 22",
+    "1k6/1b2p3/8/3P4/8/8/8/1R5K b - - 0 1",
+    "4k3/4p3/8/1r1P3K/B7/8/8/8 b - - 0 1"
   },
 #endif
 #ifdef RACE
@@ -242,10 +259,83 @@ const vector<string> Defaults[SUBVARIANT_NB] = {
     "6bB/5pP1/5P2/8/8/8/8/8 w - - 0 1" // more pieces
   },
 #endif
+#ifdef BUGHOUSE
+  {
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1",
+    "rnbqkb1r/ppp1pppp/5n2/3pP3/8/8/PPPP1PPP/RNBQKBNR[] w KQkq d6 4 3", // en passant
+    "r1bk3r/pppp1Bpp/2n5/4p1N1/4P3/3P4/PPP1p1PP/RNK4R[NQPBqb] b - - 23 12", // repetition detection
+    "r3k2r/pppb1ppp/4n3/2P1Q3/2p1n3/2Pb1N2/PP1NpPPP/R1BqR1K1[BP] w kq - 28 15",
+    "r1b1kb1r/p1p3pp/2pp4/8/4P3/2NR3P/PPP2P1P/5K1R[BBQNnqnppp] b kq - 39 20", // many pieces in hand
+    "r1b1r1k1/ppp1Pppp/8/3p4/3P2P1/PN6/2PBQP1P/q1q1KB1R[NNbrnp] w - - 42 22",
+    "r3kb1r/1bpppppp/p1N2p2/2NPP3/2PP4/2N2Pb1/P3P1R1/R1Q2KBq[Pn] w kq - 54 28",
+    "7k/Q2P1pp1/2PPpn1p/3p1b2/3P4/P1n1P3/P1n1bPPP/R1B3KR[RRqbnp] w - - 48 25", // promotion
+
+    // Checkmate
+    "r1b2rk1/pppp1ppp/2P2b2/1N6/5N2/4P1K1/P1P4P/1Nrb1b1n[NPPQQrp] w - - 64 33",
+    "1Rbk3r/p1pQ1ppp/2Bn3n/4p1b1/4Pn2/3p4/PbPP1PPP/3RK1R1[QPPn] b - - 45 23",
+
+    // Stalemate
+    "2R5/3Q2pk/2p1p3/1pP1P1Qp/1P3P1P/p1P1B3/P7/1R2K3[NRBNPBPRNPBN] b - - 98 55",
+  },
+#endif
 #ifdef LOOP
   {
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1"
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR[] w KQkq - 0 1",
+    "rnbqkb1r/ppp1pppp/5n2/3pP3/8/8/PPPP1PPP/RNBQKBNR[] w KQkq d6 4 3", // en passant
+    "r1bk3r/pppp1Bpp/2n5/4p1N1/4P3/3P4/PPP1p1PP/RNK4R[NQPBqb] b - - 23 12", // repetition detection
+    "r3k2r/pppb1ppp/4n3/2P1Q3/2p1n3/2Pb1N2/PP1NpPPP/R1BqR1K1[BP] w kq - 28 15",
+    "r1b1kb1r/p1p3pp/2pp4/8/4P3/2NR3P/PPP2P1P/5K1R[BBQNnqnppp] b kq - 39 20", // many pieces in hand
+    "r1b1r1k1/ppp1Pppp/8/3p4/3P2P1/PN6/2PBQP1P/q1q1KB1R[NNbrnp] w - - 42 22",
+    "r3kb1r/1bpppppp/p1N2p2/2NPP3/2PP4/2N2Pb1/P3P1R1/R1Q2KBq[Pn] w kq - 54 28",
+    "7k/Q2P1pp1/2PPpn1p/3p1b2/3P4/P1n1P3/P1n1bPPP/R1B3KR[RRqbnp] w - - 48 25", // promotion
+
+    // Checkmate
+    "r1b2rk1/pppp1ppp/2P2b2/1N6/5N2/4P1K1/P1P4P/1Nrb1b1n[NPPQQrp] w - - 64 33",
+    "1Rbk3r/p1pQ1ppp/2Bn3n/4p1b1/4Pn2/3p4/PbPP1PPP/3RK1R1[QPPn] b - - 45 23",
+
+    // Stalemate
+    "2R5/3Q2pk/2p1p3/1pP1P1Qp/1P3P1P/p1P1B3/P7/1R2K3[NRBNPBPRNPBN] b - - 98 55",
   },
+#endif
+};
+
+const int default_depth[SUBVARIANT_NB] = {
+  13,
+#ifdef ANTI
+  13,
+#endif
+#ifdef ATOMIC
+  13,
+#endif
+#ifdef CRAZYHOUSE
+  12,
+#endif
+#ifdef HORDE
+  13,
+#endif
+#ifdef KOTH
+  13,
+#endif
+#ifdef LOSERS
+  13,
+#endif
+#ifdef RACE
+  13,
+#endif
+#ifdef RELAY
+  13,
+#endif
+#ifdef THREECHECK
+  13,
+#endif
+#ifdef SUICIDE
+  13,
+#endif
+#ifdef BUGHOUSE
+  12,
+#endif
+#ifdef LOOP
+  12,
 #endif
 };
 
@@ -264,12 +354,21 @@ void benchmark(const Position& current, istream& is) {
   string token;
   vector<string> fens;
   Search::LimitsType limits;
-  Variant variant = UCI::variant_from_name(Options["UCI_Variant"]);
+
+  uint64_t nodes = 0;
+  TimePoint elapsed = now();
+  Position pos;
+
+  string varname   = (!isdigit((is >> ws).peek()) && is >> token) ? token : Options["UCI_Variant"];
+  Variant variant  = varname == "all" ? CHESS_VARIANT : UCI::variant_from_name(varname);
+  streampos args = is.tellg();
+
+  do {
 
   // Assign default values to missing arguments
   string ttSize    = (is >> token) ? token : "16";
   string threads   = (is >> token) ? token : "1";
-  string limit     = (is >> token) ? token : "13";
+  string limit     = (is >> token) ? token : to_string(default_depth[variant]);
   string fenFile   = (is >> token) ? token : "default";
   string limitType = (is >> token) ? token : "depth";
 
@@ -290,7 +389,14 @@ void benchmark(const Position& current, istream& is) {
       limits.depth = stoi(limit);
 
   if (fenFile == "default")
+  {
       fens = Defaults[variant];
+      if (variant == LOSERS_VARIANT)
+      {
+          vector<string> chessFens = Defaults[CHESS_VARIANT];
+          fens.insert(fens.begin(), chessFens.begin(), chessFens.end());
+      }
+  }
 
   else if (fenFile == "current")
       fens.push_back(current.fen());
@@ -313,10 +419,6 @@ void benchmark(const Position& current, istream& is) {
       file.close();
   }
 
-  uint64_t nodes = 0;
-  TimePoint elapsed = now();
-  Position pos;
-
   for (size_t i = 0; i < fens.size(); ++i)
   {
       StateListPtr states(new std::deque<StateInfo>(1));
@@ -335,6 +437,8 @@ void benchmark(const Position& current, istream& is) {
           nodes += Threads.nodes_searched();
       }
   }
+
+  } while (varname == "all" && ++variant < SUBVARIANT_NB && (is.clear(), is.seekg(args)));
 
   elapsed = now() - elapsed + 1; // Ensure positivity to avoid a 'divide by zero'
 

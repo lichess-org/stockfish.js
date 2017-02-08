@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -196,7 +196,7 @@ void Position::init() {
 
 #ifdef THREECHECK
   for (Color c = WHITE; c <= BLACK; ++c)
-      for (CheckCount n : Checks)
+      for (CheckCount n : CheckCounts)
           Zobrist::checks[c][n] = rng.rand<Key>();
 #endif
 #ifdef CRAZYHOUSE
@@ -521,8 +521,7 @@ void Position::set_check_info(StateInfo* si) const {
 
 void Position::set_state(StateInfo* si) const {
 
-  si->key = si->materialKey = 0;
-  si->key ^= Zobrist::variant[var];
+  si->key = si->materialKey = Zobrist::variant[var];
   si->pawnKey = Zobrist::noPawns;
   si->nonPawnMaterial[WHITE] = si->nonPawnMaterial[BLACK] = VALUE_ZERO;
   si->psq = SCORE_ZERO;
@@ -566,7 +565,7 @@ void Position::set_state(StateInfo* si) const {
   if (is_house())
   {
       for (Piece pc : Pieces)
-          si->psq += pieceCountInHand[color_of(pc)][type_of(pc)] * PSQT::psq[var][pc][SQ_NONE];
+          si->psq += PSQT::psq[var][pc][SQ_NONE] * pieceCountInHand[color_of(pc)][type_of(pc)];
   }
 #endif
 
@@ -713,12 +712,12 @@ Phase Position::game_phase() const {
   Value npm = st->nonPawnMaterial[WHITE] + st->nonPawnMaterial[BLACK];
 #ifdef HORDE
   if (is_horde())
-      npm = 2 * st->nonPawnMaterial[is_horde_color(WHITE) ? BLACK : WHITE];
+      return Phase(count<PAWN>(is_horde_color(WHITE) ? WHITE : BLACK) * PHASE_MIDGAME / 36);
 #endif
 
-  npm = std::max(EndgameLimit, std::min(npm, MidgameLimit));
+  npm = std::max(PhaseLimit[variant()][EG], std::min(npm, PhaseLimit[variant()][MG]));
 
-  return Phase(((npm - EndgameLimit) * PHASE_MIDGAME) / (MidgameLimit - EndgameLimit));
+  return Phase(((npm - PhaseLimit[variant()][EG]) * PHASE_MIDGAME) / (PhaseLimit[variant()][MG] - PhaseLimit[variant()][EG]));
 }
 
 
@@ -1229,11 +1228,16 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       if (is_house())
       {
           st->capturedpromoted = is_promoted(to);
-          Piece add = is_promoted(to) ? make_piece(~color_of(captured), PAWN) : ~captured;
-          add_to_hand(color_of(add), type_of(add));
-          st->psq += PSQT::psq[var][add][SQ_NONE];
-          k ^= Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)] - 1]
-              ^ Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)]];
+#ifdef BUGHOUSE
+          if (! is_bughouse())
+#endif
+          {
+              Piece add = is_promoted(to) ? make_piece(~color_of(captured), PAWN) : ~captured;
+              add_to_hand(color_of(add), type_of(add));
+              st->psq += PSQT::psq[var][add][SQ_NONE];
+              k ^= Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)] - 1]
+                  ^ Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)]];
+          }
           promotedPieces -= to;
       }
 #endif
@@ -1584,6 +1588,9 @@ void Position::undo_move(Move m) {
 #ifdef CRAZYHOUSE
           if (is_house())
           {
+#ifdef BUGHOUSE
+              if (! is_bughouse())
+#endif
               remove_from_hand(~color_of(st->capturedPiece), st->capturedpromoted ? PAWN : type_of(st->capturedPiece));
               if (st->capturedpromoted)
                   promotedPieces |= to;
@@ -1738,6 +1745,10 @@ Value Position::see<ATOMIC_VARIANT>(Move m) const {
 bool Position::see_ge(Move m, Value v) const {
 
   assert(is_ok(m));
+#ifdef CRAZYHOUSE
+  if (is_house())
+      v /= 2;
+#endif
 
 #ifdef THREECHECK
   if (is_three_check() && gives_check(m))

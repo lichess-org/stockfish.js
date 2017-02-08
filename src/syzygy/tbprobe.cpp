@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (c) 2013 Ronald de Man
-  Copyright (C) 2016 Marco Costalba, Lucas Braesch
+  Copyright (C) 2016-2017 Marco Costalba, Lucas Braesch
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -86,6 +86,9 @@ const char* WdlSuffixes[SUBVARIANT_NB] = {
 #ifdef SUICIDE
     ".stbw",
 #endif
+#ifdef BUGHOUSE
+    nullptr,
+#endif
 #ifdef LOOP
     nullptr,
 #endif
@@ -122,6 +125,9 @@ const char* PawnlessWdlSuffixes[SUBVARIANT_NB] = {
 #endif
 #ifdef SUICIDE
     ".gtbw",
+#endif
+#ifdef BUGHOUSE
+    nullptr,
 #endif
 #ifdef LOOP
     nullptr,
@@ -160,6 +166,9 @@ const char* DtzSuffixes[SUBVARIANT_NB] = {
 #ifdef SUICIDE
     ".stbz",
 #endif
+#ifdef BUGHOUSE
+    nullptr,
+#endif
 #ifdef LOOP
     nullptr,
 #endif
@@ -196,6 +205,9 @@ const char* PawnlessDtzSuffixes[SUBVARIANT_NB] = {
 #endif
 #ifdef SUICIDE
     ".gtbz",
+#endif
+#ifdef BUGHOUSE
+    nullptr,
 #endif
 #ifdef LOOP
     nullptr,
@@ -523,7 +535,7 @@ class HashTable {
 #endif
 
 #if defined(ANTI)
-    static const int HSHMAX     = 12;
+    static const int HSHMAX     = 14;
 #elif defined(ATOMIC)
     static const int HSHMAX     = 8;
 #else
@@ -1605,6 +1617,12 @@ void* init(Entry& e, const Position& pos) {
             { 0x7B, 0xF6, 0x93, 0x15 }
         },
 #endif
+#ifdef BUGHOUSE
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
 #ifdef LOOP
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
@@ -1676,6 +1694,12 @@ void* init(Entry& e, const Position& pos) {
         {
             { 0xD6, 0xF5, 0x1B, 0x50 },
             { 0xBC, 0x55, 0xBC, 0x21 }
+        },
+#endif
+#ifdef BUGHOUSE
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
 #ifdef LOOP

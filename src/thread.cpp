@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,8 +37,6 @@ Thread::Thread() {
   resetCalls = exit = false;
   maxPly = callsCnt = 0;
   tbHits = 0;
-  history.clear();
-  counterMoves.clear();
   idx = Threads.size(); // Start from 0
 
 #ifndef __EMSCRIPTEN__
@@ -129,7 +127,7 @@ void Thread::idle_loop() {
 
 void ThreadPool::init() {
 
-  push_back(new MainThread);
+  push_back(new MainThread());
   read_uci_options();
 }
 
@@ -156,7 +154,7 @@ void ThreadPool::read_uci_options() {
   assert(requested > 0);
 
   while (size() < requested)
-      push_back(new Thread);
+      push_back(new Thread());
 
   while (size() > requested)
       delete back(), pop_back();
