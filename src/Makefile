@@ -311,6 +311,7 @@ endif
 ifeq ($(optimize),yes)
 
 	CXXFLAGS += -O3
+	LDFLAGS += -O3
 
 	ifeq ($(comp),gcc)
 
