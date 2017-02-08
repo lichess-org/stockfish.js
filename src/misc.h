@@ -42,7 +42,11 @@ typedef std::chrono::milliseconds::rep TimePoint; // A value in milliseconds
 
 inline TimePoint now() {
   return std::chrono::duration_cast<std::chrono::milliseconds>
+#ifndef __EMSCRIPTEN__
         (std::chrono::steady_clock::now().time_since_epoch()).count();
+#else
+        (std::chrono::system_clock::now().time_since_epoch()).count();
+#endif
 }
 
 template<class Entry, int Size>
