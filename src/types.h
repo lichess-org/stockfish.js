@@ -218,9 +218,16 @@ enum MoveType {
   NORMAL,
   PROMOTION = 1 << 14,
   ENPASSANT = 2 << 14,
-  CASTLING  = 3 << 14
+  CASTLING  = 3 << 14,
+  // special moves use promotion piece type bits as flags
+#if defined(ANTI) || defined(CRAZYHOUSE)
+  SPECIAL = ENPASSANT,
+#endif
 #ifdef CRAZYHOUSE
-  ,DROP = 1 << 17
+  DROP = 1 << 12,
+#endif
+#ifdef ANTI
+  KING_PROMOTION = 2 << 12, // not used as an actual move type
 #endif
 };
 
@@ -288,14 +295,12 @@ enum Value : int {
   VALUE_MATE_IN_MAX_PLY  =  VALUE_MATE - 2 * MAX_PLY,
   VALUE_MATED_IN_MAX_PLY = -VALUE_MATE + 2 * MAX_PLY,
 
-  TempoMg       = 0,     TempoEg       = 0,
   PawnValueMg   = 188,   PawnValueEg   = 248,
   KnightValueMg = 753,   KnightValueEg = 832,
-  BishopValueMg = 826,   BishopValueEg = 897,
+  BishopValueMg = 814,   BishopValueEg = 890,
   RookValueMg   = 1285,  RookValueEg   = 1371,
-  QueenValueMg  = 2513,  QueenValueEg  = 2650,
+  QueenValueMg  = 2513,  QueenValueEg  = 2648,
 #ifdef ANTI
-  TempoMgAnti       =  0,    TempoEgAnti       =  0,
   PawnValueMgAnti   =  137,  PawnValueEgAnti   =  360,
   KnightValueMgAnti =  130,  KnightValueEgAnti = -41,
   BishopValueMgAnti =  322,  BishopValueEgAnti = -64,
@@ -304,7 +309,6 @@ enum Value : int {
   KingValueMgAnti   =  20,   KingValueEgAnti   = -130,
 #endif
 #ifdef ATOMIC
-  TempoMgAtomic       = 0,     TempoEgAtomic       = 0,
   PawnValueMgAtomic   = 329,   PawnValueEgAtomic   = 437,
   KnightValueMgAtomic = 476,   KnightValueEgAtomic = 732,
   BishopValueMgAtomic = 622,   BishopValueEgAtomic = 774,
@@ -312,7 +316,6 @@ enum Value : int {
   QueenValueMgAtomic  = 1812,  QueenValueEgAtomic  = 2636,
 #endif
 #ifdef CRAZYHOUSE
-  TempoMgHouse       = 0,     TempoEgHouse       = 0,
   PawnValueMgHouse   = 174,   PawnValueEgHouse   = 259,
   KnightValueMgHouse = 445,   KnightValueEgHouse = 667,
   BishopValueMgHouse = 513,   BishopValueEgHouse = 690,
@@ -320,7 +323,6 @@ enum Value : int {
   QueenValueMgHouse  = 936,   QueenValueEgHouse  = 1222,
 #endif
 #ifdef HORDE
-  TempoMgHorde       = 0,     TempoEgHorde       = 0,
   PawnValueMgHorde   = 317,   PawnValueEgHorde   = 316,
   KnightValueMgHorde = 885,   KnightValueEgHorde = 985,
   BishopValueMgHorde = 745,   BishopValueEgHorde = 964,
@@ -329,7 +331,6 @@ enum Value : int {
   KingValueMgHorde   = 2296,  KingValueEgHorde   = 995,
 #endif
 #ifdef KOTH
-  TempoMgHill       = 1,     TempoEgHill       = 1,
   PawnValueMgHill   = 178,   PawnValueEgHill   = 252,
   KnightValueMgHill = 734,   KnightValueEgHill = 818,
   BishopValueMgHill = 859,   BishopValueEgHill = 883,
@@ -337,22 +338,19 @@ enum Value : int {
   QueenValueMgHill  = 2396,  QueenValueEgHill  = 2610,
 #endif
 #ifdef LOSERS
-  TempoMgLosers       = 0,     TempoEgLosers       = 0,
-  PawnValueMgLosers   = -113,  PawnValueEgLosers   = -18,
-  KnightValueMgLosers = -67,   KnightValueEgLosers = 217,
-  BishopValueMgLosers = -255,  BishopValueEgLosers = 125,
-  RookValueMgLosers   = -518,  RookValueEgLosers   = 140,
-  QueenValueMgLosers  = -148,  QueenValueEgLosers  = -256,
+  PawnValueMgLosers   = -41,   PawnValueEgLosers   = -23,
+  KnightValueMgLosers = -22,   KnightValueEgLosers = 329,
+  BishopValueMgLosers = -219,  BishopValueEgLosers = 231,
+  RookValueMgLosers   = -457,  RookValueEgLosers   = 77,
+  QueenValueMgLosers  = -122,  QueenValueEgLosers  = -213,
 #endif
 #ifdef RACE
-  TempoMgRace       = 0,     TempoEgRace       = 0,
   KnightValueMgRace = 730,   KnightValueEgRace = 839,
   BishopValueMgRace = 1006,  BishopValueEgRace = 1019,
   RookValueMgRace   = 1274,  RookValueEgRace   = 1842,
   QueenValueMgRace  = 2019,  QueenValueEgRace  = 2090,
 #endif
 #ifdef THREECHECK
-  TempoMgThreeCheck       = 0,     TempoEgThreeCheck       = 0,
   PawnValueMgThreeCheck   = 181,   PawnValueEgThreeCheck   = 245,
   KnightValueMgThreeCheck = 691,   KnightValueEgThreeCheck = 850,
   BishopValueMgThreeCheck = 829,   BishopValueEgThreeCheck = 845,
@@ -363,7 +361,6 @@ enum Value : int {
   MidgameLimit  = 15258, EndgameLimit  = 3915
 };
 extern Value PhaseLimit[VARIANT_NB][PHASE_NB];
-extern Value TempoValue[VARIANT_NB][PHASE_NB];
 
 enum PieceType {
   NO_PIECE_TYPE, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
@@ -591,9 +588,11 @@ inline Square pawn_push(Color c) {
   return c == WHITE ? NORTH : SOUTH;
 }
 
+inline MoveType type_of(Move m);
+
 inline Square from_sq(Move m) {
 #ifdef CRAZYHOUSE
-  if (m & DROP)
+  if (type_of(m) == DROP)
       return SQ_NONE;
 #endif
   return Square((m >> 6) & 0x3F);
@@ -604,16 +603,25 @@ inline Square to_sq(Move m) {
 }
 
 inline MoveType type_of(Move m) {
+#if defined(ANTI) || defined(CRAZYHOUSE)
+  if ((m & (3 << 14)) == SPECIAL && (m & (3 << 12)))
+  {
 #ifdef CRAZYHOUSE
-  if (m & DROP)
-      return DROP;
+      if ((m & (3 << 12)) == DROP)
+          return DROP;
+#endif
+#ifdef ANTI
+      if ((m & (3 << 12)) == KING_PROMOTION)
+          return PROMOTION;
+#endif
+  }
 #endif
   return MoveType(m & (3 << 14));
 }
 
 inline PieceType promotion_type(Move m) {
 #ifdef ANTI
-  if ((m >> 16) & 1)
+  if ((m & (3 << 12)) == KING_PROMOTION && (m & (3 << 14)) == SPECIAL)
       return KING;
 #endif
   return PieceType(((m >> 12) & 3) + KNIGHT);
@@ -627,18 +635,18 @@ template<MoveType T>
 inline Move make(Square from, Square to, PieceType pt = KNIGHT) {
 #ifdef ANTI
   if (pt == KING)
-      return Move((1 << 16) | (T + (from << 6) + to));
+      return Move(SPECIAL + KING_PROMOTION + (from << 6) + to);
 #endif
   return Move(T + ((pt - KNIGHT) << 12) + (from << 6) + to);
 }
 
 #ifdef CRAZYHOUSE
 inline Move make_drop(Square to, Piece pc) {
-  return Move(DROP + (pc << 18) + to);
+  return Move(SPECIAL + DROP + (pc << 6) + to);
 }
 
 inline Piece dropped_piece(Move m) {
-  return Piece((m >> 18) & 15);
+  return Piece((m >> 6) & 15);
 }
 #endif
 
