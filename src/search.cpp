@@ -88,7 +88,7 @@ namespace {
   { 483, 570, 603, 554 },
 #endif
 #ifdef LOSERS
-  { 1932, 2280, 2412, 2216 },
+  { 1981, 2335, 2351, 2142 },
 #endif
 #ifdef RACE
   { 1017, 986, 1017, 990 },
@@ -118,7 +118,7 @@ namespace {
   150,
 #endif
 #ifdef LOSERS
-  600,
+  593,
 #endif
 #ifdef RACE
   365,
@@ -131,6 +131,36 @@ namespace {
 #endif
   };
   Value futility_margin(Variant var, Depth d) { return Value(futility_margin_factor[var] * d / ONE_PLY); }
+  const int futility_margin_parent[VARIANT_NB][2] = {
+  { 256, 200 },
+#ifdef ANTI
+  { 256, 200 },
+#endif
+#ifdef ATOMIC
+  { 512, 400 },
+#endif
+#ifdef CRAZYHOUSE
+  { 256, 200 },
+#endif
+#ifdef HORDE
+  { 256, 200 },
+#endif
+#ifdef KOTH
+  { 256, 200 },
+#endif
+#ifdef LOSERS
+  { 299, 281 },
+#endif
+#ifdef RACE
+  { 256, 200 },
+#endif
+#ifdef RELAY
+  { 256, 200 },
+#endif
+#ifdef THREECHECK
+  { 256, 200 },
+#endif
+  };
 
   // Futility and reductions lookup tables, initialized at startup
   int FutilityMoveCounts[2][16]; // [improving][depth]
@@ -1199,7 +1229,7 @@ moves_loop: // When in check search starts from here
               // Futility pruning: parent node
               if (   lmrDepth < 7
                   && !inCheck
-                  && ss->staticEval + 256 + 200 * lmrDepth <= alpha)
+                  && ss->staticEval + futility_margin_parent[pos.variant()][0] + futility_margin_parent[pos.variant()][1] * lmrDepth <= alpha)
                   continue;
 
               // Prune moves with negative SEE

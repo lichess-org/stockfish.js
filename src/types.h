@@ -301,12 +301,12 @@ enum Value : int {
   RookValueMg   = 1285,  RookValueEg   = 1371,
   QueenValueMg  = 2513,  QueenValueEg  = 2648,
 #ifdef ANTI
-  PawnValueMgAnti   =  137,  PawnValueEgAnti   =  360,
-  KnightValueMgAnti =  130,  KnightValueEgAnti = -41,
-  BishopValueMgAnti =  322,  BishopValueEgAnti = -64,
-  RookValueMgAnti   =  496,  RookValueEgAnti   = -82,
-  QueenValueMgAnti  =  187,  QueenValueEgAnti  =  318,
-  KingValueMgAnti   =  20,   KingValueEgAnti   = -130,
+  PawnValueMgAnti   = -128,  PawnValueEgAnti   = -160,
+  KnightValueMgAnti = -161,  KnightValueEgAnti = 193,
+  BishopValueMgAnti = -351,  BishopValueEgAnti = 118,
+  RookValueMgAnti   = -541,  RookValueEgAnti   = 58,
+  QueenValueMgAnti  = -121,  QueenValueEgAnti  = -224,
+  KingValueMgAnti   = -23,   KingValueEgAnti   = 231,
 #endif
 #ifdef ATOMIC
   PawnValueMgAtomic   = 329,   PawnValueEgAtomic   = 437,
@@ -587,6 +587,12 @@ inline bool opposite_colors(Square s1, Square s2) {
 inline Square pawn_push(Color c) {
   return c == WHITE ? NORTH : SOUTH;
 }
+
+#ifdef RACE
+inline Square horizontal_flip(Square s) {
+  return Square(s ^ SQ_H1); // Horizontal flip SQ_A1 -> SQ_H1
+}
+#endif
 
 inline MoveType type_of(Move m);
 
