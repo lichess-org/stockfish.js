@@ -217,8 +217,8 @@ endif
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
-	CXXFLAGS += -s TOTAL_MEMORY=33554432
-	LDFLAGS += -s TOTAL_MEMORY=33554432 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" --pre-js pre.js --post-js post.js
+	CXXFLAGS += -s WASM=1 -s TOTAL_MEMORY=33554432
+	LDFLAGS += -s WASM=1 -s TOTAL_MEMORY=33554432 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']"
 endif
 
 ifeq ($(COMP),clang)

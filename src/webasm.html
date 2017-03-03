@@ -1,0 +1,27 @@
+<meta charset="utf-8">
+
+<script>
+var xhr = new XMLHttpRequest();
+xhr.open('GET', 'stockfish.wasm', true);
+xhr.responseType = 'arraybuffer';
+xhr.onload = function() {
+  Module = {};
+  Module.wasmBinary = xhr.response;
+  Module.noExitRuntime = true;
+  Module.noInitialRun = true;
+  Module.preRun = function() {
+    setTimeout(function () {
+      Module.ccall('main', 'number', [], []);
+      Module.ccall('uci_command', 'number', ['string'], ['go infinite']);
+    }, 1000);
+
+    setTimeout(function () {
+      Module.ccall('uci_command', 'number', ['string'], ['stop']);
+    }, 10000);
+  };
+  var script = document.createElement('script');
+  script.src = "stockfish.js";
+  document.body.appendChild(script);
+};
+xhr.send(null);
+</script>
