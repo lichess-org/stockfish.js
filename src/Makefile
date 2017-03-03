@@ -100,12 +100,7 @@ endif
 
 ifeq ($(ARCH),js)
 	arch = any
-	os = any
 	bits = 32
-	prefetch = no
-	bsfq = no
-	popcnt = no
-	sse = no
 	COMP = emscripten
 	EXE = stockfish.js
 endif
@@ -217,7 +212,6 @@ endif
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
-	CXXFLAGS += -s TOTAL_MEMORY=33554432
 	LDFLAGS += -s TOTAL_MEMORY=33554432 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" --pre-js pre.js --post-js post.js
 endif
 
