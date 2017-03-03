@@ -3,7 +3,7 @@ stockfish.js
 
 The strong open source chess engine
 [Stockfish](https://github.com/official-stockfish/Stockfish)
-compiled to JavaScript and Webassembly using
+compiled to JavaScript and WebAssembly using
 [Emscripten](https://kripken.github.io/emscripten-site/). See it in action
 for [local computer analysis on lichess.org](https://de.lichess.org/analysis).
 
