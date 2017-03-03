@@ -1,27 +1,13 @@
 <meta charset="utf-8">
 
 <script>
-var xhr = new XMLHttpRequest();
-xhr.open('GET', 'stockfish.wasm', true);
-xhr.responseType = 'arraybuffer';
-xhr.onload = function() {
-  Module = {};
-  Module.wasmBinary = xhr.response;
-  Module.noExitRuntime = true;
-  Module.noInitialRun = true;
-  Module.preRun = function() {
-    setTimeout(function () {
-      Module.ccall('main', 'number', [], []);
-      Module.ccall('uci_command', 'number', ['string'], ['go infinite']);
-    }, 1000);
-
-    setTimeout(function () {
-      Module.ccall('uci_command', 'number', ['string'], ['stop']);
-    }, 10000);
-  };
-  var script = document.createElement('script');
-  script.src = "stockfish.js";
-  document.body.appendChild(script);
-};
-xhr.send(null);
+var worker = new Worker('worker.js');
+worker.addEventListener('message', function (e) {
+  console.log(e.data);
+});
+worker.postMessage('uci');
+worker.postMessage('go infinite');
+setTimeout(function () {
+  worker.postMessage('stop');
+}, 5000);
 </script>
