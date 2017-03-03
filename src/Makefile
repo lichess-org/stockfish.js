@@ -105,6 +105,13 @@ ifeq ($(ARCH),js)
 	EXE = stockfish.js
 endif
 
+ifeq ($(ARCH),wasm)
+	arch = any
+	bits = 64
+	COMP = emscripten
+	EXE = stockfish.js
+endif
+
 ifeq ($(ARCH),x86-64)
 	arch = x86_64
 	bits = 64
@@ -212,7 +219,12 @@ endif
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
-	LDFLAGS += -s TOTAL_MEMORY=33554432 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" --pre-js pre.js --post-js post.js
+	LDFLAGS += -s TOTAL_MEMORY=33554432 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']"
+	ifeq ($(ARCH),js)
+		LDFLAGS += --pre-js pre.js --post-js post.js
+	else
+		LDFLAGS += -s WASM=1 -s BINARYEN_IMPRECISE=1 -s "BINARYEN_METHOD='native-wasm'" --pre-js pre.wasm.js
+	endif
 endif
 
 ifeq ($(COMP),clang)
@@ -442,6 +454,7 @@ help:
 	@echo "general-64              > unspecified 64-bit"
 	@echo "general-32              > unspecified 32-bit"
 	@echo "js                      > emscripten javascript"
+	@echo "wasm                    > emscripten webassembly"
 	@echo ""
 	@echo "Supported compilers:"
 	@echo ""
@@ -494,11 +507,11 @@ install:
 
 #clean all
 clean: objclean profileclean
-	@rm -f .depend *~ core 
+	@rm -f .depend *~ core
 
 # clean binaries and objects
 objclean:
-	@rm -f $(EXE) $(EXE).exe $(EXE).js *.o ./syzygy/*.o
+	@rm -f $(EXE) $(EXE).exe stockfish.js stockfish.wasm *.o ./syzygy/*.o
 
 # clean auxiliary profiling files
 profileclean:
