@@ -229,34 +229,18 @@ namespace {
     Move pv[3];
   };
 
-  // Set of rows with half bits set to 1 and half to 0. It is used to allocate
-  // the search depths across the threads.
-  typedef std::vector<int> Row;
+  // skip half of the plies in blocks depending on the helper thread idx.
+  bool skip_ply(int idx, int ply) {
 
-  const Row HalfDensity[] = {
-    {0, 1},
-    {1, 0},
-    {0, 0, 1, 1},
-    {0, 1, 1, 0},
-    {1, 1, 0, 0},
-    {1, 0, 0, 1},
-    {0, 0, 0, 1, 1, 1},
-    {0, 0, 1, 1, 1, 0},
-    {0, 1, 1, 1, 0, 0},
-    {1, 1, 1, 0, 0, 0},
-    {1, 1, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 1},
-    {0, 0, 0, 0, 1, 1, 1, 1},
-    {0, 0, 0, 1, 1, 1, 1, 0},
-    {0, 0, 1, 1, 1, 1, 0 ,0},
-    {0, 1, 1, 1, 1, 0, 0 ,0},
-    {1, 1, 1, 1, 0, 0, 0 ,0},
-    {1, 1, 1, 0, 0, 0, 0 ,1},
-    {1, 1, 0, 0, 0, 0, 1 ,1},
-    {1, 0, 0, 0, 0, 1, 1 ,1},
-  };
+    idx = (idx - 1) % 20 + 1; // cycle after 20 threads.
 
-  const size_t HalfDensitySize = std::extent<decltype(HalfDensity)>::value;
+    // number of successive plies to skip, depending on idx.
+    int ones = 1;
+    while (ones * (ones + 1) < idx)
+        ones++;
+
+    return ((ply + idx - 1) / ones - ones) % 2 == 0;
+  }
 
   EasyMoveManager EasyMove;
   Value DrawValue[COLOR_NB];
@@ -563,19 +547,13 @@ void Thread::search_iteration() {
          && !Signals.stop
          && (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
   {
-      // Set up the new depths for the helper threads skipping on average every
-      // 2nd ply (using a half-density matrix).
-      if (!mainThread_)
-      {
-          const Row& row = HalfDensity[(idx - 1) % HalfDensitySize];
-          if (row[(rootDepth / ONE_PLY + rootPos.game_ply()) % row.size()]) {
+      // skip plies for helper threads
+      if (idx && skip_ply(idx, rootDepth / ONE_PLY + rootPos.game_ply())) {
 #ifdef __EMSCRIPTEN__
-              emscripten_async_call(search_iteration_call, this, 30);
+          emscripten_async_call(search_iteration_call, this, 30);
 #else
-              search_iteration();
+          search_iteration();
 #endif
-              return;
-          }
       }
 
       // Age out PV variability metric

@@ -309,18 +309,18 @@ enum Value : int {
   KingValueMgAnti   = -23,   KingValueEgAnti   = 231,
 #endif
 #ifdef ATOMIC
-  PawnValueMgAtomic   = 329,   PawnValueEgAtomic   = 437,
-  KnightValueMgAtomic = 476,   KnightValueEgAtomic = 732,
-  BishopValueMgAtomic = 622,   BishopValueEgAtomic = 774,
-  RookValueMgAtomic   = 921,   RookValueEgAtomic   = 1155,
-  QueenValueMgAtomic  = 1812,  QueenValueEgAtomic  = 2636,
+  PawnValueMgAtomic   = 314,   PawnValueEgAtomic   = 447,
+  KnightValueMgAtomic = 474,   KnightValueEgAtomic = 755,
+  BishopValueMgAtomic = 652,   BishopValueEgAtomic = 762,
+  RookValueMgAtomic   = 899,   RookValueEgAtomic   = 1199,
+  QueenValueMgAtomic  = 1918,  QueenValueEgAtomic  = 2621,
 #endif
 #ifdef CRAZYHOUSE
-  PawnValueMgHouse   = 174,   PawnValueEgHouse   = 259,
-  KnightValueMgHouse = 445,   KnightValueEgHouse = 667,
-  BishopValueMgHouse = 513,   BishopValueEgHouse = 690,
-  RookValueMgHouse   = 699,   RookValueEgHouse   = 790,
-  QueenValueMgHouse  = 936,   QueenValueEgHouse  = 1222,
+  PawnValueMgHouse   = 157,   PawnValueEgHouse   = 246,
+  KnightValueMgHouse = 435,   KnightValueEgHouse = 621,
+  BishopValueMgHouse = 493,   BishopValueEgHouse = 611,
+  RookValueMgHouse   = 648,   RookValueEgHouse   = 783,
+  QueenValueMgHouse  = 866,   QueenValueEgHouse  = 1247,
 #endif
 #ifdef HORDE
   PawnValueMgHorde   = 317,   PawnValueEgHorde   = 316,
