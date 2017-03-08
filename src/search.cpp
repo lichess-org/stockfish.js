@@ -564,6 +564,8 @@ void Thread::search() {
       multiPV_ = std::max(multiPV_, (size_t)4);
 #endif
 
+  multiPV_ = std::min(multiPV_, rootMoves.size());
+
 #ifdef __EMSCRIPTEN__
   emscripten_async_call(search_iteration_call, this, 30);
 #else
