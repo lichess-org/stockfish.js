@@ -8,7 +8,7 @@ Module = (function () {
   };
 
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', 'stockfish.wasm?v=17', false);
+  xhr.open('GET', 'stockfish.wasm?v=18', false);
   xhr.responseType = 'arraybuffer';
   xhr.send(null);
 
