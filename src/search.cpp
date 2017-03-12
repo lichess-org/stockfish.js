@@ -567,7 +567,7 @@ void Thread::search() {
   multiPV_ = std::min(multiPV_, rootMoves.size());
 
 #ifdef __EMSCRIPTEN__
-  emscripten_async_call(search_iteration_call, this, 30);
+  emscripten_async_call(search_iteration_call, this, 0);
 #else
   search_iteration();
 #endif
@@ -582,7 +582,7 @@ void Thread::search_iteration() {
       // skip plies for helper threads
       if (idx && skip_ply(idx, rootDepth / ONE_PLY + rootPos.game_ply())) {
 #ifdef __EMSCRIPTEN__
-          emscripten_async_call(search_iteration_call, this, 30);
+          emscripten_async_call(search_iteration_call, this, 0);
 #else
           search_iteration();
 #endif
@@ -678,7 +678,7 @@ void Thread::search_iteration() {
 
       if (!mainThread_) {
 #ifdef __EMSCRIPTEN__
-          emscripten_async_call(search_iteration_call, this, 30);
+          emscripten_async_call(search_iteration_call, this, 0);
 #else
           search_iteration();
 #endif
@@ -735,7 +735,7 @@ void Thread::search_iteration() {
       }
 
 #ifdef __EMSCRIPTEN__
-      emscripten_async_call(search_iteration_call, this, 30);
+      emscripten_async_call(search_iteration_call, this, 0);
 #else
       search_iteration();
 #endif
@@ -759,7 +759,7 @@ void Thread::search_iteration() {
 
   if (mainThread_) {
 #ifdef __EMSCRIPTEN__
-      emscripten_async_call(after_search_call, mainThread_, 30);
+      emscripten_async_call(after_search_call, mainThread_, 0);
 #else
       mainThread_->after_search();
 #endif
