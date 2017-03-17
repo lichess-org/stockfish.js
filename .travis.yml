@@ -1,75 +1,21 @@
-language: cpp
 sudo: required
-dist: trusty
 
-matrix:
-  include:
-    - os: linux
-      compiler: gcc
-      addons:
-        apt:
-          sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-6', 'g++-6-multilib', 'g++-multilib', 'valgrind', 'expect']
-      env:
-        - COMPILER=g++-6
-        - COMP=gcc
-
-    - os: linux
-      compiler: clang
-      addons:
-        apt:
-          sources: ['ubuntu-toolchain-r-test']
-          packages: ['clang', 'g++-multilib', 'valgrind', 'expect']
-      env:
-        - COMPILER=clang++
-        - COMP=clang
-
-    - os: osx
-      compiler: gcc
-      env:
-        - COMPILER=g++
-        - COMP=gcc
-
-    - os: osx
-      compiler: clang
-      env:
-        - COMPILER=clang++ V='Apple LLVM 6.0' # Apple LLVM version 6.0 (clang-600.0.54) (based on LLVM 3.5svn)
-        - COMP=clang
-
-branches:
-  only:
-   - master
-
-before_script:
-  - cd src
+services:
+- docker
 
 script:
-  #
-  # checking bench for various build types
-  #
-  # obtain reference from git log
-  - git log HEAD | grep "\b[Bb]ench[ :]\+[0-9]\{7\}" | head -n 1 | sed "s/[^0-9]*\([0-9][0-9]*\)/\1/g" > git_sig
-  - export benchref=$(cat git_sig)
-  - echo "Reference bench:" $benchref
-  # verify against reference
-  - make clean && make ARCH=x86-64 build > /dev/null && ../tests/signature.sh $benchref
-  - make clean && make ARCH=x86-32 build > /dev/null && ../tests/signature.sh $benchref
-  - make clean && make ARCH=x86-64 optimize=no debug=yes build > /dev/null && ../tests/signature.sh $benchref
-  - make clean && make ARCH=x86-32 optimize=no debug=yes build > /dev/null && ../tests/signature.sh $benchref
-  #
-  # perft
-  #
-  - make clean && make ARCH=x86-64 build > /dev/null && ../tests/perft.sh
-  #
-  # reproducible search
-  #
-  - make clean && make ARCH=x86-64 build > /dev/null && ../tests/reprosearch.sh
-  #
-  # valgrind
-  #
-  - if [ -x "$(command -v valgrind )" ]; then make clean && make ARCH=x86-64 debug=yes optimize=no build > /dev/null && ../tests/instrumented.sh --valgrind; fi
-  #
-  # sanitizer
-  #
-  # use g++-6 as a proxy for having sanitizers, might need revision as they become available for more recent versions of clang/gcc
-  - if [[ "$COMPILER" == "g++-6" ]]; then make clean && make ARCH=x86-64 sanitize=yes build > /dev/null && ../tests/instrumented.sh --sanitizer; fi
+- docker run --volume $PWD:/home/builder/stockfish.js --user $(id -u) niklasf/emscripten-for-stockfish
+
+deploy:
+  provider: releases
+  api_key:
+    secure: vMf25I6rGVDgCA2cMXLhCva50Vda3276Cljad1hnZjJ2ZiGQluQ8pikDWeJXqznA4tto2GUUcVArI4COZWXMrF+BI50q6A1joNPDmZNEGSu4+gTDurrVekAzvJnwwddsUZos+9eOO+PE9KuqbFbacH2qk/OA8B8SxpEWQy6AUGeAZvbp/H6JVwObuV3moTfIilfRjXDlDXZ2jqcmwxIqgGBbcb3U/u/wz/7AeuJfGWPN2JiJYobz/dCPmXOKJ0JRkPkram5P/CTjMyJ1yB7vbThIclfRmt19LsRvBQNXhkHNnlIKcSM7fCiBmNQ2yjf+9nn4qb7n9JVrUD0aKF1FQSsTVBgvGdnw3/Sb2gGDykQ4kJD+6aIy1KW4KBd2OfiZitPcTqjRocx/4sv0EyGBj2IDFuXhC7lrOrYygsZA48a7PhDmSuV1TpsKp3WgNUxEVr9S0EHdT2YnkSa8emVuEHPvl/bfFisnfG3SZpQfxdIy4CuT9L7tadaMwxTtYT226qVNBE/3NOJwanX7FvtVjdTUALt9Q3XunvpYMU4h1TM5/7ic5qMyehdbD3nU5im2muLZnGbaqzolZ72nxS1IGW2jhAyOJyyC3/PzDid2b1U6bmStfF87NkVfygi0dHRD3XA1ia03+CHoabDETt28hIs4IeKshLOgutsXNG/acmI=
+  file:
+   - stockfish.js
+   - stockfish.wasm
+   - stockfish.wasm.js
+  skip_cleanup: true
+  on:
+    tags: true
+    repo: niklasf/stockfish.js
+    branch: ddugovic
