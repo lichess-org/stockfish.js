@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 cd src
 make clean
 make ARCH=js build -B -j4
