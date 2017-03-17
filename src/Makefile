@@ -108,6 +108,8 @@ endif
 ifeq ($(ARCH),wasm)
 	arch = any
 	bits = 64
+	popcnt = yes
+	prefetch = yes
 	COMP = emscripten
 	EXE = stockfish.js
 endif
