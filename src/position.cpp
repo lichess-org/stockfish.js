@@ -463,7 +463,11 @@ void Position::set_castling_right(Color c, Square kfrom, Square rfrom) {
 void Position::set_check_info(StateInfo* si) const {
 
 #ifdef ANTI
-  if (is_anti()) si->blockersForKing[WHITE] = si->blockersForKing[BLACK] = 0;
+  if (is_anti())
+  {
+      si->blockersForKing[WHITE] = si->pinnersForKing[WHITE] = 0;
+      si->blockersForKing[BLACK] = si->pinnersForKing[BLACK] = 0;
+  }
   else
 #endif
   {
@@ -610,7 +614,7 @@ void Position::set_state(StateInfo* si) const {
 
 
 /// Position::set() is an overload to initialize the position object with
-/// the given endgame code string like "KBPvKN". It is mainly an helper to
+/// the given endgame code string like "KBPvKN". It is mainly a helper to
 /// get the material key out of an endgame code. Position is not playable,
 /// indeed is even not guaranteed to be legal.
 
@@ -1859,9 +1863,6 @@ bool Position::see_ge(Move m, Value v) const {
 
       // Don't allow pinned pieces to attack pieces except the king as long all
       // pinners are on their original square.
-#ifdef ANTI
-      if (is_anti()) {} else
-#endif
       if (!(st->pinnersForKing[stm] & ~occupied))
           stmAttackers &= ~st->blockersForKing[stm];
 

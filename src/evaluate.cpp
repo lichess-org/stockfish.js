@@ -450,7 +450,7 @@ namespace {
     S(  9, 10), S( 2, 10), S( 1, -8), S(-20,-12),
     S(-20,-12), S( 1, -8), S( 2, 10), S(  9, 10)
   };
-  
+
   // Protector[PieceType-2][distance] contains a protecting bonus for our king,
   // indexed by piece type and distance between the piece and the king.
   const Score Protector[4][8] = {
@@ -540,6 +540,11 @@ namespace {
 
     // Squares occupied by those pawns, by our king, or controlled by enemy pawns
     // are excluded from the mobility area.
+#ifdef ANTI
+    if (pos.is_anti())
+        ei.mobilityArea[Us] = ~0;
+    else
+#endif
     ei.mobilityArea[Us] = ~(b | pos.square<KING>(Us) | ei.pe->pawn_attacks(Them));
 
     // Initialise the attack bitboards with the king and pawn information
@@ -619,10 +624,6 @@ namespace {
         }
 
         int mob = popcount(b & ei.mobilityArea[Us]);
-#ifdef ANTI
-        if (pos.is_anti())
-            mob = popcount(b);
-#endif
 
         mobility[Us] += MobilityBonus[pos.variant()][Pt-2][mob];
 
@@ -1372,7 +1373,7 @@ namespace {
 #endif
     int kingDistance =  distance<File>(pos.square<KING>(WHITE), pos.square<KING>(BLACK))
                       - distance<Rank>(pos.square<KING>(WHITE), pos.square<KING>(BLACK));
-    int pawns = pos.count<PAWN>(WHITE) + pos.count<PAWN>(BLACK);
+    int pawns = pos.count<PAWN>();
     bool bothFlanks = (pos.pieces(PAWN) & QueenSide) && (pos.pieces(PAWN) & KingSide);
 
     // Compute the initiative bonus for the attacking side
@@ -1508,7 +1509,7 @@ Value Eval::evaluate(const Position& pos) {
   else
   {
 #endif
-  if (pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK) >= 12222)
+  if (pos.non_pawn_material() >= 12222)
       score +=  evaluate_space<WHITE>(pos, ei)
               - evaluate_space<BLACK>(pos, ei);
 
@@ -1534,7 +1535,7 @@ Value Eval::evaluate(const Position& pos) {
       Trace::add(IMBALANCE, ei.me->imbalance());
       Trace::add(PAWN, ei.pe->pawns_score());
       Trace::add(MOBILITY, mobility[WHITE], mobility[BLACK]);
-      if (pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK) >= 12222)
+      if (pos.non_pawn_material() >= 12222)
           Trace::add(SPACE, evaluate_space<WHITE>(pos, ei)
                           , evaluate_space<BLACK>(pos, ei));
       Trace::add(TOTAL, score);
