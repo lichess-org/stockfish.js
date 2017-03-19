@@ -8,7 +8,7 @@ Module = (function () {
   };
 
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', 'stockfish.wasm?v=19', false);
+  xhr.open('GET', 'stockfish.wasm?v=niklasf/ddugovic', false);
   xhr.responseType = 'arraybuffer';
   xhr.send(null);
 
