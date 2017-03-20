@@ -225,7 +225,7 @@ ifeq ($(COMP),emscripten)
 	ifeq ($(ARCH),js)
 		LDFLAGS += --pre-js pre.js --post-js post.js
 	else
-		LDFLAGS += -s WASM=1 -s BINARYEN_IMPRECISE=1 -s "BINARYEN_METHOD='native-wasm'" --pre-js pre.wasm.js
+		LDFLAGS += -s WASM=1 -s "BINARYEN_TRAP_MODE='allow'" -s "BINARYEN_METHOD='native-wasm'" --pre-js pre.wasm.js
 	endif
 endif
 
