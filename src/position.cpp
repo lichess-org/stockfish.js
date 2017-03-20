@@ -1156,6 +1156,12 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
 
   assert(is_ok(m));
   assert(&newSt != st);
+#ifdef ATOMIC
+  assert(!is_atomic() || !givesCheck);
+#endif
+#ifdef ANTI
+  assert(!is_anti() || !givesCheck);
+#endif
 
   ++nodes;
   Key k = st->key ^ Zobrist::side;
@@ -1429,7 +1435,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       else
 #endif
       st->pawnKey ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
-      prefetch(thisThread->pawnsTable[st->pawnKey]);
+      prefetch2(thisThread->pawnsTable[st->pawnKey]);
 
       // Reset rule 50 draw counter
       st->rule50 = 0;
@@ -1453,18 +1459,9 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   // Update the key with the final value
   st->key = k;
 
-#ifdef ATOMIC
-  if (is_atomic() && captured && is_atomic_win())
-      givesCheck = false;
-#endif
 #ifdef RACE
   if (is_race())
       st->checkersBB = Rank8BB & square<KING>(us);
-  else
-#endif
-#ifdef ANTI
-  if (is_anti())
-      st->checkersBB = 0;
   else
 #endif
   // Calculate checkers bitboard (if move gives check)
