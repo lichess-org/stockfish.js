@@ -1,21 +1,15 @@
 stockfish.js
 ============
 
+[![Build Status](https://travis-ci.org/niklasf/stockfish.js.svg?branch=ddugovic)](https://travis-ci.org/niklasf/stockfish.js)
+
 The strong open source chess engine
 [Stockfish](https://github.com/official-stockfish/Stockfish)
 compiled to JavaScript and WebAssembly using
 [Emscripten](https://kripken.github.io/emscripten-site/). See it in action
 for [local computer analysis on lichess.org](https://de.lichess.org/analysis).
 
-Downloads
----------
-
-About 1MB uncompressed, 220 KB gzipped:
-
-* [stockfish.js](https://raw.githubusercontent.com/niklasf/stockfish.js/master/stockfish.js)
-  based on original Stockfish
-* [stockfish.js](https://raw.githubusercontent.com/niklasf/stockfish.js/ddugovic/stockfish.js)
-  with [multi-variant support by @ddugovic](https://github.com/ddugovic/Stockfish)
+About 1MB uncompressed, 220 KB gzipped.
 
 Building
 --------
@@ -24,15 +18,22 @@ Building
 then:
 
 ```
-cd src
-make ARCH=js build
+./release.sh
+```
+
+Or using Docker:
+
+```
+docker run --volume $PWD:/home/builder/stockfish.js --user $(id -u) niklasf/emscripten-for-stockfish
 ```
 
 Usage
 -----
 
 ```javascript
-var stockfish = new Worker('stockfish.js');
+var wasmSupported = typeof WebAssembly === 'object' && WebAssembly.validate(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00));
+
+var stockfish = new Worker(wasmSupported ? 'stockfish.wasm.js' : 'stockfish.js');
 
 stockfish.addEventListener('message', function (e) {
   console.log(e.data);
