@@ -17,6 +17,9 @@ RUN ./emsdk install --build=MinSizeRel sdk-incoming-64bit
 RUN ./emsdk activate
 ENV PATH /home/builder/emsdk_portable:/home/builder/emsdk_portable/clang/fastcomp/build_incoming_64/bin:/home/builder/emsdk_portable/node/4.1.1_64bit/bin:/home/builder/emsdk_portable/emscripten/incoming:$PATH
 
+WORKDIR /tmp
+RUN echo "int main() { return 0; }" > t.cpp && em++ t.cpp && em++ -s WASM=1 t.cpp
+
 VOLUME /home/builder/stockfish.js
 WORKDIR /home/builder/stockfish.js
 
