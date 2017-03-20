@@ -1,3 +1,5 @@
 src/stockfish
+src/stockfish.js
+src/stockfish.wasm
 src/.depend
 *.o
