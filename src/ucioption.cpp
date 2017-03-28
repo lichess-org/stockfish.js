@@ -65,10 +65,11 @@ void init(OptionsMap& o) {
   o["Contempt"]              << Option(0, -100, 100);
 #ifndef __EMSCRIPTEN__
   o["Threads"]               << Option(1, 1, 512, on_threads);
+  o["Hash"]                  << Option(16, 1, MaxHashMB, on_hash_size);
 #else
   o["Threads"]               << Option(1, 1, 1, on_threads);
+  o["Hash"]                  << Option(16, 16, 16, on_hash_size);
 #endif
-  o["Hash"]                  << Option(16, 1, MaxHashMB, on_hash_size);
   o["Clear Hash"]            << Option(on_clear_hash);
   o["Ponder"]                << Option(false);
   o["MultiPV"]               << Option(1, 1, 500);
