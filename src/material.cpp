@@ -108,12 +108,12 @@ namespace {
     {
       //            OUR PIECES
       // pair pawn knight bishop rook queen
-      {1667                               }, // Bishop pair
-      {  40,    2                         }, // Pawn
-      {  32,  255,  -3                    }, // Knight      OUR PIECES
-      {   0,  104,   4,    0              }, // Bishop
-      { -26,   -2,  47,   105,  -149      }, // Rook
-      {-185,   24, 122,   137,  -134,   0 }  // Queen
+      {1634                               }, // Bishop pair
+      {  24,  156                         }, // Pawn
+      {  90,  243, 133                    }, // Knight      OUR PIECES
+      {   0,  120,  66,     0             }, // Bishop
+      {  11,   -2,  41,    15,  -166      }, // Rook
+      {-251,  258,  86,   141,  -205,  43 }  // Queen
     },
 #endif
 #ifdef RACE
@@ -121,11 +121,11 @@ namespace {
       //            OUR PIECES
       // pair pawn knight bishop rook queen
       {1667                               }, // Bishop pair
-      {  40,    2                         }, // Pawn
-      {  32,  255,  -3                    }, // Knight      OUR PIECES
-      {   0,  104,   4,    0              }, // Bishop
-      { -26,   -2,  47,   105,  -149      }, // Rook
-      {-185,   24, 122,   137,  -134,   0 }  // Queen
+      {   0,    0                         }, // Pawn
+      {  32,    0,  -3                    }, // Knight      OUR PIECES
+      {   0,    0,   4,    0              }, // Bishop
+      { -26,    0,  47,   105,  -149      }, // Rook
+      {-185,    0, 122,   137,  -134,   0 }  // Queen
     },
 #endif
 #ifdef RELAY
@@ -231,12 +231,12 @@ namespace {
     {
       //           THEIR PIECES
       // pair pawn knight bishop rook queen
-      {   0                               }, // Bishop pair
-      {  36,    0                         }, // Pawn
-      {   9,   63,   0                    }, // Knight      OUR PIECES
-      {  59,   65,  42,     0             }, // Bishop
-      {  46,   39,  24,   -24,    0       }, // Rook
-      { 101,  100, -37,   141,  268,    0 }  // Queen
+      {   0                                }, // Bishop pair
+      {-132,    0                          }, // Pawn
+      {  -5,  185,    0                    }, // Knight      OUR PIECES
+      {  59,  440, -106,     0             }, // Bishop
+      { 277,   30,    5,    27,    0       }, // Rook
+      { 217,  357,    5,    51,  254,    0 }  // Queen
     },
 #endif
 #ifdef RACE
@@ -244,11 +244,11 @@ namespace {
       //           THEIR PIECES
       // pair pawn knight bishop rook queen
       {   0                               }, // Bishop pair
-      {  36,    0                         }, // Pawn
-      {   9,   63,   0                    }, // Knight      OUR PIECES
-      {  59,   65,  42,     0             }, // Bishop
-      {  46,   39,  24,   -24,    0       }, // Rook
-      { 101,  100, -37,   141,  268,    0 }  // Queen
+      {   0,    0                         }, // Pawn
+      {   9,    0,   0                    }, // Knight      OUR PIECES
+      {  59,    0,  42,     0             }, // Bishop
+      {  46,    0,  24,   -24,    0       }, // Rook
+      { 101,    0, -37,   141,  268,    0 }  // Queen
     },
 #endif
 #ifdef RELAY
@@ -278,7 +278,7 @@ namespace {
   };
 
   // PawnsSet[count] contains a bonus/malus indexed by number of pawns
-  const int PawnsSet[FILE_NB+1] = { 
+  const int PawnsSet[FILE_NB + 1] = {
      24, -32, 107, -51, 117, -9, -126, -21, 31
   };
 

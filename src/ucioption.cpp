@@ -64,7 +64,7 @@ void init(OptionsMap& o) {
   o["Debug Log File"]        << Option("", on_logger);
   o["Contempt"]              << Option(0, -100, 100);
 #ifndef __EMSCRIPTEN__
-  o["Threads"]               << Option(1, 1, 128, on_threads);
+  o["Threads"]               << Option(1, 1, 512, on_threads);
 #else
   o["Threads"]               << Option(1, 1, 1, on_threads);
 #endif
