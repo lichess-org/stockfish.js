@@ -38,7 +38,7 @@ namespace {
     { S(50, 80), S(54, 69) },
 #endif
 #ifdef ATOMIC
-    { S(25, 27), S(27, 18) },
+    { S(27, 28), S(24, 14) },
 #endif
 #ifdef CRAZYHOUSE
     { S(45, 40), S(30, 27) },
@@ -70,7 +70,7 @@ namespace {
     { S(64, 25), S(26, 50) },
 #endif
 #ifdef ATOMIC
-    { S(41, 25), S(41, 13) },
+    { S(48, 21), S(35, 15) },
 #endif
 #ifdef CRAZYHOUSE
     { S(56, 33), S(41, 19) },
@@ -102,7 +102,7 @@ namespace {
     S(-45, -48),
 #endif
 #ifdef ATOMIC
-    S( 45,   0),
+    S( 39,   0),
 #endif
 #ifdef CRAZYHOUSE
     S( 17,   8),
@@ -182,10 +182,10 @@ namespace {
 #endif
 #ifdef ATOMIC
   {
-    { V(100), V(50), V(10), V(46), V(82), V( 86), V( 98) },
-    { V(116), V(50), V(10), V(87), V(94), V(108), V(104) },
-    { V(109), V(50), V(10), V(87), V(62), V( 91), V(116) },
-    { V( 75), V(50), V(10), V(59), V(90), V( 84), V(112) }
+    { V( 88), V(34), V( 5), V(44), V( 89), V( 90), V( 94) },
+    { V(116), V(61), V(-4), V(80), V( 95), V(101), V(104) },
+    { V( 97), V(68), V(34), V(82), V( 62), V(104), V(110) },
+    { V(103), V(44), V(44), V(77), V(103), V( 66), V(118) }
   },
 #endif
 #ifdef CRAZYHOUSE
@@ -233,10 +233,10 @@ namespace {
 #endif
 #ifdef THREECHECK
   {
-    { V(103), V( 0), V(21), V( 54), V(87), V( 89), V(100) },
-    { V(112), V( 3), V(54), V(105), V(85), V(105), V(100) },
-    { V(118), V(22), V(68), V( 93), V(60), V( 88), V(119) },
-    { V( 92), V(11), V(51), V( 66), V(93), V( 86), V(118) }
+    { V(105), V( 1), V(22), V( 52), V(86), V( 89), V( 98) },
+    { V(116), V( 3), V(55), V(109), V(81), V( 97), V( 99) },
+    { V(121), V(23), V(69), V( 93), V(58), V( 88), V(112) },
+    { V( 94), V(11), V(52), V( 67), V(90), V( 85), V(112) }
   },
 #endif
   };
@@ -244,7 +244,8 @@ namespace {
   // Danger of enemy pawns moving toward our king by [type][distance from edge][rank].
   // For the unopposed and unblocked cases, RANK_1 = 0 is used when opponent has no pawn
   // on the given file, or their pawn is behind our king.
-  const Value StormDanger[][4][RANK_NB] = {
+  const Value StormDanger[VARIANT_NB][4][4][RANK_NB] = {
+  {
     { { V( 0),  V(-290), V(-274), V(57), V(41) },  //BlockedByKing
       { V( 0),  V(  60), V( 144), V(39), V(13) },
       { V( 0),  V(  65), V( 141), V(41), V(34) },
@@ -261,11 +262,179 @@ namespace {
       { V(31),  V(  30), V(  99), V(39), V(19) },
       { V(23),  V(  29), V(  96), V(41), V(15) },
       { V(21),  V(  23), V( 116), V(41), V(15) } }
+  },
+#ifdef ANTI
+  {
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },  //BlockedByKing
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } },
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },  //Unopposed
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  //BlockedByPawn
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },  //Unblocked
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } }
+  },
+#endif
+#ifdef ATOMIC
+  {
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },  //BlockedByKing
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } },
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },  //Unopposed
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  //BlockedByPawn
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },  //Unblocked
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } }
+  },
+#endif
+#ifdef CRAZYHOUSE
+  {
+    { { V(-34),  V(-366), V(-249), V( 12), V( 80) },  //BlockedByKing
+      { V( -6),  V( 122), V( 158), V( 90), V(  3) },
+      { V( 35),  V(  89), V( 174), V( 87), V( 86) },
+      { V(-77),  V(  17), V( 154), V( 82), V( 99) } },
+    { { V( 71),  V(  67), V( 177), V( 49), V( 28) },  //Unopposed
+      { V(-86),  V( 108), V( 104), V( 86), V( 26) },
+      { V(  8),  V(  20), V( 107), V(137), V( 35) },
+      { V(-95),  V(  69), V( 101), V(-10), V(-43) } },
+    { { V( -8),  V(  75), V( 276), V( 14), V(-71) },  //BlockedByPawn
+      { V(-28),  V( -10), V( 231), V(  8), V( -6) },
+      { V( 59),  V( -14), V( 300), V( 26), V( -3) },
+      { V(-81),  V(   2), V( 104), V( 79), V(-19) } },
+    { { V( 73),  V(  78), V(  88), V( 46), V( 75) },  //Unblocked
+      { V( 35),  V(  48), V( -21), V( 22), V(-52) },
+      { V( 37),  V(  67), V( 122), V(  6), V( 64) },
+      { V( -5),  V(  55), V( 101), V( 61), V( 33) } }
+  },
+#endif
+#ifdef HORDE
+  {
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },  //BlockedByKing
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } },
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },  //Unopposed
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  //BlockedByPawn
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },  //Unblocked
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } }
+  },
+#endif
+#ifdef KOTH
+  {
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },  //BlockedByKing
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } },
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },  //Unopposed
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  //BlockedByPawn
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },  //Unblocked
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } }
+  },
+#endif
+#ifdef LOSERS
+  {
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },  //BlockedByKing
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } },
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },  //Unopposed
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  //BlockedByPawn
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },  //Unblocked
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } }
+  },
+#endif
+#ifdef RACE
+  {},
+#endif
+#ifdef RELAY
+  {
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },  //BlockedByKing
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } },
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },  //Unopposed
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  //BlockedByPawn
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },  //Unblocked
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } }
+  },
+#endif
+#ifdef THREECHECK
+  {
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },  //BlockedByKing
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } },
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },  //Unopposed
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  //BlockedByPawn
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },  //Unblocked
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } }
+  },
+#endif
   };
 
   // Max bonus for king safety. Corresponds to start position with all the pawns
   // in front of the king and no enemy pawn on the horizon.
   const Value MaxSafetyBonus = V(258);
+
+#ifdef HORDE
+  const Score ImbalancedHorde = S(30, 30);
+#endif
 
   #undef S
   #undef V
@@ -295,6 +464,18 @@ namespace {
     e->pawnAttacks[Us]   = shift<Right>(ourPawns) | shift<Left>(ourPawns);
     e->pawnsOnSquares[Us][BLACK] = popcount(ourPawns & DarkSquares);
     e->pawnsOnSquares[Us][WHITE] = pos.count<PAWN>(Us) - e->pawnsOnSquares[Us][BLACK];
+
+#ifdef HORDE
+    if (pos.is_horde() && pos.is_horde_color(Us))
+    {
+        int l = 0, m = 0, r = popcount(ourPawns & FileBB[FILE_A]);
+        for (File f1 = FILE_A; f1 <= FILE_H; ++f1)
+        {
+            l = m; m = r; r = f1 < FILE_H ? popcount(ourPawns & FileBB[f1 + 1]) : 0;
+            score -= ImbalancedHorde * m / (1 + l * r);
+        }
+    }
+#endif
 
     // Loop through all pawns of the current color and score each pawn
     while ((s = *pl++) != SQ_NONE)
@@ -391,7 +572,7 @@ void init() {
     { 0, 8, 19, 13, 71, 94, 169, 324 },
 #endif
 #ifdef ATOMIC
-    { 0, 8, 19, 13, 71, 94, 169, 324 },
+    { 0,18, 11, 14, 82,109, 170, 315 },
 #endif
 #ifdef CRAZYHOUSE
     { 0, 8, 19, 13, 71, 94, 169, 324 },
@@ -476,7 +657,7 @@ Value Entry::shelter_storm(const Position& pos, Square ksq) {
 
       int d = std::min(f, FILE_H - f);
       safety -=  ShelterWeakness[pos.variant()][d][rkUs]
-               + StormDanger
+               + StormDanger[pos.variant()]
                  [f == file_of(ksq) && rkThem == relative_rank(Us, ksq) + 1 ? BlockedByKing  :
                   rkUs   == RANK_1                                          ? Unopposed :
                   rkThem == rkUs + 1                                        ? BlockedByPawn  : Unblocked]

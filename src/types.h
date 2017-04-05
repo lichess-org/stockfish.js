@@ -309,7 +309,7 @@ enum Value : int {
   KingValueMgAnti   = -23,   KingValueEgAnti   = 231,
 #endif
 #ifdef ATOMIC
-  PawnValueMgAtomic   = 314,   PawnValueEgAtomic   = 447,
+  PawnValueMgAtomic   = 300,   PawnValueEgAtomic   = 437,
   KnightValueMgAtomic = 474,   KnightValueEgAtomic = 755,
   BishopValueMgAtomic = 652,   BishopValueEgAtomic = 762,
   RookValueMgAtomic   = 899,   RookValueEgAtomic   = 1199,
@@ -351,11 +351,11 @@ enum Value : int {
   QueenValueMgRace  = 1848,  QueenValueEgRace  = 2141,
 #endif
 #ifdef THREECHECK
-  PawnValueMgThreeCheck   = 181,   PawnValueEgThreeCheck   = 245,
-  KnightValueMgThreeCheck = 691,   KnightValueEgThreeCheck = 850,
-  BishopValueMgThreeCheck = 829,   BishopValueEgThreeCheck = 845,
-  RookValueMgThreeCheck   = 1222,  RookValueEgThreeCheck   = 1386,
-  QueenValueMgThreeCheck  = 2274,  QueenValueEgThreeCheck  = 2573,
+  PawnValueMgThreeCheck   = 153,   PawnValueEgThreeCheck   = 220,
+  KnightValueMgThreeCheck = 638,   KnightValueEgThreeCheck = 811,
+  BishopValueMgThreeCheck = 690,   BishopValueEgThreeCheck = 849,
+  RookValueMgThreeCheck   = 1121,  RookValueEgThreeCheck   = 1438,
+  QueenValueMgThreeCheck  = 2214,  QueenValueEgThreeCheck  = 2342,
 #endif
 
   MidgameLimit  = 15258, EndgameLimit  = 3915

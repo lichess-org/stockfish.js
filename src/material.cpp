@@ -83,13 +83,13 @@ namespace {
     {
       //            OUR PIECES
       // pair pawn knight bishop rook queen king
-      { 0                                      }, // Bishop pair
-      { 0,    0                                }, // Pawn
-      { 0,    0,   0                           }, // Knight      OUR PIECES
-      { 0,    0,   0,     0                    }, // Bishop
-      { 0,    0,   0,     0,     0             }, // Rook
-      { 0,    0,   0,     0,     0,   0        }, // Queen
-      { 0,    0,   0,     0,     0,   0,    0  }  // King
+      {  13                                      }, // Bishop pair
+      {  -2,    0                                }, // Pawn
+      { -65,   66,   15                          }, // Knight      OUR PIECES
+      {   0,   81,   -2,    0                    }, // Bishop
+      {  26,   21,  -38,   80,   -70             }, // Rook
+      {  24,  -27,   75,   32,     2,  -70       }, // Queen
+      {   0,    0,    0,    0,     0,    0,    0 }  // King
     },
 #endif
 #ifdef KOTH
@@ -153,6 +153,18 @@ namespace {
     },
 #endif
   };
+#ifdef CRAZYHOUSE
+  const int QuadraticOursInHand[PIECE_TYPE_NB][PIECE_TYPE_NB] = {
+      //            OUR PIECES
+      //empty pawn knight bishop rook queen
+      { -88                               }, // Empty hand
+      {   0,  -44                         }, // Pawn
+      {   0,   33,  21                    }, // Knight      OUR PIECES
+      {   0,  -52, -16,    -6             }, // Bishop
+      {   0,   14,  44,   -54,    19      }, // Rook
+      {   0,   -5,   5,   -19,     2, -29 }  // Queen
+  };
+#endif
 
   const int QuadraticTheirs[VARIANT_NB][PIECE_TYPE_NB][PIECE_TYPE_NB] = {
     {
@@ -212,7 +224,7 @@ namespace {
       { 0,     0,     0,     0                  }, // Bishop
       { 0,     0,     0,     0,     0           }, // Rook
       { 0,     0,     0,     0,     0,    0     }, // Queen
-      { 0,  -789,  -872,   -19,  -416, -594,  0 }  // King
+      { 0,  -557,  -711,   -86,  -386, -655,  0 }  // King
     },
 #endif
 #ifdef KOTH
@@ -276,6 +288,18 @@ namespace {
     },
 #endif
   };
+#ifdef CRAZYHOUSE
+  const int QuadraticTheirsInHand[PIECE_TYPE_NB][PIECE_TYPE_NB] = {
+      //           THEIR PIECES
+      //empty pawn knight bishop rook queen
+      {   0                               }, // Empty hand
+      {  -6,    0                         }, // Pawn
+      {   7,   13,   0                    }, // Knight      OUR PIECES
+      { -19,   34, -17,     0             }, // Bishop
+      { -37,   -8,  -7,     7,     0      }, // Rook
+      {   1,   16, -25,    32,    -3,   0 }  // Queen
+  };
+#endif
 
   // PawnsSet[count] contains a bonus/malus indexed by number of pawns
   const int PawnsSet[FILE_NB + 1] = {
@@ -324,7 +348,12 @@ namespace {
   /// imbalance() calculates the imbalance by comparing the piece count of each
   /// piece type for both colors.
   template<Color Us>
+#ifdef CRAZYHOUSE
+  int imbalance(const Position& pos, const int pieceCount[][PIECE_TYPE_NB],
+                const int pieceCountInHand[][PIECE_TYPE_NB]) {
+#else
   int imbalance(const Position& pos, const int pieceCount[][PIECE_TYPE_NB]) {
+#endif
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
@@ -353,6 +382,21 @@ namespace {
 
         bonus += pieceCount[Us][pt1] * v;
     }
+#ifdef CRAZYHOUSE
+    for (int pt1 = NO_PIECE_TYPE; pt1 <= pt_max; ++pt1)
+    {
+        if (!pieceCountInHand[Us][pt1])
+            continue;
+
+        int v = 0;
+
+        for (int pt2 = NO_PIECE_TYPE; pt2 <= pt1; ++pt2)
+            v +=  QuadraticOursInHand[pt1][pt2] * pieceCountInHand[Us][pt2]
+                + QuadraticTheirsInHand[pt1][pt2] * pieceCountInHand[Them][pt2];
+
+        bonus += pieceCountInHand[Us][pt1] * v;
+    }
+#endif
 
     return bonus;
   }
@@ -491,8 +535,17 @@ Entry* probe(const Position& pos) {
     pos.count<BISHOP>(WHITE)    , pos.count<ROOK>(WHITE), pos.count<QUEEN >(WHITE), pos.count<KING>(WHITE) },
   { pos.count<BISHOP>(BLACK) > 1, pos.count<PAWN>(BLACK), pos.count<KNIGHT>(BLACK),
     pos.count<BISHOP>(BLACK)    , pos.count<ROOK>(BLACK), pos.count<QUEEN >(BLACK), pos.count<KING>(BLACK) } };
+#ifdef CRAZYHOUSE
+  const int PieceCountInHand[COLOR_NB][PIECE_TYPE_NB] = {
+  { pos.count_in_hand<ALL_PIECES>(WHITE) == 0, pos.count_in_hand<PAWN>(WHITE), pos.count_in_hand<KNIGHT>(WHITE),
+    pos.count_in_hand<BISHOP>(WHITE)         , pos.count_in_hand<ROOK>(WHITE), pos.count_in_hand<QUEEN >(WHITE), pos.count_in_hand<KING>(WHITE) },
+  { pos.count_in_hand<ALL_PIECES>(BLACK) == 0, pos.count_in_hand<PAWN>(BLACK), pos.count_in_hand<KNIGHT>(BLACK),
+    pos.count_in_hand<BISHOP>(BLACK)         , pos.count_in_hand<ROOK>(BLACK), pos.count_in_hand<QUEEN >(BLACK), pos.count_in_hand<KING>(BLACK) } };
 
+  e->value = int16_t((imbalance<WHITE>(pos, PieceCount, PieceCountInHand) - imbalance<BLACK>(pos, PieceCount, PieceCountInHand)) / 16);
+#else
   e->value = int16_t((imbalance<WHITE>(pos, PieceCount) - imbalance<BLACK>(pos, PieceCount)) / 16);
+#endif
   return e;
 }
 
