@@ -7,7 +7,7 @@ The strong open source chess engine
 [Stockfish](https://github.com/official-stockfish/Stockfish)
 compiled to JavaScript and WebAssembly using
 [Emscripten](https://kripken.github.io/emscripten-site/). See it in action
-for [local computer analysis on lichess.org](https://de.lichess.org/analysis).
+for [local computer analysis on lichess.org](https://lichess.org/analysis).
 
 About 1MB uncompressed, 220 KB gzipped.
 
@@ -18,7 +18,7 @@ Building
 then:
 
 ```
-./release.sh
+./build.sh
 ```
 
 Or using Docker:
