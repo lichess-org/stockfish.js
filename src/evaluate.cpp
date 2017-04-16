@@ -427,7 +427,7 @@ namespace {
 
 #ifdef CRAZYHOUSE
   const int KingDangerInHand[PIECE_TYPE_NB] = {
-    0, 134, 199, 37, 100, 110
+    87, 16, 210, 66, 168, 143
   };
 #endif
 
@@ -722,37 +722,6 @@ namespace {
     QueenSide, QueenSide, QueenSide, CenterFiles, CenterFiles, KingSide, KingSide, KingSide
   };
 
-  const int maxDanger[VARIANT_NB] = {
-    2 * int(BishopValueMg),
-#ifdef ANTI
-    2 * int(BishopValueMg),
-#endif
-#ifdef ATOMIC
-    2 * int(BishopValueMg),
-#endif
-#ifdef CRAZYHOUSE
-    1693,
-#endif
-#ifdef HORDE
-    2 * int(BishopValueMg),
-#endif
-#ifdef KOTH
-    2 * int(BishopValueMg),
-#endif
-#ifdef LOSERS
-    2 * int(BishopValueMg),
-#endif
-#ifdef RACE
-    2 * int(BishopValueMg),
-#endif
-#ifdef RELAY
-    2 * int(BishopValueMg),
-#endif
-#ifdef THREECHECK
-    3264,
-#endif
-  };
-
   template<Color Us, bool DoTrace>
   Score evaluate_king(const Position& pos, const EvalInfo& ei) {
 
@@ -796,18 +765,14 @@ namespace {
                     + 101 * ei.kingAdjacentZoneAttacksCount[Them]
                     + 235 * popcount(undefended)
                     + 134 * (popcount(b) + !!pos.pinned_pieces(Us))
-                    - 717 * (!(pos.count<QUEEN>(Them)
-#ifdef CRAZYHOUSE
-                               || pos.is_house()
-#endif
-                            ))
+                    - 717 * !pos.count<QUEEN>(Them)
                     -   7 * mg_value(score) / 5 - 5;
         Bitboard h = 0;
 
 #ifdef CRAZYHOUSE
         if (pos.is_house())
         {
-            for (PieceType pt = PAWN; pt <= QUEEN; ++pt)
+            for (PieceType pt = NO_PIECE_TYPE; pt <= QUEEN; ++pt)
                 kingDanger += KingDangerInHand[pt] * pos.count_in_hand(Them, pt);
             h = pos.count_in_hand(Them, QUEEN) ? undefended & ~pos.pieces() : 0;
         }
@@ -880,8 +845,8 @@ namespace {
             score -= OtherCheck;
 
 #ifdef ATOMIC
-    if (pos.is_atomic())
-        score -= make_score(100, 100) * popcount(ei.attackedBy[Us][KING] & pos.pieces());
+        if (pos.is_atomic())
+            score -= make_score(100, 100) * popcount(ei.attackedBy[Us][KING] & pos.pieces());
 #endif
         // Transform the kingDanger units into a Score, and substract it from the evaluation
         if (kingDanger > 0)
@@ -899,7 +864,7 @@ namespace {
                 }
             }
 #endif
-            int v = std::min(kingDanger * kingDanger / 4096, maxDanger[pos.variant()]);
+            int v = kingDanger * kingDanger / 4096;
             score -=
 #ifdef CRAZYHOUSE
                      pos.is_house() ? make_score(v, v) :

@@ -224,8 +224,8 @@ namespace {
   };
 #endif
 
-  // EasyMoveManager structure is used to detect an 'easy move'. When the PV is
-  // stable across multiple search iterations, we can quickly return the best move.
+  // EasyMoveManager structure is used to detect an 'easy move'. When the PV is stable
+  // across multiple search iterations, we can quickly return the best move.
   struct EasyMoveManager {
 
     void clear() {
@@ -887,7 +887,7 @@ namespace {
             // Penalty for a quiet ttMove that fails low
             else if (!pos.capture_or_promotion(ttMove))
             {
-                Value penalty = -stat_bonus(depth + ONE_PLY);
+                Value penalty = -stat_bonus(depth);
                 thisThread->history.update(pos.side_to_move(), ttMove, penalty);
                 update_cm_stats(ss, pos.moved_piece(ttMove), to_sq(ttMove), penalty);
             }
@@ -911,9 +911,6 @@ namespace {
 #endif
 #ifdef HORDE
     if (pos.is_horde()) {} else
-#endif
-#ifdef CRAZYHOUSE
-    if (pos.is_house()) {} else
 #endif
     if (!rootNode && TB::Cardinality)
     {
@@ -1091,7 +1088,11 @@ namespace {
     }
 
     // Step 10. Internal iterative deepening (skipped when in check)
+#ifdef CRAZYHOUSE
+    if (    depth >= (pos.is_house() ? 4 : 6) * ONE_PLY
+#else
     if (    depth >= 6 * ONE_PLY
+#endif
         && !ttMove
         && (PvNode || ss->staticEval + 256 >= beta))
     {
@@ -1207,6 +1208,11 @@ moves_loop: // When in check search starts from here
 
       // Step 13. Pruning at shallow depth
       if (  !rootNode
+#ifdef HORDE
+          && (pos.non_pawn_material(pos.side_to_move()) || pos.is_horde())
+#else
+          && pos.non_pawn_material(pos.side_to_move())
+#endif
           && bestValue > VALUE_MATED_IN_MAX_PLY)
       {
           if (   !captureOrPromotion
