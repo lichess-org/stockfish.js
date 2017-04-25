@@ -188,6 +188,7 @@ public:
   bool is_house() const;
   template<PieceType Pt> int count_in_hand(Color c) const;
   int count_in_hand(Color c, PieceType pt) const;
+  Value material_in_hand(Color c) const;
   void add_to_hand(Color c, PieceType pt);
   void remove_from_hand(Color c, PieceType pt);
   bool is_promoted(Square s) const;
@@ -310,7 +311,7 @@ inline Piece Position::piece_on(Square s) const {
 
 inline Piece Position::moved_piece(Move m) const {
 #ifdef CRAZYHOUSE
-  if (type_of(m) == DROP)
+  if (is_house() && type_of(m) == DROP)
       return dropped_piece(m);
 #endif
   return board[from_sq(m)];
@@ -652,6 +653,13 @@ template<PieceType Pt> inline int Position::count_in_hand(Color c) const {
 }
 inline int Position::count_in_hand(Color c, PieceType pt) const {
   return pieceCountInHand[c][pt];
+}
+
+inline Value Position::material_in_hand(Color c) const {
+  Value v = VALUE_ZERO;
+  for (PieceType pt = PAWN; pt <= QUEEN; ++pt)
+      v += pieceCountInHand[c][pt] * PieceValue[var][MG][pt];
+  return v;
 }
 
 inline void Position::add_to_hand(Color c, PieceType pt) {

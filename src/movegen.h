@@ -21,6 +21,8 @@
 #ifndef MOVEGEN_H_INCLUDED
 #define MOVEGEN_H_INCLUDED
 
+#include <algorithm>
+
 #include "types.h"
 
 class Position;
@@ -36,7 +38,7 @@ enum GenType {
 
 struct ExtMove {
   Move move;
-  Value value;
+  int value;
 
   operator Move() const { return move; }
   void operator=(Move m) { move = m; }
@@ -59,8 +61,7 @@ struct MoveList {
   const ExtMove* end() const { return last; }
   size_t size() const { return last - moveList; }
   bool contains(Move move) const {
-    for (const auto& m : *this) if (m == move) return true;
-    return false;
+    return std::find(begin(), end(), move) != end();
   }
 
 private:
