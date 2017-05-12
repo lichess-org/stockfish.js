@@ -14,7 +14,8 @@ About 1MB uncompressed, 220 KB gzipped.
 Building
 --------
 
-[Install Emscripten](https://kripken.github.io/emscripten-site/docs/getting_started/downloads.html),
+[Install Emscripten](https://kripken.github.io/emscripten-site/docs/getting_started/downloads.html) and 
+[uglifyjs](https://github.com/mishoo/UglifyJS2),
 then:
 
 ```
