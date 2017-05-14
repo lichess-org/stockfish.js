@@ -49,9 +49,6 @@ namespace {
 #ifdef KOTH
     { S(45, 40), S(30, 27) },
 #endif
-#ifdef LOSERS
-    { S(50, 80), S(54, 69) },
-#endif
 #ifdef RACE
     {},
 #endif
@@ -81,9 +78,6 @@ namespace {
 #ifdef KOTH
     { S(56, 33), S(41, 19) },
 #endif
-#ifdef LOSERS
-    { S(64, 25), S(26, 50) },
-#endif
 #ifdef RACE
     {},
 #endif
@@ -112,9 +106,6 @@ namespace {
 #endif
 #ifdef KOTH
     S( 17,   8),
-#endif
-#ifdef LOSERS
-    S(-45, -48),
 #endif
 #ifdef RACE
     S(  0,   0),
@@ -147,9 +138,6 @@ namespace {
 #endif
 #ifdef KOTH
     S(18, 38),
-#endif
-#ifdef LOSERS
-    S( 4, 51),
 #endif
 #ifdef RACE
     S( 0,  0),
@@ -205,14 +193,6 @@ namespace {
   },
 #endif
 #ifdef KOTH
-  {
-    { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) },
-    { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
-    { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
-    { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) }
-  },
-#endif
-#ifdef LOSERS
   {
     { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) },
     { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
@@ -363,26 +343,6 @@ namespace {
       { V(21),  V(  23), V( 116), V(41), V(15) } }
   },
 #endif
-#ifdef LOSERS
-  {
-    { { V( 0),  V(-290), V(-274), V(57), V(41) },  //BlockedByKing
-      { V( 0),  V(  60), V( 144), V(39), V(13) },
-      { V( 0),  V(  65), V( 141), V(41), V(34) },
-      { V( 0),  V(  53), V( 127), V(56), V(14) } },
-    { { V( 4),  V(  73), V( 132), V(46), V(31) },  //Unopposed
-      { V( 1),  V(  64), V( 143), V(26), V(13) },
-      { V( 1),  V(  47), V( 110), V(44), V(24) },
-      { V( 0),  V(  72), V( 127), V(50), V(31) } },
-    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  //BlockedByPawn
-      { V( 0),  V(   0), V( 148), V(27), V( 2) },
-      { V( 0),  V(   0), V( 161), V(16), V( 1) },
-      { V( 0),  V(   0), V( 171), V(22), V(15) } },
-    { { V(22),  V(  45), V( 104), V(62), V( 6) },  //Unblocked
-      { V(31),  V(  30), V(  99), V(39), V(19) },
-      { V(23),  V(  29), V(  96), V(41), V(15) },
-      { V(21),  V(  23), V( 116), V(41), V(15) } }
-  },
-#endif
 #ifdef RACE
   {},
 #endif
@@ -433,7 +393,7 @@ namespace {
   const Value MaxSafetyBonus = V(258);
 
 #ifdef HORDE
-  const Score ImbalancedHorde = S(30, 30);
+  const Score ImbalancedHorde = S(34, 39);
 #endif
 
   #undef S
@@ -453,7 +413,6 @@ namespace {
     bool opposed, backward;
     Score score = SCORE_ZERO;
     const Square* pl = pos.squares<PAWN>(Us);
-    const Bitboard* pawnAttacksBB = StepAttacksBB[make_piece(Us, PAWN)];
 
     Bitboard ourPawns   = pos.pieces(Us  , PAWN);
     Bitboard theirPawns = pos.pieces(Them, PAWN);
@@ -494,8 +453,8 @@ namespace {
         // Flag the pawn
         opposed    = theirPawns & forward_bb(Us, s);
         stoppers   = theirPawns & passed_pawn_mask(Us, s);
-        lever      = theirPawns & pawnAttacksBB[s];
-        leverPush  = theirPawns & pawnAttacksBB[s + Up];
+        lever      = theirPawns & PawnAttacks[Us][s];
+        leverPush  = theirPawns & PawnAttacks[Us][s + Up];
         doubled    = ourPawns   & (s - Up);
         neighbours = ourPawns   & adjacent_files_bb(f);
         phalanx    = neighbours & rank_bb(s);
@@ -534,6 +493,15 @@ namespace {
             && popcount(phalanx)   >= popcount(leverPush))
             e->passedPawns[Us] |= s;
 
+        else if (   stoppers == SquareBB[s + Up]
+                 && relative_rank(Us, s) >= RANK_5)
+        {
+            b = shift<Up>(supported) & ~theirPawns;
+            while (b)
+                if (!more_than_one(theirPawns & PawnAttacks[Us][pop_lsb(&b)]))
+                    e->passedPawns[Us] |= s;
+        }
+
         // Score this pawn
         if (!neighbours)
             score -= Isolated[pos.variant()][opposed];
@@ -550,7 +518,11 @@ namespace {
         if (connected)
             score += Connected[pos.variant()][opposed][!!phalanx][more_than_one(supported)][relative_rank(Us, s)];
 
+#ifdef HORDE
+        if (doubled && (!supported || pos.is_horde()))
+#else
         if (doubled && !supported)
+#endif
             score -= Doubled[pos.variant()];
 
         if (lever)
@@ -585,9 +557,6 @@ void init() {
     { 36, 28, 3, 1, 115, 107, 321, 332 },
 #endif
 #ifdef KOTH
-    { 0, 8, 19, 13, 71, 94, 169, 324 },
-#endif
-#ifdef LOSERS
     { 0, 8, 19, 13, 71, 94, 169, 324 },
 #endif
 #ifdef RACE

@@ -78,7 +78,7 @@
 #  include <immintrin.h> // Header for _pext_u64() intrinsic
 #  define pext(b, m) _pext_u64(b, m)
 #else
-#  define pext(b, m) (0)
+#  define pext(b, m) 0
 #endif
 
 #ifdef USE_POPCNT
@@ -127,9 +127,6 @@ enum Variant {
 #ifdef KOTH
   KOTH_VARIANT,
 #endif
-#ifdef LOSERS
-  LOSERS_VARIANT,
-#endif
 #ifdef RACE
   RACE_VARIANT,
 #endif
@@ -142,6 +139,9 @@ enum Variant {
   VARIANT_NB,
   LAST_VARIANT = VARIANT_NB - 1,
   //subvariants
+#ifdef LOSERS
+  LOSERS_VARIANT,
+#endif
 #ifdef SUICIDE
   SUICIDE_VARIANT,
 #endif
@@ -173,9 +173,6 @@ static std::vector<std::string> variants = {
 #ifdef KOTH
 "kingofthehill",
 #endif
-#ifdef LOSERS
-"losers",
-#endif
 #ifdef RACE
 "racingkings",
 #endif
@@ -186,6 +183,9 @@ static std::vector<std::string> variants = {
 "3check",
 #endif
 //subvariants
+#ifdef LOSERS
+"losers",
+#endif
 #ifdef SUICIDE
 "suicide",
 #endif
@@ -294,10 +294,10 @@ enum Value : int {
   VALUE_MATED_IN_MAX_PLY = -VALUE_MATE + 2 * MAX_PLY,
 
   PawnValueMg   = 188,   PawnValueEg   = 248,
-  KnightValueMg = 753,   KnightValueEg = 832,
-  BishopValueMg = 814,   BishopValueEg = 890,
-  RookValueMg   = 1285,  RookValueEg   = 1371,
-  QueenValueMg  = 2513,  QueenValueEg  = 2648,
+  KnightValueMg = 764,   KnightValueEg = 848,
+  BishopValueMg = 826,   BishopValueEg = 891,
+  RookValueMg   = 1282,  RookValueEg   = 1373,
+  QueenValueMg  = 2526,  QueenValueEg  = 2646,
 #ifdef ANTI
   PawnValueMgAnti   = -128,  PawnValueEgAnti   = -160,
   KnightValueMgAnti = -161,  KnightValueEgAnti = 193,
@@ -335,13 +335,6 @@ enum Value : int {
   RookValueMgHill   = 1159,  RookValueEgHill   = 1289,
   QueenValueMgHill  = 2396,  QueenValueEgHill  = 2610,
 #endif
-#ifdef LOSERS
-  PawnValueMgLosers   = -41,   PawnValueEgLosers   = -23,
-  KnightValueMgLosers = -22,   KnightValueEgLosers = 329,
-  BishopValueMgLosers = -219,  BishopValueEgLosers = 231,
-  RookValueMgLosers   = -457,  RookValueEgLosers   = 77,
-  QueenValueMgLosers  = -122,  QueenValueEgLosers  = -213,
-#endif
 #ifdef RACE
   KnightValueMgRace = 789,   KnightValueEgRace = 887,
   BishopValueMgRace = 1053,  BishopValueEgRace = 1115,
@@ -373,8 +366,6 @@ enum Piece {
   PIECE_NB = 16
 };
 
-const Piece Pieces[] = { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
-                         B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING };
 extern Value PieceValue[VARIANT_NB][PHASE_NB][PIECE_NB];
 
 enum Depth : int {
@@ -407,8 +398,8 @@ enum Square {
 
   NORTH =  8,
   EAST  =  1,
-  SOUTH = -8,
-  WEST  = -1,
+  SOUTH = -NORTH,
+  WEST  = -EAST,
 
   NORTH_EAST = NORTH + EAST,
   SOUTH_EAST = SOUTH + EAST,
@@ -503,6 +494,7 @@ inline Score operator/(Score s, int i) {
 
 /// Multiplication of a Score by an integer. We check for overflow in debug mode.
 inline Score operator*(Score s, int i) {
+
   Score result = Score(int(s) * i);
 
   assert(eg_value(result) == (i * eg_value(s)));
@@ -625,7 +617,7 @@ inline MoveType type_of(Move m) {
 
 inline PieceType promotion_type(Move m) {
 #ifdef ANTI
-  if ((m & (3 << 12)) == KING_PROMOTION && (m & (3 << 14)) == SPECIAL)
+  if ((m & (3 << 14)) == SPECIAL && (m & (3 << 12)) == KING_PROMOTION)
       return KING;
 #endif
   return PieceType(((m >> 12) & 3) + KNIGHT);
@@ -663,6 +655,10 @@ inline Variant main_variant(Variant v) {
       return v;
   switch(v)
   {
+#ifdef LOSERS
+  case LOSERS_VARIANT:
+      return ANTI_VARIANT;
+#endif
 #ifdef SUICIDE
   case SUICIDE_VARIANT:
       return ANTI_VARIANT;
