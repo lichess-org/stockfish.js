@@ -28,6 +28,7 @@
 #include "position.h"
 #include "search.h"
 #include "thread.h"
+#include "tt.h"
 #include "timeman.h"
 #include "uci.h"
 #include "syzygy/tbprobe.h"
@@ -56,6 +57,9 @@ namespace {
 #ifdef KOTH
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
 #endif
+#ifdef LOSERS
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+#endif
 #ifdef RACE
   "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1",
 #endif
@@ -64,9 +68,6 @@ namespace {
 #endif
 #ifdef THREECHECK
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1",
-#endif
-#ifdef LOSERS
-  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
 #endif
 #ifdef SUICIDE
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1",
@@ -184,6 +185,17 @@ namespace {
     Threads.start_thinking(pos, States, limits);
   }
 
+  // On ucinewgame following steps are needed to reset the state
+  void newgame() {
+
+    TT.resize(Options["Hash"]);
+    Search::clear();
+#ifndef __EMSCRIPTEN__
+    Tablebases::init(Options["SyzygyPath"], UCI::variant_from_name(Options["UCI_Variant"]));
+#endif
+    Time.availableNodes = 0;
+  }
+
 } // namespace
 
 
@@ -199,6 +211,8 @@ void UCI::loop(int argc, char* argv[]) {
   Position pos;
   string token, cmd;
 
+  newgame(); // Implied ucinewgame before the first position command
+
   pos.set(StartFENs[CHESS_VARIANT], false, CHESS_VARIANT, &States->back(), Threads.main());
 
   for (int i = 1; i < argc; ++i)
@@ -212,6 +226,7 @@ extern "C" void uci_command(const char *c_cmd) {
   static bool initialized = false;
   static Position pos;
   if (!initialized) {
+    newgame();
     pos.set(StartFENs[CHESS_VARIANT], false, CHESS_VARIANT, &States->back(), Threads.main());
     initialized = true;
   }
@@ -244,14 +259,7 @@ extern "C" void uci_command(const char *c_cmd) {
                     << "\n"       << Options
                     << "\nuciok"  << sync_endl;
 
-      else if (token == "ucinewgame")
-      {
-          Search::clear();
-#ifndef __EMSCRIPTEN__
-          Tablebases::init(Options["SyzygyPath"], UCI::variant_from_name(Options["UCI_Variant"]));
-#endif
-          Time.availableNodes = 0;
-      }
+      else if (token == "ucinewgame") newgame();
       else if (token == "isready")    sync_cout << "readyok" << sync_endl;
       else if (token == "go")         go(pos, is);
       else if (token == "position")   position(pos, is);

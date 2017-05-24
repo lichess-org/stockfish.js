@@ -24,7 +24,6 @@
 #include "position.h"
 #include "search.h"
 #include "thread.h"
-#include "tt.h"
 #include "uci.h"
 #ifndef __EMSCRIPTEN__
 #include "syzygy/tbprobe.h"
@@ -46,10 +45,6 @@ int main(int argc, char* argv[]) {
   Search::init();
   Pawns::init();
   Threads.init();
-#ifndef __EMSCRIPTEN__
-  Tablebases::init(Options["SyzygyPath"], CHESS_VARIANT);
-#endif
-  TT.resize(Options["Hash"]);
 
 #ifndef __EMSCRIPTEN__
   UCI::loop(argc, argv);

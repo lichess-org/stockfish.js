@@ -54,20 +54,28 @@ namespace {
     {
 #endif
     for (Square s = kto; s != kfrom; s += K)
-        if (pos.attackers_to(s) & enemies)
-        {
 #ifdef ATOMIC
-            if (V == ATOMIC_VARIANT && (pos.attacks_from<KING>(pos.square<KING>(~us)) & s))
-                continue;
-#endif
-            return moveList;
+        if (V == ATOMIC_VARIANT)
+        {
+            if (   !(pos.attacks_from<KING>(pos.square<KING>(~us)) & s)
+                &&  (pos.attackers_to(s, pos.pieces() ^ kfrom) & enemies))
+                return moveList;
         }
+        else
+#endif
+        if (pos.attackers_to(s) & enemies)
+            return moveList;
 
     // Because we generate only legal castling moves we need to verify that
     // when moving the castling rook we do not discover some hidden checker.
     // For instance an enemy queen in SQ_A1 when castling rook is in SQ_B1.
     if (Chess960 && (attacks_bb<ROOK>(kto, pos.pieces() ^ rfrom) & pos.pieces(~us, ROOK, QUEEN)))
+    {
+#ifdef ATOMIC
+        if (V == ATOMIC_VARIANT && (pos.attacks_from<KING>(pos.square<KING>(~us)) & kto)) {} else
+#endif
         return moveList;
+    }
 #ifdef ANTI
     }
 #endif
@@ -166,10 +174,6 @@ namespace {
         if (V == ANTI_VARIANT)
             emptySquares &= target;
 #endif
-#ifdef LOSERS
-        if (V == LOSERS_VARIANT && Type != EVASIONS)
-            emptySquares &= target;
-#endif
 
         Bitboard b1 = shift<Up>(pawnsNotOn7)   & emptySquares;
         Bitboard b2 = shift<Up>(b1 & TRank3BB) & emptySquares;
@@ -178,6 +182,13 @@ namespace {
             b2 = shift<Up>(b1 & (TRank2BB | TRank3BB)) & emptySquares;
 #endif
 
+#ifdef LOSERS
+        if (V == LOSERS_VARIANT)
+        {
+            b1 &= target;
+            b2 &= target;
+        }
+#endif
         if (Type == EVASIONS) // Consider only blocking squares
         {
             b1 &= target;
@@ -424,7 +435,8 @@ namespace {
     }
 
 #ifdef LOSERS
-    if (V == LOSERS_VARIANT && pos.can_capture_losers()) {} else
+    if (V == LOSERS_VARIANT && pos.can_capture_losers())
+        return moveList;
 #endif
     if (Type != CAPTURES && Type != EVASIONS && pos.can_castle(Us))
     {
@@ -470,15 +482,6 @@ ExtMove* generate(const Position& pos, ExtMove* moveList) {
 #ifdef ANTI
   if (pos.is_anti())
   {
-#ifdef LOSERS
-      if (pos.is_losers())
-      {
-          if (pos.can_capture_losers())
-              target &= pos.pieces(~us);
-          return us == WHITE ? generate_all<LOSERS_VARIANT, WHITE, Type>(pos, moveList, target)
-                             : generate_all<LOSERS_VARIANT, BLACK, Type>(pos, moveList, target);
-      }
-#endif
       if (pos.can_capture())
           target &= pos.pieces(~us);
       return us == WHITE ? generate_all<ANTI_VARIANT, WHITE, Type>(pos, moveList, target)
@@ -503,6 +506,15 @@ ExtMove* generate(const Position& pos, ExtMove* moveList) {
   if (pos.is_horde())
       return us == WHITE ? generate_all<HORDE_VARIANT, WHITE, Type>(pos, moveList, target)
                          : generate_all<HORDE_VARIANT, BLACK, Type>(pos, moveList, target);
+#endif
+#ifdef LOSERS
+  if (pos.is_losers())
+  {
+      if (pos.can_capture_losers())
+          target &= pos.pieces(~us);
+      return us == WHITE ? generate_all<LOSERS_VARIANT, WHITE, Type>(pos, moveList, target)
+                         : generate_all<LOSERS_VARIANT, BLACK, Type>(pos, moveList, target);
+  }
 #endif
 #ifdef RACE
   if (pos.is_race())
@@ -529,11 +541,7 @@ template ExtMove* generate<NON_EVASIONS>(const Position&, ExtMove*);
 template<>
 ExtMove* generate<QUIET_CHECKS>(const Position& pos, ExtMove* moveList) {
 #ifdef ANTI
-#ifdef LOSERS
-  if (pos.is_anti() && !pos.is_losers())
-#else
   if (pos.is_anti())
-#endif
       return moveList;
 #endif
 #ifdef RACE
@@ -598,11 +606,7 @@ ExtMove* generate<QUIET_CHECKS>(const Position& pos, ExtMove* moveList) {
 template<>
 ExtMove* generate<EVASIONS>(const Position& pos, ExtMove* moveList) {
 #ifdef ANTI
-#ifdef LOSERS
-  if (pos.is_anti() && !pos.is_losers())
-#else
   if (pos.is_anti())
-#endif
       return moveList;
 #endif
 #ifdef RACE

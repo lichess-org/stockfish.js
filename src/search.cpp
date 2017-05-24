@@ -92,6 +92,9 @@ namespace {
 #ifdef KOTH
   { 524, 587, 676, 582 },
 #endif
+#ifdef LOSERS
+  { 1981, 2335, 2351, 2142 },
+#endif
 #ifdef RACE
   { 1043, 1016, 1004, 1012 },
 #endif
@@ -118,6 +121,9 @@ namespace {
 #endif
 #ifdef KOTH
   192,
+#endif
+#ifdef LOSERS
+  593,
 #endif
 #ifdef RACE
   336,
@@ -147,6 +153,9 @@ namespace {
 #ifdef KOTH
   { 418, 305 },
 #endif
+#ifdef LOSERS
+  { 299, 281 },
+#endif
 #ifdef RACE
   { 305, 311 },
 #endif
@@ -173,6 +182,9 @@ namespace {
 #endif
 #ifdef KOTH
   324,
+#endif
+#ifdef LOSERS
+  200,
 #endif
 #ifdef RACE
   235,
@@ -300,7 +312,7 @@ void Search::init() {
 }
 
 
-/// Search::clear() resets search state to zero, to obtain reproducible results
+/// Search::clear() resets search state to its initial value, to obtain reproducible results
 
 void Search::clear() {
 
@@ -312,9 +324,10 @@ void Search::clear() {
       th->history.clear();
       th->counterMoveHistory.clear();
       th->resetCalls = true;
+
       CounterMoveStats& cm = th->counterMoveHistory[NO_PIECE][0];
-      int* t = &cm[NO_PIECE][0];
-      std::fill(t, t + sizeof(cm), CounterMovePruneThreshold - 1);
+      auto* t = &cm[NO_PIECE][0];
+      std::fill(t, t + sizeof(cm)/sizeof(*t), CounterMovePruneThreshold - 1);
   }
 
   Threads.main()->previousScore = VALUE_INFINITE;
@@ -896,6 +909,9 @@ namespace {
 #ifdef KOTH
     if (pos.is_koth()) {} else
 #endif
+#ifdef LOSERS
+    if (pos.is_losers()) {} else
+#endif
 #ifdef RACE
     if (pos.is_race()) {} else
 #endif
@@ -904,9 +920,6 @@ namespace {
 #endif
 #ifdef HORDE
     if (pos.is_horde()) {} else
-#endif
-#ifdef LOSERS
-    if (pos.is_losers()) {} else
 #endif
     if (!rootNode && TB::Cardinality)
     {
@@ -969,6 +982,10 @@ namespace {
     }
 #ifdef ANTI
     if (pos.is_anti() && pos.can_capture())
+        goto moves_loop;
+#endif
+#ifdef LOSERS
+    if (pos.is_losers() && pos.can_capture_losers())
         goto moves_loop;
 #endif
 
@@ -1152,11 +1169,7 @@ moves_loop: // When in check search starts from here
                   && !pos.is_atomic()
 #endif
 #ifdef ANTI
-#ifdef LOSERS
-                  && !(pos.is_anti() && !pos.is_losers())
-#else
                   && !pos.is_anti()
-#endif
 #endif
                   ? pos.check_squares(type_of(pos.piece_on(from_sq(move)))) & to_sq(move)
                   : pos.gives_check(move);
@@ -1219,6 +1232,9 @@ moves_loop: // When in check search starts from here
               && !givesCheck
 #ifdef ANTI
               && (!pos.is_anti() || !(pos.attackers_to(to_sq(move)) & pos.pieces(~pos.side_to_move())))
+#endif
+#ifdef LOSERS
+              && (!pos.is_losers() || !(pos.attackers_to(to_sq(move)) & pos.pieces(~pos.side_to_move())))
 #endif
 #ifdef HORDE
               && (pos.is_horde() || !pos.advanced_pawn_push(move) || pos.non_pawn_material() >= Value(5000))
@@ -1495,6 +1511,7 @@ moves_loop: // When in check search starts from here
     Value bestValue, value, ttValue, futilityValue, futilityBase, oldAlpha;
     bool ttHit, givesCheck, evasionPrunable;
     Depth ttDepth;
+    int moveCount;
 
     if (PvNode)
     {
@@ -1505,6 +1522,7 @@ moves_loop: // When in check search starts from here
 
     ss->currentMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
+    moveCount = 0;
 
     if (pos.is_variant_end())
         return pos.variant_result(ss->ply, DrawValue[pos.side_to_move()]);
@@ -1592,14 +1610,12 @@ moves_loop: // When in check search starts from here
                   && !pos.is_atomic()
 #endif
 #ifdef ANTI
-#ifdef LOSERS
-                  && !(pos.is_anti() && !pos.is_losers())
-#else
                   && !pos.is_anti()
-#endif
 #endif
                   ? pos.check_squares(type_of(pos.piece_on(from_sq(move)))) & to_sq(move)
                   : pos.gives_check(move);
+
+      moveCount++;
 
       // Futility pruning
       if (   !InCheck
@@ -1639,7 +1655,7 @@ moves_loop: // When in check search starts from here
 
       // Detect non-capture evasions that are candidates to be pruned
       evasionPrunable =    InCheck
-                       &&  depth != DEPTH_ZERO
+                       &&  (depth != DEPTH_ZERO || moveCount > 2)
                        &&  bestValue > VALUE_MATED_IN_MAX_PLY
                        && !pos.capture(move);
 
@@ -1654,7 +1670,10 @@ moves_loop: // When in check search starts from here
 
       // Check for legality just before making the move
       if (!pos.legal(move))
+      {
+          moveCount--;
           continue;
+      }
 
       ss->currentMove = move;
 
