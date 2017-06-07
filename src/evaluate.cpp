@@ -390,22 +390,22 @@ namespace {
 
 #ifdef KOTH
   const Score KothDistanceBonus[6] = {
-    S(1991, 1658), S(448, 364), S(163, 176), S(80, 89), S(50, 50), S(0, 0)
+    S(1949, 1934), S(454, 364), S(151, 158), S(75, 85), S(42, 49), S(0, 0)
   };
-  const Score KothSafeCenter = S(157, 202);
+  const Score KothSafeCenter = S(163, 207);
 #endif
 
 #ifdef ANTI
-  const Score PieceCountAnti    = S(122, 119);
-  const Score ThreatsAnti[]     = { S(216, 279), S(441, 341) };
+  const Score PieceCountAnti    = S(121, 121);
+  const Score ThreatsAnti[]     = { S(200, 234), S(431, 306) };
   const Score AttacksAnti[2][2][PIECE_TYPE_NB] = {
     {
-      { S( 27, 140), S( 23,  95), S(160, 112), S( 78, 129), S( 65,  75), S( 70, 13), S(146, 123) },
-      { S( 58,  82), S( 80, 112), S(124,  87), S(103, 110), S(185, 107), S( 72, 60), S(126,  62) }
+      { S( 29, 149), S( 25,  92), S(159, 113), S( 81, 125), S( 63,  77), S( 72, 12), S(138, 121) },
+      { S( 56,  87), S( 82, 108), S(120,  91), S(101, 114), S(184, 106), S( 73, 62), S(127,  59) }
     },
     {
-      { S(111, 127), S(102,  95), S(121, 183), S(140,  37), S(120,  99), S( 55, 11), S( 88,  93) },
-      { S( 56,  69), S( 72, 124), S(109, 154), S( 98, 149), S(129, 113), S(147, 72), S(157, 152) }
+      { S(116, 126), S( 97,  95), S(116, 188), S(142,  39), S(123, 104), S( 52, 11), S( 94,  86) },
+      { S( 59,  74), S( 67, 114), S(104, 142), S(102, 146), S(143, 121), S(142, 69), S(154, 161) }
     }
   };
 #endif
@@ -426,15 +426,15 @@ namespace {
 
 #ifdef CRAZYHOUSE
   const int KingDangerInHand[PIECE_TYPE_NB] = {
-    87, 16, 210, 66, 168, 143
+    83, 17, 203, 64, 156, 146
   };
 #endif
 
 #ifdef RACE
   // Bonus for distance of king from 8th rank
   const Score KingRaceBonus[RANK_NB] = {
-    S(14216, 14428), S(5931, 5364), S(4372, 3800), S(2678, 2467),
-    S( 1577,  1515), S( 960,  914), S( 518,  480), S(   0,    0)
+    S(14282, 14493), S(6369, 5378), S(4224, 3557), S(2633, 2219),
+    S( 1614,  1456), S( 975,  885), S( 528,  502), S(   0,    0)
   };
 #endif
 
@@ -507,16 +507,16 @@ namespace {
     {},
 #endif
 #ifdef ATOMIC
-    { 0, 0, 78, 56, 45, 11 },
+    { 0, 0, 76, 64, 46, 11 },
 #endif
 #ifdef CRAZYHOUSE
-    { 0, 0, 112, 84, 61, 2 },
+    { 0, 0, 112, 97, 61, 2 },
 #endif
 #ifdef HORDE
     { 0, 0, 78, 56, 45, 11 },
 #endif
 #ifdef KOTH
-    { 0, 0, 78, 56, 45, 11 },
+    { 0, 0, 76, 48, 44, 10 },
 #endif
 #ifdef LOSERS
     { 0, 0, 78, 56, 45, 11 },
@@ -528,7 +528,7 @@ namespace {
     { 0, 0, 78, 56, 45, 11 },
 #endif
 #ifdef THREECHECK
-    { 0, 0, 105, 66, 62, 33 },
+    { 0, 0, 115, 64, 62, 35 },
 #endif
   };
 
@@ -539,16 +539,16 @@ namespace {
     {   101,  235,  134, -717,  -11,   -5,    0 },
 #endif
 #ifdef ATOMIC
-    {   305,  170,  141, -718,  -12,   -7,   29 },
+    {   274,  166,  146, -654,  -12,   -7,   29 },
 #endif
 #ifdef CRAZYHOUSE
-    {   148,  299,  183, -697,  -10,   -1,  263 },
+    {   138,  362,  170, -595,   -9,   -1,  306 },
 #endif
 #ifdef HORDE
     {   101,  235,  134, -717,  -11,   -5,    0 },
 #endif
 #ifdef KOTH
-    {   101,  235,  134, -717,  -11,   -5,    0 },
+    {    85,  229,  131, -658,   -9,   -5,    0 },
 #endif
 #ifdef LOSERS
     {   101,  235,  134, -717, -357,   -5,    0 },
@@ -560,7 +560,7 @@ namespace {
     {   101,  235,  134, -717,  -11,   -5,    0 },
 #endif
 #ifdef THREECHECK
-    {    77,  138,  107, -726,   -7,  -73,  168 },
+    {    85,  136,  106, -613,   -7,  -73,  181 },
 #endif
   };
 
@@ -570,16 +570,45 @@ namespace {
   const int BishopCheck = 435;
   const int KnightCheck = 790;
 #ifdef ATOMIC
-  const int IndirectKingAttack = 1000;
+  const int IndirectKingAttack = 883;
 #endif
 
 #ifdef THREECHECK
   // In Q8 fixed point
-  const int ThreeCheckKSFactors[CHECKS_NB] = { 585, 717, 812, 0 };
+  const int ThreeCheckKSFactors[CHECKS_NB] = { 571, 619, 858, 0 };
 #endif
   // Threshold for lazy and space evaluation
   const Value LazyThreshold  = Value(1500);
-  const Value SpaceThreshold = Value(12222);
+  const Value SpaceThreshold[VARIANT_NB] = {
+    Value(12222),
+#ifdef ANTI
+    Value(12222),
+#endif
+#ifdef ATOMIC
+    Value(12222),
+#endif
+#ifdef CRAZYHOUSE
+    Value(12222),
+#endif
+#ifdef HORDE
+    VALUE_ZERO,
+#endif
+#ifdef KOTH
+    VALUE_ZERO,
+#endif
+#ifdef LOSERS
+    Value(12222),
+#endif
+#ifdef RACE
+    Value(12222),
+#endif
+#ifdef RELAY
+    Value(12222),
+#endif
+#ifdef THREECHECK
+    Value(12222),
+#endif
+  };
 
   // eval_init() initializes king and attack bitboards for a given color
   // adding pawn attacks. To be done at the beginning of the evaluation.
@@ -1367,10 +1396,6 @@ namespace {
 #endif
     bonus = popcount((Us == WHITE ? safe << 32 : safe >> 32) | (behind & safe));
     int weight = pos.count<ALL_PIECES>(Us) - 2 * ei.pe->open_files();
-#ifdef THREECHECK
-    if (pos.is_three_check())
-        weight -= pos.checks_count();
-#endif
 #ifdef HORDE
     if (pos.is_horde() && pos.is_horde_color(Us))
         return make_score(bonus * weight * weight / 200, 0);
@@ -1390,10 +1415,6 @@ namespace {
   // status of the players.
   Score evaluate_initiative(const Position& pos, int asymmetry, Value eg) {
 
-#ifdef ANTI
-    if (pos.is_anti())
-        return make_score(0, 0);
-#endif
     int kingDistance =  distance<File>(pos.square<KING>(WHITE), pos.square<KING>(BLACK))
                       - distance<Rank>(pos.square<KING>(WHITE), pos.square<KING>(BLACK));
     bool bothFlanks = (pos.pieces(PAWN) & QueenSide) && (pos.pieces(PAWN) & KingSide);
@@ -1522,24 +1543,18 @@ Value Eval::evaluate(const Position& pos) {
           - evaluate_passer_pawns<BLACK, DoTrace>(pos, ei);
 
   // Evaluate space for both sides, only during opening
-#ifdef HORDE
-  if (pos.is_horde())
-  {
-      score +=  evaluate_space<WHITE>(pos, ei)
-              - evaluate_space<BLACK>(pos, ei);
-  }
-  else
-  {
-#endif
-  if (pos.non_pawn_material() >= SpaceThreshold)
+  if (pos.non_pawn_material() >= SpaceThreshold[pos.variant()])
       score +=  evaluate_space<WHITE>(pos, ei)
               - evaluate_space<BLACK>(pos, ei);
 
   // Evaluate position potential for the winning side
-  score += evaluate_initiative(pos, ei.pe->pawn_asymmetry(), eg_value(score));
-#ifdef HORDE
-  }
+#ifdef ANTI
+  if (pos.is_anti()) {} else
 #endif
+#ifdef HORDE
+  if (pos.is_horde()) {} else
+#endif
+  score += evaluate_initiative(pos, ei.pe->pawn_asymmetry(), eg_value(score));
 
   // Evaluate scale factor for the winning side
   ScaleFactor sf = evaluate_scale_factor(pos, ei, eg_value(score));
@@ -1557,7 +1572,7 @@ Value Eval::evaluate(const Position& pos) {
       Trace::add(IMBALANCE, ei.me->imbalance());
       Trace::add(PAWN, ei.pe->pawns_score());
       Trace::add(MOBILITY, mobility[WHITE], mobility[BLACK]);
-      if (pos.non_pawn_material() >= SpaceThreshold)
+      if (pos.non_pawn_material() >= SpaceThreshold[pos.variant()])
           Trace::add(SPACE, evaluate_space<WHITE>(pos, ei)
                           , evaluate_space<BLACK>(pos, ei));
       Trace::add(TOTAL, score);
@@ -1591,7 +1606,7 @@ std::string Eval::trace(const Position& pos) {
      << "      Imbalance | " << Term(IMBALANCE)
      << "          Pawns | " << Term(PAWN)
      << "        Knights | " << Term(KNIGHT)
-     << "         Bishop | " << Term(BISHOP)
+     << "        Bishops | " << Term(BISHOP)
      << "          Rooks | " << Term(ROOK)
      << "         Queens | " << Term(QUEEN)
      << "       Mobility | " << Term(MOBILITY)

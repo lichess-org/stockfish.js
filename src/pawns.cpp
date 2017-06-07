@@ -143,7 +143,7 @@ namespace {
     S(18, 38),
 #endif
 #ifdef HORDE
-    S(10, 78),
+    S(11, 80),
 #endif
 #ifdef KOTH
     S(18, 38),
@@ -433,7 +433,7 @@ namespace {
   const Value MaxSafetyBonus = V(258);
 
 #ifdef HORDE
-  const Score ImbalancedHorde = S(34, 39);
+  const Score ImbalancedHorde = S(40, 36);
 #endif
 
   #undef S
@@ -462,11 +462,12 @@ namespace {
     e->kingSquares[Us]   = SQ_NONE;
     e->pawnAttacks[Us]   = shift<Right>(ourPawns) | shift<Left>(ourPawns);
     e->pawnsOnSquares[Us][BLACK] = popcount(ourPawns & DarkSquares);
-    e->pawnsOnSquares[Us][WHITE] = pos.count<PAWN>(Us) - e->pawnsOnSquares[Us][BLACK];
 #ifdef CRAZYHOUSE
     if (pos.is_house())
         e->pawnsOnSquares[Us][WHITE] = popcount(ourPawns & ~DarkSquares);
+    else
 #endif
+    e->pawnsOnSquares[Us][WHITE] = pos.count<PAWN>(Us) - e->pawnsOnSquares[Us][BLACK];
 
 #ifdef HORDE
     if (pos.is_horde() && pos.is_horde_color(Us))
@@ -594,7 +595,7 @@ void init() {
     { 0, 8, 19, 13, 71, 94, 169, 324 },
 #endif
 #ifdef HORDE
-    { 36, 28, 3, 1, 115, 107, 321, 332 },
+    { 38, 31, 3, 1, 117, 101, 335, 329 },
 #endif
 #ifdef KOTH
     { 0, 8, 19, 13, 71, 94, 169, 324 },
@@ -693,9 +694,6 @@ Score Entry::do_king_safety(const Position& pos, Square ksq) {
   kingSquares[Us] = ksq;
   castlingRights[Us] = pos.can_castle(Us);
   int minKingPawnDistance = 0;
-#ifdef THREECHECK
-  CheckCount checks = pos.is_three_check() ? pos.checks_given(~Us) : CHECKS_0;
-#endif
 
   Bitboard pawns = pos.pieces(Us, PAWN);
   if (pawns)
@@ -710,12 +708,7 @@ Score Entry::do_king_safety(const Position& pos, Square ksq) {
   if (pos.can_castle(MakeCastling<Us, QUEEN_SIDE>::right))
       bonus = std::max(bonus, shelter_storm<Us>(pos, relative_square(Us, SQ_C1)));
 
-#ifdef THREECHECK
-  // Decrease score when checks have been taken
-  return make_score(bonus, (-16 * minKingPawnDistance) + (-2 * checks));
-#else
   return make_score(bonus, -16 * minKingPawnDistance);
-#endif
 }
 
 // Explicit template instantiation
