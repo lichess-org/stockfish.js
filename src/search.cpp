@@ -102,7 +102,7 @@ namespace {
   { 483, 570, 603, 554 },
 #endif
 #ifdef THREECHECK
-  { 1989, 1919, 2092, 2102 },
+  { 1989, 2060, 2257, 2174 },
 #endif
   };
   const int futility_margin_factor[VARIANT_NB] = {
@@ -132,7 +132,7 @@ namespace {
   150,
 #endif
 #ifdef THREECHECK
-  265,
+  223,
 #endif
   };
   Value futility_margin(Variant var, Depth d) { return Value(futility_margin_factor[var] * d / ONE_PLY); }
@@ -163,7 +163,7 @@ namespace {
   { 256, 200 },
 #endif
 #ifdef THREECHECK
-  { 356, 291 },
+  { 420, 332 },
 #endif
   };
   const int probcut_margin[VARIANT_NB] = {
@@ -193,14 +193,13 @@ namespace {
   200,
 #endif
 #ifdef THREECHECK
-  379,
+  418,
 #endif
   };
 
   // Futility and reductions lookup tables, initialized at startup
   int FutilityMoveCounts[2][16]; // [improving][depth]
   int Reductions[2][2][64][64];  // [pv][improving][depth][moveNumber]
-
   // Threshold used for countermoves based pruning
   const int CounterMovePruneThreshold = 0;
 
@@ -208,9 +207,18 @@ namespace {
     return Reductions[PvNode][i][std::min(d / ONE_PLY, 63)][std::min(mn, 63)] * ONE_PLY;
   }
 
+#ifdef CRAZYHOUSE
+  int ZHFutilityMoveCounts[2][16]; // [improving][depth]
+  int ZHReductions[2][2][64][64];  // [pv][improving][depth][moveNumber]
+
+  template <bool PvNode> Depth zhReduction(bool i, Depth d, int mn) {
+    return ZHReductions[PvNode][i][std::min(d / ONE_PLY, 63)][std::min(mn, 63)] * ONE_PLY;
+  }
+#endif
+
   // History and stats update bonus, based on depth
   int stat_bonus(Depth depth) {
-    int d = depth / ONE_PLY ;
+    int d = depth / ONE_PLY;
     return d > 17 ? 0 : d * d + 2 * d - 2;
   }
 
@@ -309,6 +317,29 @@ void Search::init() {
       FutilityMoveCounts[0][d] = int(2.4 + 0.74 * pow(d, 1.78));
       FutilityMoveCounts[1][d] = int(5.0 + 1.00 * pow(d, 2.00));
   }
+
+#ifdef CRAZYHOUSE
+  for (int imp = 0; imp <= 1; ++imp)
+      for (int d = 1; d < 64; ++d)
+          for (int mc = 1; mc < 64; ++mc)
+          {
+              double r = log(d) * log(mc) / 2.00;
+
+              ZHReductions[NonPV][imp][d][mc] = int(std::round(r));
+              ZHReductions[PV][imp][d][mc] = std::max(ZHReductions[NonPV][imp][d][mc] - 1, 0);
+
+              // Increase reduction for non-PV nodes when eval is not improving
+              if (!imp && ZHReductions[NonPV][imp][d][mc] >= 2)
+                ZHReductions[NonPV][imp][d][mc]++;
+          }
+
+  for (int d = 0; d < 16; ++d)
+  {
+      ZHFutilityMoveCounts[0][d] = int(10.0 + 0.5 * exp(0.8 * d));
+      ZHFutilityMoveCounts[1][d] = int(20.0 + 0.5 * exp(0.9 * d));
+  }
+#endif
+
 }
 
 
@@ -374,6 +405,7 @@ void MainThread::search() {
 
   us_ = rootPos.side_to_move();
   Time.init(Limits, us_, rootPos.game_ply());
+  TT.new_search();
 
   int contempt = Options["Contempt"] * PawnValueEg / 100; // From centipawns
   DrawValue[ us_] = VALUE_DRAW - Value(contempt);
@@ -541,7 +573,7 @@ void Thread::search() {
   mainThread_ = (this == Threads.main() ? Threads.main() : nullptr);
 
   std::memset(ss_-4, 0, 7 * sizeof(Stack));
-  for(int i = 4; i > 0; i--)
+  for (int i = 4; i > 0; i--)
      (ss_-i)->history = &this->counterMoveHistory[NO_PIECE][0]; // Use as sentinel
 
   bestValue_ = delta_ = alpha_ = -VALUE_INFINITE;
@@ -554,7 +586,6 @@ void Thread::search() {
       EasyMove.clear();
       mainThread_->easyMovePlayed = mainThread_->failedLow = false;
       mainThread_->bestMoveChanges = 0;
-      TT.new_search();
   }
 
   multiPV_ = Options["MultiPV"];
@@ -1076,9 +1107,7 @@ namespace {
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
         Value rbeta = std::min(beta + probcut_margin[pos.variant()], VALUE_INFINITE);
-        Depth rdepth = depth - 4 * ONE_PLY;
 
-        assert(rdepth >= ONE_PLY);
         assert(is_ok((ss-1)->currentMove));
 
         MovePicker mp(pos, ttMove, rbeta - ss->staticEval);
@@ -1089,8 +1118,9 @@ namespace {
                 ss->currentMove = move;
                 ss->history = &thisThread->counterMoveHistory[pos.moved_piece(move)][to_sq(move)];
 
+                assert(depth >= 5 * ONE_PLY);
                 pos.do_move(move, st);
-                value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth, !cutNode, false);
+                value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, depth - 4 * ONE_PLY, !cutNode, false);
                 pos.undo_move(move);
                 if (value >= rbeta)
                     return value;
@@ -1172,6 +1202,12 @@ moves_loop: // When in check search starts from here
                   ? pos.check_squares(type_of(pos.piece_on(from_sq(move)))) & to_sq(move)
                   : pos.gives_check(move);
 
+#ifdef CRAZYHOUSE
+      if (pos.is_house())
+          moveCountPruning =   depth < 16 * ONE_PLY
+                            && moveCount >= ZHFutilityMoveCounts[improving][depth / ONE_PLY];
+      else
+#endif
       moveCountPruning =   depth < 16 * ONE_PLY
                         && moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
 
@@ -1249,7 +1285,13 @@ moves_loop: // When in check search starts from here
               }
 
               // Reduced depth of the next LMR search
-              int lmrDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO) / ONE_PLY;
+              int lmrDepth;
+#ifdef CRAZYHOUSE
+              if (pos.is_house())
+                  lmrDepth = std::max(newDepth - zhReduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO) / ONE_PLY;
+              else
+#endif
+              lmrDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO) / ONE_PLY;
 
               // Countermoves based pruning
               if (   lmrDepth < 3
@@ -1303,7 +1345,12 @@ moves_loop: // When in check search starts from here
           &&  moveCount > 1
           && (!captureOrPromotion || moveCountPruning))
       {
+#ifdef CRAZYHOUSE
+          Depth r = pos.is_house() ? zhReduction<PvNode>(improving, depth, moveCount)
+                                   : reduction<PvNode>(improving, depth, moveCount);
+#else
           Depth r = reduction<PvNode>(improving, depth, moveCount);
+#endif
 
           if (captureOrPromotion)
               r -= r ? ONE_PLY : DEPTH_ZERO;
@@ -1599,6 +1646,9 @@ moves_loop: // When in check search starts from here
     {
       assert(is_ok(move));
 
+      // Speculative prefetch as early as possible
+      prefetch(TT.first_entry(pos.key_after(move)));
+
       givesCheck =  type_of(move) == NORMAL && !pos.discovered_check_candidates()
 #ifdef ATOMIC
                   && !pos.is_atomic()
@@ -1655,9 +1705,6 @@ moves_loop: // When in check search starts from here
           &&  type_of(move) != PROMOTION
           &&  !pos.see_ge(move))
           continue;
-
-      // Speculative prefetch as early as possible
-      prefetch(TT.first_entry(pos.key_after(move)));
 
       // Check for legality just before making the move
       if (!pos.legal(move))
