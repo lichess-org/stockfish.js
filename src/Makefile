@@ -54,7 +54,9 @@ endif
 # ----------------------------------------------------------------------------
 #
 # debug = yes/no      --- -DNDEBUG         --- Enable/Disable debug mode
-# sanitize = yes/no   --- (-fsanitize )    --- enable undefined behavior checks
+# sanitize = undefined/thread/no (-fsanitize )
+#                     --- ( undefined )    --- enable undefined behavior checks
+#                     --- ( thread    )    --- enable threading error  checks
 # optimize = yes/no   --- (-O3/-fast etc.) --- Enable/Disable optimizations
 # arch = (name)       --- (-arch)          --- Target architecture
 # bits = 64/32        --- -DIS_64BIT       --- 64-/32-bit operating system
@@ -234,6 +236,9 @@ ifeq ($(COMP),clang)
 	comp=clang
 	CXX=clang++
 	CXXFLAGS += -pedantic -Wextra -Wshadow
+ifneq ($(KERNEL),Darwin)
+	LDFLAGS += -latomic
+endif
 
 	ifeq ($(ARCH),armv7)
 		ifeq ($(OS),Android)
@@ -316,9 +321,9 @@ else
 endif
 
 ### 3.2.2 Debugging with undefined behavior sanitizers
-ifeq ($(sanitize),yes)
-        CXXFLAGS += -g3 -fsanitize=undefined
-        LDFLAGS += -fsanitize=undefined
+ifneq ($(sanitize),no)
+        CXXFLAGS += -g3 -fsanitize=$(sanitize) -fuse-ld=gold
+        LDFLAGS += -fsanitize=$(sanitize) -fuse-ld=gold
 endif
 
 ### 3.3 Optimization
@@ -554,7 +559,7 @@ config-sanity:
 	@echo "Testing config sanity. If this fails, try 'make help' ..."
 	@echo ""
 	@test "$(debug)" = "yes" || test "$(debug)" = "no"
-	@test "$(sanitize)" = "yes" || test "$(sanitize)" = "no"
+	@test "$(sanitize)" = "undefined" || test "$(sanitize)" = "thread" || test "$(sanitize)" = "no"
 	@test "$(optimize)" = "yes" || test "$(optimize)" = "no"
 	@test "$(arch)" = "any" || test "$(arch)" = "x86_64" || test "$(arch)" = "i386" || \
 	 test "$(arch)" = "ppc64" || test "$(arch)" = "ppc" || test "$(arch)" = "armv7"

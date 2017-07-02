@@ -155,7 +155,7 @@ public:
   template<Variant V>
   Value see(Move m) const;
 #endif
-  bool see_ge(Move m, Value value = VALUE_ZERO) const;
+  bool see_ge(Move m, Value threshold = VALUE_ZERO) const;
 
   // Accessing hash keys
   Key key() const;
@@ -240,7 +240,6 @@ public:
   bool is_suicide() const;
 #endif
   Thread* this_thread() const;
-  uint64_t nodes_searched() const;
   bool is_draw(int ply) const;
   int rule50_count() const;
   Score psq_score() const;
@@ -248,7 +247,7 @@ public:
   Value non_pawn_material() const;
 
   // Position consistency check, for debugging
-  bool pos_is_ok(int* failedStep = nullptr) const;
+  bool pos_is_ok() const;
   void flip();
 
 private:
@@ -285,7 +284,6 @@ private:
 #endif
   Square castlingRookSquare[CASTLING_RIGHT_NB];
   Bitboard castlingPath[CASTLING_RIGHT_NB];
-  uint64_t nodes;
   int gamePly;
   Color sideToMove;
   Thread* thisThread;
@@ -518,10 +516,6 @@ inline int Position::game_ply() const {
 
 inline int Position::rule50_count() const {
   return st->rule50;
-}
-
-inline uint64_t Position::nodes_searched() const {
-  return nodes;
 }
 
 inline bool Position::opposite_bishops() const {
@@ -841,6 +835,7 @@ inline Value Position::variant_result(int ply, Value draw_value) const {
           return mate_in(ply);
       if (is_anti_loss())
           return mated_in(ply);
+      break;
 #endif
 #ifdef ATOMIC
   case ATOMIC_VARIANT:
@@ -848,11 +843,13 @@ inline Value Position::variant_result(int ply, Value draw_value) const {
           return mate_in(ply);
       if (is_atomic_loss())
           return mated_in(ply);
+      break;
 #endif
 #ifdef HORDE
   case HORDE_VARIANT:
       if (is_horde_loss())
           return mated_in(ply);
+      break;
 #endif
 #ifdef KOTH
   case KOTH_VARIANT:
@@ -860,6 +857,7 @@ inline Value Position::variant_result(int ply, Value draw_value) const {
           return mate_in(ply);
       if (is_koth_loss())
           return mated_in(ply);
+      break;
 #endif
 #ifdef LOSERS
   case LOSERS_VARIANT:
@@ -867,6 +865,7 @@ inline Value Position::variant_result(int ply, Value draw_value) const {
           return mate_in(ply);
       if (is_losers_loss())
           return mated_in(ply);
+      break;
 #endif
 #ifdef RACE
   case RACE_VARIANT:
@@ -876,6 +875,7 @@ inline Value Position::variant_result(int ply, Value draw_value) const {
           return mate_in(ply);
       if (is_race_loss())
           return mated_in(ply);
+      break;
 #endif
 #ifdef THREECHECK
   case THREECHECK_VARIANT:
@@ -883,6 +883,7 @@ inline Value Position::variant_result(int ply, Value draw_value) const {
           return mate_in(ply);
       if (is_three_check_loss())
           return mated_in(ply);
+      break;
 #endif
   default:;
   }
