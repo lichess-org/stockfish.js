@@ -88,7 +88,7 @@ namespace {
     template<Color Us> void initialize();
     template<Color Us> Score evaluate_king();
     template<Color Us> Score evaluate_threats();
-    template<Color Us> Score evaluate_passer_pawns();
+    template<Color Us> Score evaluate_passed_pawns();
     template<Color Us> Score evaluate_space();
     template<Color Us, PieceType Pt> Score evaluate_pieces();
     ScaleFactor evaluate_scale_factor(Value eg);
@@ -176,36 +176,36 @@ namespace {
 #endif
 #ifdef ATOMIC
     {
-      { S(-75,-76), S(-56,-54), S( -9,-26), S( -2,-10), S(  6,  5), S( 15, 11), // Knights
-        S( 22, 26), S( 30, 28), S( 36, 29) },
-      { S(-48,-58), S(-21,-19), S( 16, -2), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
-        S( 54, 54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
-        S( 92, 90), S( 97, 94) },
-      { S(-56,-78), S(-25,-18), S(-11, 26), S( -5, 55), S( -4, 70), S( -1, 81), // Rooks
-        S(  8,109), S( 14,120), S( 21,128), S( 23,143), S( 31,154), S( 32,160),
-        S( 43,165), S( 49,168), S( 59,169) },
-      { S(-40,-35), S(-25,-12), S(  2,  7), S(  4, 19), S( 14, 37), S( 24, 55), // Queens
-        S( 25, 62), S( 40, 76), S( 43, 79), S( 47, 87), S( 54, 94), S( 56,102),
-        S( 60,111), S( 70,116), S( 72,118), S( 73,122), S( 75,128), S( 77,130),
-        S( 85,133), S( 94,136), S( 99,140), S(108,157), S(112,158), S(113,161),
-        S(118,174), S(119,177), S(123,191), S(128,199) }
+      { S(-85,-78), S(-78,-63), S(-35,-40), S( -2,-24), S( 14,  8), S( 23, 25), // Knights
+        S( 39, 26), S( 30, 23), S( 36, 29) },
+      { S(-55,-64), S(-17,-34), S( 13, -9), S( 24, 20), S( 22, 25), S( 57, 38), // Bishops
+        S( 32, 52), S( 67, 66), S( 52, 52), S( 57, 74), S( 73, 77), S( 85, 81),
+        S( 92, 90), S(110, 86) },
+      { S(-60,-73), S(-33,-28), S(-18,  9), S(-19, 30), S(-19, 58), S( 20, 77), // Rooks
+        S( 12,106), S( 11,133), S( 21,134), S( 33,165), S( 34,169), S( 39,183),
+        S( 25,171), S( 61,181), S( 58,158) },
+      { S(-43,-43), S(-14,-16), S( -5,  1), S(  0, 23), S(  6, 24), S( 24, 58), // Queens
+        S( 20, 55), S( 31, 67), S( 47, 90), S( 28, 79), S( 47, 89), S( 69,104),
+        S( 64,111), S( 75,128), S( 72,114), S( 48,132), S( 58,130), S( 76,134),
+        S( 84,124), S(109,131), S(114,143), S(103,140), S(105,146), S(109,165),
+        S(116,156), S(127,176), S(130,174), S(129,204) }
     },
 #endif
 #ifdef CRAZYHOUSE
     {
-      { S(-115,-112), S(-94,-51), S(-90,-24), S(-38, -5), S(  6,  5), S( 15, 11), // Knights
-        S(  22,  26), S( 30, 28), S( 36, 29) },
-      { S(-150, -63), S(-91,-41), S( 16, -8), S( 26, 12), S( 37, 22), S( 51, 42), // Bishops
-        S(  54,  54), S( 63, 58), S( 65, 63), S( 71, 70), S( 79, 74), S( 81, 86),
-        S(  92,  90), S( 97, 94) },
-      { S( -53, -53), S(-22, -8), S(-48, 30), S(-14, 57), S( -4, 77), S( 11, 87), // Rooks
-        S(   7, 115), S( 12,123), S( 27,120), S(  6,140), S( 55,156), S( 18,161),
-        S(  51, 161), S( 54,171), S( 52,166) },
-      { S( -26, -56), S(-24,-14), S(  7, 14), S(  8, 15), S( 18, 34), S( 14, 41), // Queens
-        S(  28,  58), S( 33, 66), S( 40, 70), S( 47, 74), S( 50,100), S( 52,106),
-        S(  59, 111), S( 50, 95), S( 60,115), S( 61,126), S( 75,144), S( 82,119),
-        S(  95, 137), S(102,138), S(100,142), S(119,154), S(129,156), S(107,156),
-        S( 111, 177), S(115,181), S(124,197), S(124,199) }
+      { S(-126, -96), S(-103,-31), S(-90,-27), S(-40,  3), S(  0,  3), S(  4,  0), // Knights
+        S(  20,  12), S(  15, 33), S( 50, 46) },
+      { S(-156, -79), S(-115,-43), S( 42,-14), S( 35, 26), S( 64, 26), S( 74, 38), // Bishops
+        S(  70,  46), S(  83, 71), S( 70, 68), S( 66, 80), S( 64, 68), S( 70, 77),
+        S(  97,  92), S(  89, 98) },
+      { S( -53, -53), S( -22, -8), S(-48, 30), S(-14, 57), S( -4, 77), S( 11, 87), // Rooks
+        S(   7, 115), S(  12,123), S( 27,120), S(  6,140), S( 55,156), S( 18,161),
+        S(  51, 161), S(  54,171), S( 52,166) },
+      { S( -26, -56), S( -24,-14), S(  7, 14), S(  8, 15), S( 18, 34), S( 14, 41), // Queens
+        S(  28,  58), S(  33, 66), S( 40, 70), S( 47, 74), S( 50,100), S( 52,106),
+        S(  59, 111), S(  50, 95), S( 60,115), S( 61,126), S( 75,144), S( 82,119),
+        S(  95, 137), S( 102,138), S(100,142), S(119,154), S(129,156), S(107,156),
+        S( 111, 177), S( 115,181), S(124,197), S(124,199) }
     },
 #endif
 #ifdef HORDE
@@ -261,19 +261,19 @@ namespace {
 #endif
 #ifdef RACE
     {
-      { S(-150,-152), S(-112,-108), S(-18,-52), S( -4,-20), S( 12, 10), S( 30, 22), // Knights
-        S(  44,  52), S(  60,  56), S( 72, 58) },
-      { S( -96,-116), S( -42, -38), S( 32, -4), S( 52, 24), S( 74, 44), S(102, 84), // Bishops
-        S( 108, 108), S( 126, 116), S(130,126), S(142,140), S(158,148), S(162,172),
-        S( 184, 180), S( 194, 188) },
-      { S(-112,-156), S( -50, -36), S(-22, 52), S(-10,110), S( -8,140), S( -2,162), // Rooks
-        S(  16, 218), S(  28, 240), S( 42,256), S( 46,286), S( 62,308), S( 64,320),
-        S(  86, 330), S(  98, 336), S(118,338) },
-      { S( -80, -70), S( -50, -24), S(  4, 14), S(  8, 38), S( 28, 74), S( 48,110), // Queens
-        S(  50, 124), S(  80, 152), S( 86,158), S( 94,174), S(108,188), S(112,204),
-        S( 120, 222), S( 140, 232), S(144,236), S(146,244), S(150,256), S(154,260),
-        S( 170, 266), S( 188, 272), S(198,280), S(216,314), S(224,316), S(226,322),
-        S( 236, 348), S( 238, 354), S(246,382), S(256,398) }
+      { S(-132,-117), S( -89,-110), S(-13,-49), S(-11,-15), S(-10,-30), S( 29, 17), // Knights
+        S(  13,  32), S(  79,  69), S(109, 79) },
+      { S(-101,-119), S( -19, -27), S( 27, -9), S( 35, 30), S( 62, 31), S(115, 72), // Bishops
+        S(  91,  99), S( 138, 122), S(129,119), S(158,156), S(153,162), S(143,189),
+        S( 172, 181), S( 196, 204) },
+      { S(-131,-162), S( -57, -37), S( -8, 47), S( 12, 93), S(  3,127), S( 10,139), // Rooks
+        S(   3, 240), S(  18, 236), S( 44,251), S( 44,291), S( 49,301), S( 67,316),
+        S( 100, 324), S(  97, 340), S(110,324) },
+      { S( -87, -68), S( -73,  -2), S( -7,  9), S( -5, 16), S( 39, 76), S( 39,118), // Queens
+        S(  64, 131), S(  86, 169), S( 86,175), S( 78,166), S( 97,195), S(123,216),
+        S( 137, 200), S( 155, 247), S(159,260), S(136,252), S(156,279), S(160,251),
+        S( 165, 251), S( 194, 267), S(204,271), S(216,331), S(226,304), S(223,295),
+        S( 239, 316), S( 228, 365), S(240,385), S(249,377) }
     },
 #endif
 #ifdef RELAY
@@ -843,7 +843,7 @@ namespace {
                                        : ~Bitboard(0) ^ Rank1BB ^ Rank2BB ^ Rank3BB);
 
     const Square ksq = pos.square<KING>(Us);
-    Bitboard undefended, b, b1, b2, safe, other;
+    Bitboard kingOnlyDefended, b, b1, b2, safe, other;
     int kingDanger;
 
     // King shelter and enemy pawns storm
@@ -860,14 +860,14 @@ namespace {
         // Find the attacked squares which are defended only by our king...
 #ifdef ATOMIC
         if (pos.is_atomic())
-            undefended =   (attackedBy[Them][ALL_PIECES]
-                            | (pos.pieces(Them) ^ pos.pieces(Them, KING)))
-                        &  attackedBy[Us][KING];
+            kingOnlyDefended =  (attackedBy[Them][ALL_PIECES]
+                                 | (pos.pieces(Them) ^ pos.pieces(Them, KING)))
+                              & attackedBy[Us][KING];
         else
 #endif
-        undefended =   attackedBy[Them][ALL_PIECES]
-                    &  attackedBy[Us][KING]
-                    & ~attackedBy2[Us];
+        kingOnlyDefended =   attackedBy[Them][ALL_PIECES]
+                          &  attackedBy[Us][KING]
+                          & ~attackedBy2[Us];
 
         // ... and those which are not defended at all in the larger king ring
         b =  attackedBy[Them][ALL_PIECES] & ~attackedBy[Us][ALL_PIECES]
@@ -876,12 +876,12 @@ namespace {
         // Initialize the 'kingDanger' variable, which will be transformed
         // later into a king danger score. The initial value is based on the
         // number and types of the enemy's attacking pieces, the number of
-        // attacked and undefended squares around our king and the quality of
-        // the pawn shelter (current 'score' value).
+        // attacked and weak squares around our king, the absence of queen and
+        // the quality of the pawn shelter (current 'score' value).
         const auto KDP = KingDangerParams[pos.variant()];
         kingDanger =           kingAttackersCount[Them] * kingAttackersWeight[Them]
                     + KDP[0] * kingAdjacentZoneAttacksCount[Them]
-                    + KDP[1] * popcount(undefended)
+                    + KDP[1] * popcount(kingOnlyDefended)
                     + KDP[2] * (popcount(b) + !!pos.pinned_pieces(Us))
                     + KDP[3] * !pos.count<QUEEN>(Them)
                     + KDP[4] * mg_value(score) / 8
@@ -897,13 +897,13 @@ namespace {
             kingDanger += KingDangerInHand[BISHOP] * pos.count_in_hand<BISHOP>(Them);
             kingDanger += KingDangerInHand[ROOK] * pos.count_in_hand<ROOK>(Them);
             kingDanger += KingDangerInHand[QUEEN] * pos.count_in_hand<QUEEN>(Them);
-            h = pos.count_in_hand<QUEEN>(Them) ? undefended & ~pos.pieces() : 0;
+            h = pos.count_in_hand<QUEEN>(Them) ? kingOnlyDefended & ~pos.pieces() : 0;
         }
 #endif
 
         // Analyse the safe enemy's checks which are possible on next move
         safe  = ~pos.pieces(Them);
-        safe &= ~attackedBy[Us][ALL_PIECES] | (undefended & attackedBy2[Them]);
+        safe &= ~attackedBy[Us][ALL_PIECES] | (kingOnlyDefended & attackedBy2[Them]);
 #ifdef ATOMIC
         if (pos.is_atomic())
             safe |= attackedBy[Us][KING];
@@ -1025,14 +1025,14 @@ namespace {
     const Square Up         = (Us == WHITE ? NORTH      : SOUTH);
     const Square Left       = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
     const Square Right      = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
-    const Bitboard TRank2BB = (Us == WHITE ? Rank2BB    : Rank7BB);
-    const Bitboard TRank7BB = (Us == WHITE ? Rank7BB    : Rank2BB);
+    const Bitboard TRank3BB = (Us == WHITE ? Rank3BB    : Rank6BB);
 
     Bitboard b, weak, defended, stronglyProtected, safeThreats;
     Score score = SCORE_ZERO;
 #ifdef ANTI
     if (pos.is_anti())
     {
+        const Bitboard TRank2BB = (Us == WHITE ? Rank2BB    : Rank7BB);
         bool weCapture = attackedBy[Us][ALL_PIECES] & pos.pieces(Them);
         bool theyCapture = attackedBy[Them][ALL_PIECES] & pos.pieces(Us);
 
@@ -1079,6 +1079,7 @@ namespace {
 #ifdef LOSERS
     if (pos.is_losers())
     {
+        const Bitboard TRank2BB = (Us == WHITE ? Rank2BB    : Rank7BB);
         bool weCapture = attackedBy[Us][ALL_PIECES] & pos.pieces(Them);
         bool theyCapture = attackedBy[Them][ALL_PIECES] & pos.pieces(Us);
 
@@ -1173,14 +1174,15 @@ namespace {
             score += ThreatByKing[more_than_one(b)];
     }
 
-    // Bonus if some pawns can safely push and attack an enemy piece
-    b = pos.pieces(Us, PAWN) & ~TRank7BB;
-    b = shift<Up>(b | (shift<Up>(b & TRank2BB) & ~pos.pieces()));
+    // Find squares where our pawns can push on the next move
+    b  = shift<Up>(pos.pieces(Us, PAWN)) & ~pos.pieces();
+    b |= shift<Up>(b & TRank3BB) & ~pos.pieces();
 
-    b &=  ~pos.pieces()
-        & ~attackedBy[Them][PAWN]
+    // Keep only the squares which are not completely unsafe
+    b &= ~attackedBy[Them][PAWN]
         & (attackedBy[Us][ALL_PIECES] | ~attackedBy[Them][ALL_PIECES]);
 
+    // Add a bonus for each new pawn threats from those squares
     b =  (shift<Left>(b) | shift<Right>(b))
        &  pos.pieces(Them)
        & ~attackedBy[Us][PAWN];
@@ -1222,13 +1224,14 @@ namespace {
   }
 
 
-  // evaluate_passer_pawns() evaluates the passed pawns and candidate passed
+  // evaluate_passed_pawns() evaluates the passed pawns and candidate passed
   // pawns of the given color.
 
   template<Tracing T>  template<Color Us>
-  Score Evaluation<T>::evaluate_passer_pawns() {
+  Score Evaluation<T>::evaluate_passed_pawns() {
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
+    const Square Up  = (Us == WHITE ? NORTH : SOUTH);
 
     Bitboard b, bb, squaresToQueen, defendedSquares, unsafeSquares;
     Score score = SCORE_ZERO;
@@ -1267,9 +1270,9 @@ namespace {
     {
         Square s = pop_lsb(&b);
 
-        assert(!(pos.pieces(Them, PAWN) & forward_bb(Us, s + pawn_push(Us))));
+        assert(!(pos.pieces(Them, PAWN) & forward_file_bb(Us, s + Up)));
 
-        bb = forward_bb(Us, s) & (attackedBy[Them][ALL_PIECES] | pos.pieces(Them));
+        bb = forward_file_bb(Us, s) & (attackedBy[Them][ALL_PIECES] | pos.pieces(Them));
         score -= HinderPassedPawn * popcount(bb);
 
         int r = relative_rank(Us, s) - RANK_2;
@@ -1279,8 +1282,7 @@ namespace {
 
         if (rr)
         {
-            Square pawnPush = pawn_push(Us);
-            Square blockSq = s + pawnPush;
+            Square blockSq = s + Up;
 #ifdef HORDE
             if (pos.is_horde())
             {
@@ -1307,7 +1309,7 @@ namespace {
 
             // If blockSq is not the queening square then consider also a second push
             if (relative_rank(Us, blockSq) != RANK_8)
-                ebonus -= distance(pos.square<KING>(Us), blockSq + pawnPush) * rr;
+                ebonus -= distance(pos.square<KING>(Us), blockSq + Up) * rr;
             }
 
             // If the pawn is free to advance, then increase the bonus
@@ -1316,9 +1318,9 @@ namespace {
                 // If there is a rook or queen attacking/defending the pawn from behind,
                 // consider all the squaresToQueen. Otherwise consider only the squares
                 // in the pawn's path attacked or occupied by the enemy.
-                defendedSquares = unsafeSquares = squaresToQueen = forward_bb(Us, s);
+                defendedSquares = unsafeSquares = squaresToQueen = forward_file_bb(Us, s);
 
-                bb = forward_bb(Them, s) & pos.pieces(ROOK, QUEEN) & pos.attacks_from<ROOK>(s);
+                bb = forward_file_bb(Them, s) & pos.pieces(ROOK, QUEEN) & pos.attacks_from<ROOK>(s);
 
                 if (!(pos.pieces(Us) & bb))
                     defendedSquares &= attackedBy[Us][ALL_PIECES];
@@ -1345,7 +1347,7 @@ namespace {
 
         // Scale down bonus for candidate passers which need more than one
         // pawn push to become passed or have a pawn in front of them.
-        if (!pos.pawn_passed(Us, s + pawn_push(Us)) || (pos.pieces(PAWN) & forward_bb(Us, s)))
+        if (!pos.pawn_passed(Us, s + Up) || (pos.pieces(PAWN) & forward_file_bb(Us, s)))
             mbonus /= 2, ebonus /= 2;
 
         score += make_score(mbonus, ebonus) + PassedFile[file_of(s)];
@@ -1557,8 +1559,8 @@ namespace {
     score +=  evaluate_threats<WHITE>()
             - evaluate_threats<BLACK>();
 
-    score +=  evaluate_passer_pawns<WHITE>()
-            - evaluate_passer_pawns<BLACK>();
+    score +=  evaluate_passed_pawns<WHITE>()
+            - evaluate_passed_pawns<BLACK>();
 
     if (pos.non_pawn_material() >= SpaceThreshold[pos.variant()])
         score +=  evaluate_space<WHITE>()
