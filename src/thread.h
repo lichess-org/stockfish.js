@@ -71,7 +71,7 @@ public:
   Material::Table materialTable;
   Endgames endgames;
   size_t idx, PVIdx;
-  int maxPly;
+  int selDepth;
   std::atomic<uint64_t> nodes, tbHits;
 
   Position rootPos;
@@ -115,6 +115,8 @@ struct ThreadPool : public std::vector<Thread*> {
   void read_uci_options();
   uint64_t nodes_searched() const;
   uint64_t tb_hits() const;
+
+  std::atomic_bool stop, stopOnPonderhit;
 
 private:
   StateListPtr setupStates;
