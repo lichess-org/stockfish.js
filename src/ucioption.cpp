@@ -41,7 +41,7 @@ namespace UCI {
 void on_clear_hash(const Option&) { Search::clear(); }
 void on_hash_size(const Option& o) { TT.resize(o); }
 void on_logger(const Option& o) { start_logger(o); }
-void on_threads(const Option&) { Threads.read_uci_options(); }
+void on_threads(const Option& o) { Threads.set(o); }
 #ifndef  __EMSCRIPTEN__
 void on_tb_path(const Option& o) { Tablebases::init(o, UCI::variant_from_name(Options["UCI_Variant"])); }
 #endif  // ifndef __EMSCRIPTEN__
@@ -76,9 +76,7 @@ void init(OptionsMap& o) {
 #ifdef SKILL
   o["Skill Level"]           << Option(20, 0, 20);
 #endif
-  o["Move Overhead"]         << Option(30, 0, 5000);
-  o["Minimum Thinking Time"] << Option(20, 0, 5000);
-  o["Slow Mover"]            << Option(89, 10, 1000);
+  o["Move Overhead"]         << Option(60, 0, 5000);
   o["nodestime"]             << Option(0, 0, 10000);
   o["UCI_Chess960"]          << Option(false);
   o["UCI_Variant"]           << Option(variants.front().c_str(), variants);

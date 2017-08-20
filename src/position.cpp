@@ -32,7 +32,9 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+#ifndef __EMSCRIPTEN__
 #include "syzygy/tbprobe.h"
+#endif
 
 using std::string;
 
@@ -119,6 +121,7 @@ std::ostream& operator<<(std::ostream& os, const Position& pos) {
   for (Bitboard b = pos.checkers(); b; )
       os << UCI::square(pop_lsb(&b)) << " ";
 
+#ifndef __EMSCRIPTEN__
   if (    int(Tablebases::MaxCardinality) >= popcount(pos.pieces())
       && !pos.can_castle(ANY_CASTLING))
   {
@@ -131,6 +134,7 @@ std::ostream& operator<<(std::ostream& os, const Position& pos) {
       os << "\nTablebases WDL: " << std::setw(4) << wdl << " (" << s1 << ")"
          << "\nTablebases DTZ: " << std::setw(4) << dtz << " (" << s2 << ")";
   }
+#endif
 
   return os;
 }
