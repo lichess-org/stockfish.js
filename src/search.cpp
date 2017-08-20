@@ -439,8 +439,10 @@ void MainThread::after_search() {
   // until the GUI sends one of those commands (which also raises Threads.stop).
   Threads.stopOnPonderhit = true;
 
+#ifndef __EMSCRIPTEN__
   while (!Threads.stop && (Threads.ponder || Limits.infinite))
   {} // Busy wait for a stop or a ponder reset
+#endif
 
   // Stop the threads if not already stopped (also raise the stop if
   // "ponderhit" just reset Threads.ponder).
