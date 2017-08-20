@@ -83,7 +83,11 @@ void Thread::start_searching() {
 
   std::lock_guard<Mutex> lk(mutex);
   searching = true;
+#ifndef __EMSCRIPTEN__
   cv.notify_one(); // Wake up the thread in idle_loop()
+#else
+  search();
+#endif
 }
 
 
@@ -205,9 +209,5 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
 
   setupStates->back() = tmp;
 
-#ifndef __EMSCRIPTEN__
   main()->start_searching();
-#else
-  main()->search();
-#endif
 }
