@@ -63,6 +63,7 @@ public:
   /* <REFACTORED FOR EMSCRIPTEN> */
   void search_iteration();
   /* </REFACTORED FOR EMSCRIPTEN> */
+  void clear();
   void idle_loop();
   void start_searching();
   void wait_for_search_finished();
