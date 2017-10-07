@@ -416,11 +416,6 @@ void MainThread::search() {
 
 void MainThread::after_search() {
 
-  // When playing in 'nodes as time' mode, subtract the searched nodes from
-  // the available ones before exiting.
-  if (Limits.npmsec)
-      Time.availableNodes += Limits.inc[us_] - Threads.nodes_searched();
-
   // When we reach the maximum depth, we can arrive here without a raise of
   // Threads.stop. However, if we are pondering or in an infinite search,
   // the UCI protocol states that we shouldn't print the best move before the
@@ -441,6 +436,11 @@ void MainThread::after_search() {
   for (Thread* th : Threads)
       if (th != this)
           th->wait_for_search_finished();
+
+  // When playing in 'nodes as time' mode, subtract the searched nodes from
+  // the available ones before exiting.
+  if (Limits.npmsec)
+      Time.availableNodes += Limits.inc[us_] - Threads.nodes_searched();
 
   // Check if there are threads with a better score than main thread
   Thread* bestThread = this;
@@ -539,7 +539,7 @@ void MainThread::after_search() {
 /// repeatedly with increasing depth until the allocated thinking time has been
 /// consumed, the user stops the search, or the maximum search depth is reached.
 
-Stack stack_[MAX_PLY+7], *ss_ = stack_ + 4; // To allow referencing (ss-4) and (ss+2)
+Stack stack_[MAX_PLY+7], *ss_ = stack_ + 4; // To reference from (ss-4) and (ss+2)
 Value bestValue_, alpha_, beta_, delta_;
 Move easyMove_;
 MainThread* mainThread_;
@@ -800,7 +800,7 @@ namespace {
   Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode, bool skipEarlyPruning) {
 
     const bool PvNode = NT == PV;
-    const bool rootNode = PvNode && (ss-1)->ply == 0;
+    const bool rootNode = PvNode && ss->ply == 0;
 
     assert(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
     assert(PvNode || (alpha == beta - 1));
@@ -816,7 +816,7 @@ namespace {
     Depth extension, newDepth;
     Value bestValue, value, ttValue, eval;
     bool ttHit, inCheck, givesCheck, singularExtensionNode, improving;
-    bool captureOrPromotion, doFullDepthSearch, moveCountPruning, skipQuiets, ttCapture;
+    bool captureOrPromotion, doFullDepthSearch, moveCountPruning, skipQuiets, ttCapture, pvExact;
     Piece movedPiece;
     int moveCount, quietCount;
 
@@ -826,15 +826,14 @@ namespace {
     moveCount = quietCount = ss->moveCount = 0;
     ss->statScore = 0;
     bestValue = -VALUE_INFINITE;
-    ss->ply = (ss-1)->ply + 1;
 
     // Check for the available remaining time
     if (thisThread == Threads.main())
         static_cast<MainThread*>(thisThread)->check_time();
 
-    // Used to send selDepth info to GUI
-    if (PvNode && thisThread->selDepth < ss->ply)
-        thisThread->selDepth = ss->ply;
+    // Used to send selDepth info to GUI (selDepth counts from 1, ply from 0)
+    if (PvNode && thisThread->selDepth < ss->ply + 1)
+        thisThread->selDepth = ss->ply + 1;
 
     if (!rootNode)
     {
@@ -860,6 +859,7 @@ namespace {
 
     assert(0 <= ss->ply && ss->ply < MAX_PLY);
 
+    (ss+1)->ply = ss->ply + 1;
     ss->currentMove = (ss+1)->excludedMove = bestMove = MOVE_NONE;
     ss->contHistory = &thisThread->contHistory[NO_PIECE][0];
     (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
@@ -941,8 +941,8 @@ namespace {
 
                 int drawScore = TB::UseRule50 ? 1 : 0;
 
-                value =  v < -drawScore ? -VALUE_MATE + MAX_PLY + ss->ply
-                       : v >  drawScore ?  VALUE_MATE - MAX_PLY - ss->ply
+                value =  v < -drawScore ? -VALUE_MATE + MAX_PLY + ss->ply + 1
+                       : v >  drawScore ?  VALUE_MATE - MAX_PLY - ss->ply - 1
                                         :  VALUE_DRAW + 2 * v * drawScore;
 
                 tte->save(posKey, value_to_tt(value, ss->ply), BOUND_EXACT,
@@ -1034,6 +1034,14 @@ namespace {
 
         // Null move dynamic reduction based on depth and value
         Depth R = ((823 + 67 * depth / ONE_PLY) / 256 + std::min((eval - beta) / PawnValueMg, 3)) * ONE_PLY;
+#ifdef ANTI
+        if (pos.is_anti())
+            R = ((823 + 67 * depth / ONE_PLY) / 256 + std::min((eval - beta) / (2 * PawnValueMg), 3)) * ONE_PLY;
+#endif
+#ifdef ATOMIC
+        if (pos.is_atomic())
+            R = ((823 + 67 * depth / ONE_PLY) / 256 + std::min((eval - beta) / (2 * PawnValueMg), 3)) * ONE_PLY;
+#endif
 
         ss->currentMove = MOVE_NULL;
         ss->contHistory = &thisThread->contHistory[NO_PIECE][0];
@@ -1128,6 +1136,7 @@ moves_loop: // When in check search starts from here
                            &&  tte->depth() >= depth - 3 * ONE_PLY;
     skipQuiets = false;
     ttCapture = false;
+    pvExact = PvNode && ttHit && tte->bound() == BOUND_EXACT;
 
     // Step 11. Loop through moves
     // Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs
@@ -1314,6 +1323,10 @@ moves_loop: // When in check search starts from here
               if ((ss-1)->moveCount > 15)
                   r -= ONE_PLY;
 
+              // Decrease reduction for exact PV nodes
+              if (pvExact)
+                  r -= ONE_PLY;
+
               // Increase reduction if ttMove is a capture
               if (ttCapture)
                   r += ONE_PLY;
@@ -1336,10 +1349,10 @@ moves_loop: // When in check search starts from here
                              - 4000;
 
               // Decrease/increase reduction by comparing opponent's stat score
-              if (ss->statScore > 0 && (ss-1)->statScore < 0)
+              if (ss->statScore >= 0 && (ss-1)->statScore < 0)
                   r -= ONE_PLY;
 
-              else if (ss->statScore < 0 && (ss-1)->statScore > 0)
+              else if ((ss-1)->statScore >= 0 && ss->statScore < 0)
                   r += ONE_PLY;
 
               // Decrease/increase reduction for moves with a good/bad history
@@ -1525,7 +1538,7 @@ moves_loop: // When in check search starts from here
     }
 
     ss->currentMove = bestMove = MOVE_NONE;
-    ss->ply = (ss-1)->ply + 1;
+    (ss+1)->ply = ss->ply + 1;
     moveCount = 0;
 
     if (pos.is_variant_end())
@@ -1543,7 +1556,6 @@ moves_loop: // When in check search starts from here
     // only two types of depth in TT: DEPTH_QS_CHECKS or DEPTH_QS_NO_CHECKS.
     ttDepth = InCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
                                                   : DEPTH_QS_NO_CHECKS;
-
     // Transposition table lookup
     posKey = pos.key();
     tte = TT.probe(posKey, ttHit);

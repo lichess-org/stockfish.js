@@ -31,67 +31,67 @@ namespace {
   #define V Value
   #define S(mg, eg) make_score(mg, eg)
 
-  // Isolated pawn penalty by opposed flag
-  const Score Isolated[VARIANT_NB][2] = {
-    { S(27, 30), S(13, 18) },
+  // Isolated pawn penalty
+  const Score Isolated[VARIANT_NB] = {
+    S(13, 18),
 #ifdef ANTI
-    { S(50, 80), S(54, 69) },
+    S(54, 69),
 #endif
 #ifdef ATOMIC
-    { S(27, 28), S(24, 14) },
+    S(24, 14),
 #endif
 #ifdef CRAZYHOUSE
-    { S(45, 40), S(30, 27) },
+    S(30, 27),
 #endif
 #ifdef HORDE
-    { S(59, 42), S(16, 38) },
+    S(16, 38),
 #endif
 #ifdef KOTH
-    { S(45, 40), S(30, 27) },
+    S(30, 27),
 #endif
 #ifdef LOSERS
-    { S(50, 80), S(54, 69) },
+    S(54, 69),
 #endif
 #ifdef RACE
-    {},
+    S(0, 0),
 #endif
 #ifdef RELAY
-    { S(45, 40), S(30, 27) },
+    S(30, 27),
 #endif
 #ifdef THREECHECK
-    { S(45, 40), S(30, 27) },
+    S(30, 27),
 #endif
   };
 
-  // Backward pawn penalty by opposed flag
-  const Score Backward[VARIANT_NB][2] = {
-    { S(40, 26), S(24, 12) },
+  // Backward pawn penalty
+  const Score Backward[VARIANT_NB] = {
+    S(24, 12),
 #ifdef ANTI
-    { S(64, 25), S(26, 50) },
+    S(26, 50),
 #endif
 #ifdef ATOMIC
-    { S(48, 21), S(35, 15) },
+    S(35, 15),
 #endif
 #ifdef CRAZYHOUSE
-    { S(56, 33), S(41, 19) },
+    S(41, 19),
 #endif
 #ifdef HORDE
-    { S(44, 24), S(78, 14) },
+    S(78, 14),
 #endif
 #ifdef KOTH
-    { S(56, 33), S(41, 19) },
+    S(41, 19),
 #endif
 #ifdef LOSERS
-    { S(64, 25), S(26, 50) },
+    S(26, 50),
 #endif
 #ifdef RACE
-    {},
+    S(0, 0),
 #endif
 #ifdef RELAY
-    { S(56, 33), S(41, 19) },
+    S(41, 19),
 #endif
 #ifdef THREECHECK
-    { S(56, 33), S(41, 19) },
+    S(41, 19),
 #endif
   };
 
@@ -229,14 +229,14 @@ namespace {
 #endif
 #ifdef THREECHECK
   {
-    { { V(105), V( 1), V(22), V( 52), V(86), V( 89), V( 98) }, // Not On King file
-      { V(116), V( 3), V(55), V(109), V(81), V( 97), V( 99) },
-      { V(121), V(23), V(69), V( 93), V(58), V( 88), V(112) },
-      { V( 94), V(11), V(52), V( 67), V(90), V( 85), V(112) } },
-    { { V(105), V( 1), V(22), V( 52), V(86), V( 89), V( 98) }, // On King file
-      { V(116), V( 3), V(55), V(109), V(81), V( 97), V( 99) },
-      { V(121), V(23), V(69), V( 93), V(58), V( 88), V(112) },
-      { V( 94), V(11), V(52), V( 67), V(90), V( 85), V(112) } }
+    { { V(140), V( 11), V(38), V( 26), V( 99), V( 94), V( 95) }, // Not On King file
+      { V(104), V( 14), V(28), V(128), V( 86), V(107), V(115) },
+      { V(144), V( 59), V(89), V( 97), V( 39), V( 85), V(114) },
+      { V(103), V( 24), V(76), V( 96), V(115), V( 98), V(127) } },
+    { { V(115), V(-16), V(13), V( 38), V(115), V( 76), V( 92) }, // On King file
+      { V(166), V( 20), V(51), V(111), V( 98), V(113), V(114) },
+      { V(102), V( 29), V(76), V( 75), V( 60), V( 99), V( 96) },
+      { V( 89), V( 18), V(44), V(112), V( 77), V(114), V(115) } }
   },
 #endif
   };
@@ -440,7 +440,7 @@ namespace {
     Bitboard ourPawns   = pos.pieces(  Us, PAWN);
     Bitboard theirPawns = pos.pieces(Them, PAWN);
 
-    e->passedPawns[Us]   = e->pawnAttacksSpan[Us] = 0;
+    e->passedPawns[Us] = e->pawnAttacksSpan[Us] = e->weakUnopposed[Us] = 0;
     e->semiopenFiles[Us] = 0xFF;
     e->kingSquares[Us]   = SQ_NONE;
     e->pawnAttacks[Us]   = shift<Right>(ourPawns) | shift<Left>(ourPawns);
@@ -533,10 +533,10 @@ namespace {
             score += Connected[pos.variant()][opposed][!!phalanx][popcount(supported)][relative_rank(Us, s)];
 
         else if (!neighbours)
-            score -= Isolated[pos.variant()][opposed];
+            score -= Isolated[pos.variant()], e->weakUnopposed[Us] += !opposed;
 
         else if (backward)
-            score -= Backward[pos.variant()][opposed];
+            score -= Backward[pos.variant()], e->weakUnopposed[Us] += !opposed;
 
 #ifdef HORDE
         if (doubled && (!supported || pos.is_horde()))
@@ -688,6 +688,10 @@ Score Entry::do_king_safety(const Position& pos, Square ksq) {
   if (pos.can_castle(MakeCastling<Us, QUEEN_SIDE>::right))
       bonus = std::max(bonus, shelter_storm<Us>(pos, relative_square(Us, SQ_C1)));
 
+#ifdef CRAZYHOUSE
+  if (pos.is_house())
+      return make_score(bonus, bonus);
+#endif
   return make_score(bonus, -16 * minKingPawnDistance);
 }
 
