@@ -1,15 +1,18 @@
 stockfish.js
 ============
 
-[![Build Status](https://travis-ci.org/niklasf/stockfish.js.svg?branch=ddugovic)](https://travis-ci.org/niklasf/stockfish.js)
-
 The strong open source chess engine
 [Stockfish](https://github.com/official-stockfish/Stockfish)
 compiled to JavaScript and WebAssembly using
 [Emscripten](https://kripken.github.io/emscripten-site/). See it in action
 for [local computer analysis on lichess.org](https://lichess.org/analysis).
 
-About 1MB uncompressed, 220 KB gzipped.
+[![Build Status](https://travis-ci.org/niklasf/stockfish.js.svg?branch=ddugovic)](https://travis-ci.org/niklasf/stockfish.js)
+
+Releases
+--------
+
+[About 1.4MB uncompressed, 250 KB gzipped.](https://github.com/niklasf/stockfish.js/releases)
 
 Building
 --------
