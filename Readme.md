@@ -28,7 +28,7 @@ then:
 Or using Docker:
 
 ```
-docker run --volume $PWD:/home/builder/stockfish.js --user $(id -u) niklasf/emscripten-for-stockfish
+docker run --user $(id -u):$(id -g) --volume $(pwd):/home/builder/stockfish.js:rw niklasf/emscripten-for-stockfish
 ```
 
 Usage
