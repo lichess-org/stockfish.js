@@ -80,6 +80,7 @@ public:
   Depth rootDepth, completedDepth;
   CounterMoveHistory counterMoves;
   ButterflyHistory mainHistory;
+  CapturePieceToHistory captureHistory;
   ContinuationHistory contHistory;
 };
 
@@ -97,8 +98,8 @@ struct MainThread : public Thread {
   void after_search();
 /* </REFACTORED FOR EMSCRIPTEN> */
 
-  bool easyMovePlayed, failedLow;
-  double bestMoveChanges;
+  bool failedLow;
+  double bestMoveChanges, previousTimeReduction;
   Value previousScore;
   int callsCnt;
 };

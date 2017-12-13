@@ -102,7 +102,7 @@ const bool Is64Bit = false;
 typedef uint64_t Key;
 typedef uint64_t Bitboard;
 
-#ifdef CRAZYHOUSE
+#if defined(CRAZYHOUSE) || defined(HORDE)
 const int MAX_MOVES = 512;
 #else
 const int MAX_MOVES = 256;
@@ -120,6 +120,12 @@ enum Variant {
 #endif
 #ifdef CRAZYHOUSE
   CRAZYHOUSE_VARIANT,
+#endif
+#ifdef EXTINCTION
+  EXTINCTION_VARIANT,
+#endif
+#ifdef GRID
+  GRID_VARIANT,
 #endif
 #ifdef HORDE
   HORDE_VARIANT,
@@ -139,6 +145,9 @@ enum Variant {
 #ifdef THREECHECK
   THREECHECK_VARIANT,
 #endif
+#ifdef TWOKINGS
+  TWOKINGS_VARIANT,
+#endif
   VARIANT_NB,
   LAST_VARIANT = VARIANT_NB - 1,
   //subvariants
@@ -148,8 +157,17 @@ enum Variant {
 #ifdef BUGHOUSE
   BUGHOUSE_VARIANT,
 #endif
+#ifdef DISPLACEDGRID
+  DISPLACEDGRID_VARIANT,
+#endif
 #ifdef LOOP
   LOOP_VARIANT,
+#endif
+#ifdef SLIPPEDGRID
+  SLIPPEDGRID_VARIANT,
+#endif
+#ifdef TWOKINGSSYMMETRIC
+  TWOKINGSSYMMETRIC_VARIANT,
 #endif
   SUBVARIANT_NB,
 };
@@ -166,6 +184,12 @@ static std::vector<std::string> variants = {
 #endif
 #ifdef CRAZYHOUSE
 "crazyhouse",
+#endif
+#ifdef EXTINCTION
+"extinction",
+#endif
+#ifdef GRID
+"grid",
 #endif
 #ifdef HORDE
 "horde",
@@ -185,6 +209,9 @@ static std::vector<std::string> variants = {
 #ifdef THREECHECK
 "3check",
 #endif
+#ifdef TWOKINGS
+"twokings",
+#endif
 //subvariants
 #ifdef SUICIDE
 "suicide",
@@ -192,8 +219,17 @@ static std::vector<std::string> variants = {
 #ifdef BUGHOUSE
 "bughouse",
 #endif
+#ifdef DISPLACEDGRID
+"displacedgrid",
+#endif
 #ifdef LOOP
 "loop",
+#endif
+#ifdef SLIPPEDGRID
+"slippedgrid",
+#endif
+#ifdef TWOKINGSSYMMETRIC
+"twokingssymmetric",
 #endif
 };
 
@@ -220,13 +256,13 @@ enum MoveType {
   ENPASSANT = 2 << 14,
   CASTLING  = 3 << 14,
   // special moves use promotion piece type bits as flags
-#if defined(ANTI) || defined(CRAZYHOUSE)
+#if defined(ANTI) || defined(CRAZYHOUSE) || defined(EXTINCTION)
   SPECIAL = ENPASSANT,
 #endif
 #ifdef CRAZYHOUSE
   DROP = 1 << 12,
 #endif
-#ifdef ANTI
+#if defined(ANTI) || defined(EXTINCTION)
   KING_PROMOTION = 2 << 12, // not used as an actual move type
 #endif
 };
@@ -250,10 +286,23 @@ enum CastlingRight {
 };
 
 template<Color C, CastlingSide S> struct MakeCastling {
-  static const CastlingRight
+  static constexpr CastlingRight
   right = C == WHITE ? S == QUEEN_SIDE ? WHITE_OOO : WHITE_OO
                      : S == QUEEN_SIDE ? BLACK_OOO : BLACK_OO;
 };
+
+#ifdef GRID
+enum GridLayout {
+  NORMAL_GRID,
+#ifdef DISPLACEDGRID
+  DISPLACED_GRID,
+#endif
+#ifdef SLIPPEDGRID
+  SLIPPED_GRID,
+#endif
+  GRIDLAYOUT_NB
+};
+#endif
 
 #ifdef THREECHECK
 enum CheckCount : int {
@@ -307,11 +356,11 @@ enum Value : int {
   KingValueMgAnti   = -23,   KingValueEgAnti   = 173,
 #endif
 #ifdef ATOMIC
-  PawnValueMgAtomic   = 296,   PawnValueEgAtomic   = 402,
-  KnightValueMgAtomic = 426,   KnightValueEgAtomic = 691,
-  BishopValueMgAtomic = 581,   BishopValueEgAtomic = 756,
-  RookValueMgAtomic   = 838,   RookValueEgAtomic   = 1103,
-  QueenValueMgAtomic  = 1545,  QueenValueEgAtomic  = 2033,
+  PawnValueMgAtomic   = 244,   PawnValueEgAtomic   = 367,
+  KnightValueMgAtomic = 437,   KnightValueEgAtomic = 652,
+  BishopValueMgAtomic = 552,   BishopValueEgAtomic = 716,
+  RookValueMgAtomic   = 787,   RookValueEgAtomic   = 1074,
+  QueenValueMgAtomic  = 1447,  QueenValueEgAtomic  = 1892,
 #endif
 #ifdef CRAZYHOUSE
   PawnValueMgHouse   = 140,   PawnValueEgHouse   = 232,
@@ -319,6 +368,21 @@ enum Value : int {
   BishopValueMgHouse = 464,   BishopValueEgHouse = 508,
   RookValueMgHouse   = 673,   RookValueEgHouse   = 727,
   QueenValueMgHouse  = 832,   QueenValueEgHouse  = 1046,
+#endif
+#ifdef EXTINCTION
+  PawnValueMgExtinction   = 209,   PawnValueEgExtinction   = 208,
+  KnightValueMgExtinction = 823,   KnightValueEgExtinction = 1091,
+  BishopValueMgExtinction = 1097,  BishopValueEgExtinction = 1055,
+  RookValueMgExtinction   = 726,   RookValueEgExtinction   = 950,
+  QueenValueMgExtinction  = 2111,  QueenValueEgExtinction  = 2014,
+  KingValueMgExtinction   = 919,   KingValueEgExtinction   = 1093,
+#endif
+#ifdef GRID
+  PawnValueMgGrid   = 38,    PawnValueEgGrid   = 55,
+  KnightValueMgGrid = 993,   KnightValueEgGrid = 903,
+  BishopValueMgGrid = 685,   BishopValueEgGrid = 750,
+  RookValueMgGrid   = 1018,  RookValueEgGrid   = 1055,
+  QueenValueMgGrid  = 2556,  QueenValueEgGrid  = 2364,
 #endif
 #ifdef HORDE
   PawnValueMgHorde   = 321,   PawnValueEgHorde   = 326,
@@ -355,6 +419,14 @@ enum Value : int {
   RookValueMgThreeCheck   = 1027,  RookValueEgThreeCheck   = 1418,
   QueenValueMgThreeCheck  = 1947,  QueenValueEgThreeCheck  = 2323,
 #endif
+#ifdef TWOKINGS
+  PawnValueMgTwoKings   = 181,   PawnValueEgTwoKings   = 257,
+  KnightValueMgTwoKings = 778,   KnightValueEgTwoKings = 838,
+  BishopValueMgTwoKings = 840,   BishopValueEgTwoKings = 864,
+  RookValueMgTwoKings   = 1269,  RookValueEgTwoKings   = 1329,
+  QueenValueMgTwoKings  = 2432,  QueenValueEgTwoKings  = 2696,
+  KingValueMgTwoKings   = 520,   KingValueEgTwoKings   = 746,
+#endif
 
   MidgameLimit  = 15258, EndgameLimit  = 3915
 };
@@ -362,6 +434,7 @@ enum Value : int {
 enum PieceType {
   NO_PIECE_TYPE, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
   ALL_PIECES = 0,
+  QUEEN_DIAGONAL = 7,
   PIECE_TYPE_NB = 8
 };
 
@@ -389,7 +462,7 @@ enum Depth : int {
 
 static_assert(!(ONE_PLY & (ONE_PLY - 1)), "ONE_PLY is not a power of 2");
 
-enum Square {
+enum Square : int {
   SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
   SQ_A2, SQ_B2, SQ_C2, SQ_D2, SQ_E2, SQ_F2, SQ_G2, SQ_H2,
   SQ_A3, SQ_B3, SQ_C3, SQ_D3, SQ_E3, SQ_F3, SQ_G3, SQ_H3,
@@ -400,8 +473,10 @@ enum Square {
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8,
   SQ_NONE,
 
-  SQUARE_NB = 64,
+  SQUARE_NB = 64
+};
 
+enum Direction : int {
   NORTH =  8,
   EAST  =  1,
   SOUTH = -NORTH,
@@ -428,7 +503,7 @@ enum Rank : int {
 /// care to avoid left-shifting a signed int to avoid undefined behavior.
 enum Score : int { SCORE_ZERO };
 
-inline Score make_score(int mg, int eg) {
+constexpr Score make_score(int mg, int eg) {
   return Score((int)((unsigned int)eg << 16) + mg);
 }
 
@@ -436,62 +511,72 @@ inline Score make_score(int mg, int eg) {
 /// according to the standard a simple cast to short is implementation defined
 /// and so is a right shift of a signed integer.
 inline Value eg_value(Score s) {
-
   union { uint16_t u; int16_t s; } eg = { uint16_t(unsigned(s + 0x8000) >> 16) };
   return Value(eg.s);
 }
 
 inline Value mg_value(Score s) {
-
   union { uint16_t u; int16_t s; } mg = { uint16_t(unsigned(s)) };
   return Value(mg.s);
 }
 
-#define ENABLE_BASE_OPERATORS_ON(T)                             \
-inline T operator+(T d1, T d2) { return T(int(d1) + int(d2)); } \
-inline T operator-(T d1, T d2) { return T(int(d1) - int(d2)); } \
-inline T operator-(T d) { return T(-int(d)); }                  \
-inline T& operator+=(T& d1, T d2) { return d1 = d1 + d2; }      \
-inline T& operator-=(T& d1, T d2) { return d1 = d1 - d2; }      \
+#define ENABLE_BASE_OPERATORS_ON(T)                                \
+constexpr T operator+(T d1, T d2) { return T(int(d1) + int(d2)); } \
+constexpr T operator-(T d1, T d2) { return T(int(d1) - int(d2)); } \
+constexpr T operator-(T d) { return T(-int(d)); }                  \
+inline T& operator+=(T& d1, T d2) { return d1 = d1 + d2; }         \
+inline T& operator-=(T& d1, T d2) { return d1 = d1 - d2; }
 
-#define ENABLE_FULL_OPERATORS_ON(T)                             \
-ENABLE_BASE_OPERATORS_ON(T)                                     \
-inline T operator*(int i, T d) { return T(i * int(d)); }        \
-inline T operator*(T d, int i) { return T(int(d) * i); }        \
-inline T& operator++(T& d) { return d = T(int(d) + 1); }        \
-inline T& operator--(T& d) { return d = T(int(d) - 1); }        \
-inline T operator/(T d, int i) { return T(int(d) / i); }        \
-inline int operator/(T d1, T d2) { return int(d1) / int(d2); }  \
-inline T& operator*=(T& d, int i) { return d = T(int(d) * i); } \
+#define ENABLE_INCR_OPERATORS_ON(T)                                \
+inline T& operator++(T& d) { return d = T(int(d) + 1); }           \
+inline T& operator--(T& d) { return d = T(int(d) - 1); }
+
+#define ENABLE_FULL_OPERATORS_ON(T)                                \
+ENABLE_BASE_OPERATORS_ON(T)                                        \
+ENABLE_INCR_OPERATORS_ON(T)                                        \
+constexpr T operator*(int i, T d) { return T(i * int(d)); }        \
+constexpr T operator*(T d, int i) { return T(int(d) * i); }        \
+constexpr T operator/(T d, int i) { return T(int(d) / i); }        \
+constexpr int operator/(T d1, T d2) { return int(d1) / int(d2); }  \
+inline T& operator*=(T& d, int i) { return d = T(int(d) * i); }    \
 inline T& operator/=(T& d, int i) { return d = T(int(d) / i); }
 
 ENABLE_FULL_OPERATORS_ON(Variant)
 ENABLE_FULL_OPERATORS_ON(Value)
-ENABLE_FULL_OPERATORS_ON(PieceType)
-ENABLE_FULL_OPERATORS_ON(Piece)
-ENABLE_FULL_OPERATORS_ON(Color)
 #ifdef THREECHECK
 ENABLE_FULL_OPERATORS_ON(CheckCount)
 #endif
 ENABLE_FULL_OPERATORS_ON(Depth)
-ENABLE_FULL_OPERATORS_ON(Square)
-ENABLE_FULL_OPERATORS_ON(File)
-ENABLE_FULL_OPERATORS_ON(Rank)
+ENABLE_FULL_OPERATORS_ON(Direction)
+
+ENABLE_INCR_OPERATORS_ON(PieceType)
+ENABLE_INCR_OPERATORS_ON(Piece)
+ENABLE_INCR_OPERATORS_ON(Color)
+ENABLE_INCR_OPERATORS_ON(Square)
+ENABLE_INCR_OPERATORS_ON(File)
+ENABLE_INCR_OPERATORS_ON(Rank)
 
 ENABLE_BASE_OPERATORS_ON(Score)
 
 #undef ENABLE_FULL_OPERATORS_ON
+#undef ENABLE_INCR_OPERATORS_ON
 #undef ENABLE_BASE_OPERATORS_ON
 
 /// Additional operators to add integers to a Value
-inline Value operator+(Value v, int i) { return Value(int(v) + i); }
-inline Value operator-(Value v, int i) { return Value(int(v) - i); }
+constexpr Value operator+(Value v, int i) { return Value(int(v) + i); }
+constexpr Value operator-(Value v, int i) { return Value(int(v) - i); }
 inline Value& operator+=(Value& v, int i) { return v = v + i; }
 inline Value& operator-=(Value& v, int i) { return v = v - i; }
 
+/// Additional operators to add a Direction to a Square
+inline Square operator+(Square s, Direction d) { return Square(int(s) + int(d)); }
+inline Square operator-(Square s, Direction d) { return Square(int(s) - int(d)); }
+inline Square& operator+=(Square &s, Direction d) { return s = s + d; }
+inline Square& operator-=(Square &s, Direction d) { return s = s - d; }
+
 /// Only declared but not defined. We don't want to multiply two scores due to
 /// a very high risk of overflow. So user should explicitly convert to integer.
-inline Score operator*(Score s1, Score s2);
+Score operator*(Score, Score) = delete;
 
 /// Division of a Score must be handled separately for each term
 inline Score operator/(Score s, int i) {
@@ -510,39 +595,43 @@ inline Score operator*(Score s, int i) {
   return result;
 }
 
-inline Color operator~(Color c) {
+constexpr Color operator~(Color c) {
   return Color(c ^ BLACK); // Toggle color
 }
 
-inline Square operator~(Square s) {
+constexpr Square operator~(Square s) {
   return Square(s ^ SQ_A8); // Vertical flip SQ_A1 -> SQ_A8
 }
 
-inline Piece operator~(Piece pc) {
+constexpr File operator~(File f) {
+  return File(f ^ FILE_H); // Horizontal flip FILE_A -> FILE_H
+}
+
+constexpr Piece operator~(Piece pc) {
   return Piece(pc ^ 8); // Swap color of piece B_KNIGHT -> W_KNIGHT
 }
 
-inline CastlingRight operator|(Color c, CastlingSide s) {
+constexpr CastlingRight operator|(Color c, CastlingSide s) {
   return CastlingRight(WHITE_OO << ((s == QUEEN_SIDE) + 2 * c));
 }
 
-inline Value mate_in(int ply) {
+constexpr Value mate_in(int ply) {
   return VALUE_MATE - ply;
 }
 
-inline Value mated_in(int ply) {
+constexpr Value mated_in(int ply) {
   return -VALUE_MATE + ply;
 }
 
-inline Square make_square(File f, Rank r) {
+constexpr Square make_square(File f, Rank r) {
   return Square((r << 3) + f);
 }
 
-inline Piece make_piece(Color c, PieceType pt) {
+constexpr Piece make_piece(Color c, PieceType pt) {
   return Piece((c << 3) + pt);
 }
 
-inline PieceType type_of(Piece pc) {
+constexpr PieceType type_of(Piece pc) {
   return PieceType(pc & 7);
 }
 
@@ -551,27 +640,27 @@ inline Color color_of(Piece pc) {
   return Color(pc >> 3);
 }
 
-inline bool is_ok(Square s) {
+constexpr bool is_ok(Square s) {
   return s >= SQ_A1 && s <= SQ_H8;
 }
 
-inline File file_of(Square s) {
+constexpr File file_of(Square s) {
   return File(s & 7);
 }
 
-inline Rank rank_of(Square s) {
+constexpr Rank rank_of(Square s) {
   return Rank(s >> 3);
 }
 
-inline Square relative_square(Color c, Square s) {
+constexpr Square relative_square(Color c, Square s) {
   return Square(s ^ (c * 56));
 }
 
-inline Rank relative_rank(Color c, Rank r) {
+constexpr Rank relative_rank(Color c, Rank r) {
   return Rank(r ^ (c * 7));
 }
 
-inline Rank relative_rank(Color c, Square s) {
+constexpr Rank relative_rank(Color c, Square s) {
   return relative_rank(c, rank_of(s));
 }
 
@@ -580,12 +669,12 @@ inline bool opposite_colors(Square s1, Square s2) {
   return ((s >> 3) ^ s) & 1;
 }
 
-inline Square pawn_push(Color c) {
+constexpr Direction pawn_push(Color c) {
   return c == WHITE ? NORTH : SOUTH;
 }
 
 #ifdef RACE
-inline Square horizontal_flip(Square s) {
+constexpr Square horizontal_flip(Square s) {
   return Square(s ^ SQ_H1); // Horizontal flip SQ_A1 -> SQ_H1
 }
 #endif
@@ -600,27 +689,27 @@ inline Square from_sq(Move m) {
   return Square((m >> 6) & 0x3F);
 }
 
-inline Square to_sq(Move m) {
+constexpr Square to_sq(Move m) {
   return Square(m & 0x3F);
 }
 
 inline int from_to(Move m) {
 #ifdef CRAZYHOUSE
   if (type_of(m) == DROP)
-      return (m & 0xFFF) + 0x1000;
+      return (m & 0x3F) + 0x1000;
 #endif
  return m & 0xFFF;
 }
 
 inline MoveType type_of(Move m) {
-#if defined(ANTI) || defined(CRAZYHOUSE)
+#if defined(ANTI) || defined(CRAZYHOUSE) || defined(EXTINCTION)
   if ((m & (3 << 14)) == SPECIAL && (m & (3 << 12)))
   {
 #ifdef CRAZYHOUSE
       if ((m & (3 << 12)) == DROP)
           return DROP;
 #endif
-#ifdef ANTI
+#if defined(ANTI) || defined(EXTINCTION)
       if ((m & (3 << 12)) == KING_PROMOTION)
           return PROMOTION;
 #endif
@@ -630,7 +719,7 @@ inline MoveType type_of(Move m) {
 }
 
 inline PieceType promotion_type(Move m) {
-#ifdef ANTI
+#if defined(ANTI) || defined(EXTINCTION)
   if ((m & (3 << 14)) == SPECIAL && (m & (3 << 12)) == KING_PROMOTION)
       return KING;
 #endif
@@ -643,7 +732,7 @@ inline Move make_move(Square from, Square to) {
 
 template<MoveType T>
 inline Move make(Square from, Square to, PieceType pt = KNIGHT) {
-#ifdef ANTI
+#if defined(ANTI) || defined(EXTINCTION)
   if (pt == KING)
       return Move(SPECIAL + KING_PROMOTION + (from << 6) + to);
 #endif
@@ -651,11 +740,11 @@ inline Move make(Square from, Square to, PieceType pt = KNIGHT) {
 }
 
 #ifdef CRAZYHOUSE
-inline Move make_drop(Square to, Piece pc) {
+constexpr Move make_drop(Square to, Piece pc) {
   return Move(SPECIAL + DROP + (pc << 6) + to);
 }
 
-inline Piece dropped_piece(Move m) {
+constexpr Piece dropped_piece(Move m) {
   return Piece((m >> 6) & 15);
 }
 #endif
@@ -677,9 +766,21 @@ inline Variant main_variant(Variant v) {
   case BUGHOUSE_VARIANT:
       return CRAZYHOUSE_VARIANT;
 #endif
+#ifdef DISPLACEDGRID
+  case DISPLACEDGRID_VARIANT:
+      return GRID_VARIANT;
+#endif
 #ifdef LOOP
   case LOOP_VARIANT:
       return CRAZYHOUSE_VARIANT;
+#endif
+#ifdef SLIPPEDGRID
+  case SLIPPEDGRID_VARIANT:
+      return GRID_VARIANT;
+#endif
+#ifdef TWOKINGSSYMMETRIC
+  case TWOKINGSSYMMETRIC_VARIANT:
+      return TWOKINGS_VARIANT;
 #endif
   default:
       assert(false);

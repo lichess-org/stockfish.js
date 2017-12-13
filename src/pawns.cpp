@@ -43,6 +43,12 @@ namespace {
 #ifdef CRAZYHOUSE
     S(30, 27),
 #endif
+#ifdef EXTINCTION
+    S(13, 18),
+#endif
+#ifdef GRID
+    S(13, 18),
+#endif
 #ifdef HORDE
     S(16, 38),
 #endif
@@ -61,6 +67,9 @@ namespace {
 #ifdef THREECHECK
     S(30, 27),
 #endif
+#ifdef TWOKINGS
+    S(13, 18),
+#endif
   };
 
   // Backward pawn penalty
@@ -74,6 +83,12 @@ namespace {
 #endif
 #ifdef CRAZYHOUSE
     S(41, 19),
+#endif
+#ifdef EXTINCTION
+    S(24, 12),
+#endif
+#ifdef GRID
+    S(24, 12),
 #endif
 #ifdef HORDE
     S(78, 14),
@@ -93,6 +108,9 @@ namespace {
 #ifdef THREECHECK
     S(41, 19),
 #endif
+#ifdef TWOKINGS
+    S(24, 12),
+#endif
   };
 
   // Connected pawn bonus by opposed, phalanx, #support and rank
@@ -108,6 +126,12 @@ namespace {
     S( 0,  0),
 #endif
 #ifdef CRAZYHOUSE
+    S(18, 38),
+#endif
+#ifdef EXTINCTION
+    S(18, 38),
+#endif
+#ifdef GRID
     S(18, 38),
 #endif
 #ifdef HORDE
@@ -126,6 +150,9 @@ namespace {
     S(18, 38),
 #endif
 #ifdef THREECHECK
+    S(18, 38),
+#endif
+#ifdef TWOKINGS
     S(18, 38),
 #endif
   };
@@ -174,6 +201,21 @@ namespace {
       { V(290), V(  0), V(144), V(222), V(177), V(210), V(161) },
       { V(205), V( 46), V(118), V(163), V(235), V(165), V(244) },
       { V(154), V( 84), V( 87), V(188), V(105), V(177), V(275) } }
+  },
+#endif
+#ifdef EXTINCTION
+  {},
+#endif
+#ifdef GRID
+  {
+    { { V( 97), V(17), V( 9), V(44), V( 84), V( 87), V( 99) }, // Not On King file
+      { V(106), V( 6), V(33), V(86), V( 87), V(104), V(112) },
+      { V(101), V( 2), V(65), V(98), V( 58), V( 89), V(115) },
+      { V( 73), V( 7), V(54), V(73), V( 84), V( 83), V(111) } },
+    { { V(104), V(20), V( 6), V(27), V( 86), V( 93), V( 82) }, // On King file
+      { V(123), V( 9), V(34), V(96), V(112), V( 88), V( 75) },
+      { V(120), V(25), V(65), V(91), V( 66), V( 78), V(117) },
+      { V( 81), V( 2), V(47), V(63), V( 94), V( 93), V(104) } }
   },
 #endif
 #ifdef HORDE
@@ -237,6 +279,18 @@ namespace {
       { V(166), V( 20), V(51), V(111), V( 98), V(113), V(114) },
       { V(102), V( 29), V(76), V( 75), V( 60), V( 99), V( 96) },
       { V( 89), V( 18), V(44), V(112), V( 77), V(114), V(115) } }
+  },
+#endif
+#ifdef TWOKINGS
+  {
+    { { V( 97), V(17), V( 9), V(44), V( 84), V( 87), V( 99) }, // Not On King file
+      { V(106), V( 6), V(33), V(86), V( 87), V(104), V(112) },
+      { V(101), V( 2), V(65), V(98), V( 58), V( 89), V(115) },
+      { V( 73), V( 7), V(54), V(73), V( 84), V( 83), V(111) } },
+    { { V(104), V(20), V( 6), V(27), V( 86), V( 93), V( 82) }, // On King file
+      { V(123), V( 9), V(34), V(96), V(112), V( 88), V( 75) },
+      { V(120), V(25), V(65), V(91), V( 66), V( 78), V(117) },
+      { V( 81), V( 2), V(47), V(63), V( 94), V( 93), V(104) } }
   },
 #endif
   };
@@ -304,6 +358,29 @@ namespace {
       { V(  28),  V(  21), V( -11), V( 41), V(-71) },
       { V(   9),  V( 102), V(  77), V( 33), V( 56) },
       { V(  -2),  V(  61), V(  51), V( 56), V( -4) } }
+  },
+#endif
+#ifdef EXTINCTION
+  {},
+#endif
+#ifdef GRID
+  {
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },  // BlockedByKing
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } },
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },  // Unopposed
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  // BlockedByPawn
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },  // Unblocked
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } }
   },
 #endif
 #ifdef HORDE
@@ -409,6 +486,26 @@ namespace {
       { V(166),  V(  29), V( 202), V( 18), V(109) } }
   },
 #endif
+#ifdef TWOKINGS
+  {
+    { { V( 0),  V(-290), V(-274), V(57), V(41) },  // BlockedByKing
+      { V( 0),  V(  60), V( 144), V(39), V(13) },
+      { V( 0),  V(  65), V( 141), V(41), V(34) },
+      { V( 0),  V(  53), V( 127), V(56), V(14) } },
+    { { V( 4),  V(  73), V( 132), V(46), V(31) },  // Unopposed
+      { V( 1),  V(  64), V( 143), V(26), V(13) },
+      { V( 1),  V(  47), V( 110), V(44), V(24) },
+      { V( 0),  V(  72), V( 127), V(50), V(31) } },
+    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  // BlockedByPawn
+      { V( 0),  V(   0), V( 148), V(27), V( 2) },
+      { V( 0),  V(   0), V( 161), V(16), V( 1) },
+      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V(22),  V(  45), V( 104), V(62), V( 6) },  // Unblocked
+      { V(31),  V(  30), V(  99), V(39), V(19) },
+      { V(23),  V(  29), V(  96), V(41), V(15) },
+      { V(21),  V(  23), V( 116), V(41), V(15) } }
+  },
+#endif
   };
 
   // Max bonus for king safety. Corresponds to start position with all the pawns
@@ -425,10 +522,10 @@ namespace {
   template<Color Us>
   Score evaluate(const Position& pos, Pawns::Entry* e) {
 
-    const Color  Them  = (Us == WHITE ? BLACK      : WHITE);
-    const Square Up    = (Us == WHITE ? NORTH      : SOUTH);
-    const Square Right = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
-    const Square Left  = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
+    const Color     Them  = (Us == WHITE ? BLACK      : WHITE);
+    const Direction Up    = (Us == WHITE ? NORTH      : SOUTH);
+    const Direction Right = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
+    const Direction Left  = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
 
     Bitboard b, neighbours, stoppers, doubled, supported, phalanx;
     Bitboard lever, leverPush;
@@ -530,7 +627,7 @@ namespace {
         if (pos.is_horde() && relative_rank(Us, s) == 0) {} else
 #endif
         if (supported | phalanx)
-            score += Connected[pos.variant()][opposed][!!phalanx][popcount(supported)][relative_rank(Us, s)];
+            score += Connected[pos.variant()][opposed][bool(phalanx)][popcount(supported)][relative_rank(Us, s)];
 
         else if (!neighbours)
             score -= Isolated[pos.variant()], e->weakUnopposed[Us] += !opposed;
@@ -573,6 +670,12 @@ void init() {
 #ifdef CRAZYHOUSE
     { 0, 8, 19, 13, 71, 94, 169, 324 },
 #endif
+#ifdef EXTINCTION
+    { 0, 13, 24, 18, 76, 100, 175, 330 },
+#endif
+#ifdef GRID
+    { 0, 13, 24, 18, 76, 100, 175, 330 },
+#endif
 #ifdef HORDE
     { 37, 29, 3, 1, 105,  99, 343, 350 },
 #endif
@@ -590,6 +693,9 @@ void init() {
 #endif
 #ifdef THREECHECK
     { 0, 8, 19, 13, 71, 94, 169, 324 },
+#endif
+#ifdef TWOKINGS
+    { 0, 13, 24, 18, 76, 100, 175, 330 },
 #endif
   };
 
@@ -644,7 +750,7 @@ Value Entry::shelter_storm(const Position& pos, Square ksq) {
   Value safety = MaxSafetyBonus;
   File center = std::max(FILE_B, std::min(FILE_G, file_of(ksq)));
 
-  for (File f = center - File(1); f <= center + File(1); ++f)
+  for (File f = File(center - 1); f <= File(center + 1); ++f)
   {
       b = ourPawns & file_bb(f);
       Rank rkUs = b ? relative_rank(Us, backmost_sq(Us, b)) : RANK_1;
@@ -652,7 +758,7 @@ Value Entry::shelter_storm(const Position& pos, Square ksq) {
       b = theirPawns & file_bb(f);
       Rank rkThem = b ? relative_rank(Us, frontmost_sq(Them, b)) : RANK_1;
 
-      int d = std::min(f, FILE_H - f);
+      int d = std::min(f, ~f);
       safety -=  ShelterWeakness[pos.variant()][f == file_of(ksq)][d][rkUs]
                + StormDanger[pos.variant()]
                  [f == file_of(ksq) && rkThem == relative_rank(Us, ksq) + 1 ? BlockedByKing  :

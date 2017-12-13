@@ -68,8 +68,8 @@ namespace {
 
 /// MovePicker constructor for the main search
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
-                       const PieceToHistory** ch, Move cm, Move* killers_p)
-           : pos(p), mainHistory(mh), contHistory(ch), countermove(cm),
+                       const CapturePieceToHistory* cph, const PieceToHistory** ch, Move cm, Move* killers_p)
+           : pos(p), mainHistory(mh), captureHistory(cph), contHistory(ch), countermove(cm),
              killers{killers_p[0], killers_p[1]}, depth(d){
 
   assert(d > DEPTH_ZERO);
@@ -80,8 +80,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 }
 
 /// MovePicker constructor for quiescence search
-MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh, Square s)
-           : pos(p), mainHistory(mh) {
+MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,  const CapturePieceToHistory* cph, Square s)
+           : pos(p), mainHistory(mh), captureHistory(cph) {
 
   assert(d <= DEPTH_ZERO);
 
@@ -107,8 +107,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 
 /// MovePicker constructor for ProbCut: we generate captures with SEE higher
 /// than or equal to the given threshold.
-MovePicker::MovePicker(const Position& p, Move ttm, Value th)
-           : pos(p), threshold(th) {
+MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePieceToHistory* cph)
+           : pos(p), captureHistory(cph), threshold(th) {
 
   assert(!pos.checkers());
 
@@ -123,7 +123,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th)
 
 /// score() assigns a numerical value to each move in a list, used for sorting.
 /// Captures are ordered by Most Valuable Victim (MVV), preferring captures
-/// near our home rank. Quiets are ordered using the histories.
+/// with a good history. Quiets are ordered using the histories.
 template<GenType Type>
 void MovePicker::score() {
 
@@ -139,19 +139,21 @@ void MovePicker::score() {
 #endif
 #ifdef CRAZYHOUSE
           if (pos.is_house())
-              m.value = PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
-                      - Value(200 * std::min(distance(to_sq(m), pos.square<KING>(~pos.side_to_move())),
-                                             distance(to_sq(m), pos.square<KING>( pos.side_to_move()))));
+              m.value =  PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
+                       - Value(200 * std::min(distance(to_sq(m), pos.square<KING>(~pos.side_to_move())),
+                                              distance(to_sq(m), pos.square<KING>( pos.side_to_move()))))
+                       + Value((*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))]);
           else
 #endif
 #ifdef RACE
           if (pos.is_race())
-              m.value = PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
-                      - Value(200 * relative_rank(BLACK, to_sq(m)));
+              m.value =  PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
+                       - Value(200 * relative_rank(BLACK, to_sq(m)))
+                       + Value((*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))]);
           else
 #endif
           m.value =  PieceValue[pos.variant()][MG][pos.piece_on(to_sq(m))]
-                   - Value(200 * relative_rank(pos.side_to_move(), to_sq(m)));
+                   + Value((*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))]);
       }
       else if (Type == QUIETS)
       {
@@ -208,7 +210,7 @@ Move MovePicker::next_move(bool skipQuiets) {
           move = pick_best(cur++, endMoves);
           if (move != ttMove)
           {
-              if (pos.see_ge(move))
+              if (pos.see_ge(move, Value(-55 * (cur-1)->value / 1024)))
                   return move;
 
               // Losing capture, move it to the beginning of the array

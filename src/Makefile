@@ -1,7 +1,7 @@
 # Stockfish, a UCI chess playing engine derived from Glaurung 2.1
 # Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
 # Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-# Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+# Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 #
 # Stockfish is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -161,7 +161,7 @@ endif
 
 ### 3.1 Selecting compiler (default = gcc)
 
-CXXFLAGS += -Wall -Wcast-qual -std=c++11 $(EXTRACXXFLAGS)
+CXXFLAGS += -Wall -Wcast-qual -fno-exceptions -std=c++11 $(EXTRACXXFLAGS)
 DEPENDFLAGS += -std=c++11
 LDFLAGS += $(EXTRALDFLAGS)
 
@@ -237,7 +237,9 @@ ifeq ($(COMP),clang)
 	CXX=clang++
 	CXXFLAGS += -pedantic -Wextra -Wshadow
 ifneq ($(KERNEL),Darwin)
+ifneq ($(KERNEL),OpenBSD)
 	LDFLAGS += -latomic
+endif
 endif
 
 	ifeq ($(ARCH),armv7)
@@ -304,14 +306,29 @@ ifeq (,$(filter -DCRAZYHOUSE,$(CXXFLAGS)))
 $(error Crazyhouse (-DCRAZYHOUSE) is required for subvariant bughouse chess)
 endif
 endif
+ifneq (,$(filter -DDISPLACEDGRID,$(CXXFLAGS)))
+ifeq (,$(filter -DGRID,$(CXXFLAGS)))
+$(error Grid (-GRID) is required for subvariant displaced grid)
+endif
+endif
 ifneq (,$(filter -DLOOP,$(CXXFLAGS)))
 ifeq (,$(filter -DCRAZYHOUSE,$(CXXFLAGS)))
 $(error Crazyhouse (-DCRAZYHOUSE) is required for subvariant loop chess)
 endif
 endif
+ifneq (,$(filter -DSLIPPEDGRID,$(CXXFLAGS)))
+ifeq (,$(filter -DGRID,$(CXXFLAGS)))
+$(error Grid (-GRID) is required for subvariant slipped grid)
+endif
+endif
 ifneq (,$(filter -DSUICIDE,$(CXXFLAGS)))
 ifeq (,$(filter -DANTI,$(CXXFLAGS)))
 $(error Giveaway (-DANTI) is required for subvariant suicide chess)
+endif
+endif
+ifneq (,$(filter -DTWOKINGSSYMMETRIC,$(CXXFLAGS)))
+ifeq (,$(filter -DTWOKINGS,$(CXXFLAGS)))
+$(error Twokings (-TWOKINGS) is required for subvariant twokingssymmetric)
 endif
 endif
 ifeq ($(debug),no)

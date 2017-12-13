@@ -75,6 +75,9 @@ extern Bitboard PassedPawnMask[COLOR_NB][SQUARE_NB];
 extern Bitboard PawnAttackSpan[COLOR_NB][SQUARE_NB];
 extern Bitboard PseudoAttacks[PIECE_TYPE_NB][SQUARE_NB];
 extern Bitboard PawnAttacks[COLOR_NB][SQUARE_NB];
+#ifdef GRID
+extern Bitboard GridBB[GRIDLAYOUT_NB][SQUARE_NB];
+#endif
 
 
 /// Magic holds all magic bitboards relevant data for a single square
@@ -134,10 +137,9 @@ inline Bitboard& operator-=(Bitboard& b, Square s) {
   return b &= ~SquareBB[s];
 }
 
-inline bool more_than_one(Bitboard b) {
+constexpr bool more_than_one(Bitboard b) {
   return b & (b - 1);
 }
-
 
 /// rank_bb() and file_bb() return a bitboard representing all the squares on
 /// the given file or rank.
@@ -158,11 +160,17 @@ inline Bitboard file_bb(Square s) {
   return FileBB[file_of(s)];
 }
 
+#ifdef GRID
+inline Bitboard grid_layout_bb(GridLayout l, Square s) {
+  return GridBB[l][s];
+}
+#endif
+
 
 /// shift() moves a bitboard one step along direction D. Mainly for pawns
 
-template<Square D>
-inline Bitboard shift(Bitboard b) {
+template<Direction D>
+constexpr Bitboard shift(Bitboard b) {
   return  D == NORTH      ?  b             << 8 : D == SOUTH      ?  b             >> 8
         : D == NORTH_EAST ? (b & ~FileHBB) << 9 : D == SOUTH_EAST ? (b & ~FileHBB) >> 7
         : D == NORTH_WEST ? (b & ~FileABB) << 7 : D == SOUTH_WEST ? (b & ~FileABB) >> 9

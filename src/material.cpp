@@ -79,6 +79,30 @@ namespace {
       {-198, -112,  83,   166,  -160, -18 }  // Queen
     },
 #endif
+#ifdef EXTINCTION
+    {
+      //            OUR PIECES
+      // pair pawn knight bishop rook queen
+      { 741                               }, // Bishop pair
+      {  40,   -7                         }, // Pawn
+      {  32,  255, -54                    }, // Knight      OUR PIECES
+      {   0,  104,   4,    0              }, // Bishop
+      { -26,   -2,  47,   105,   -43      }, // Rook
+      {-185,   24, 122,   137,  -134,  55 }  // Queen
+    },
+#endif
+#ifdef GRID
+    {
+      //            OUR PIECES
+      // pair pawn knight bishop rook queen
+      {1667                               }, // Bishop pair
+      {  40,    2                         }, // Pawn
+      {  32,  255,  -3                    }, // Knight      OUR PIECES
+      {   0,  104,   4,    0              }, // Bishop
+      { -26,   -2,  47,   105,  -149      }, // Rook
+      {-185,   24, 122,   137,  -134,   0 }  // Queen
+    },
+#endif
 #ifdef HORDE
     {
       //            OUR PIECES
@@ -152,6 +176,18 @@ namespace {
       {-185,   24, 122,   137,  -134,   0 }  // Queen
     },
 #endif
+#ifdef TWOKINGS
+    {
+      //            OUR PIECES
+      // pair pawn knight bishop rook queen
+      {1667                               }, // Bishop pair
+      {  40,    0                         }, // Pawn
+      {  32,  255,  -3                    }, // Knight      OUR PIECES
+      {   0,  104,   4,    0              }, // Bishop
+      { -26,   -2,  47,   105,  -149      }, // Rook
+      {-185,   24, 122,   137,  -134,   0 }  // Queen
+    },
+#endif
   };
 #ifdef CRAZYHOUSE
   const int QuadraticOursInHand[PIECE_TYPE_NB][PIECE_TYPE_NB] = {
@@ -212,6 +248,30 @@ namespace {
       {  97,   49,  12,   -15             }, // Bishop
       {  23,   46,   0,    -2,   23       }, // Rook
       {  75,   43,  20,    65,  221,   83 }  // Queen
+    },
+#endif
+#ifdef EXTINCTION
+    {
+      //           THEIR PIECES
+      // pair pawn knight bishop rook queen
+      {   0                               }, // Bishop pair
+      {  36,    0                         }, // Pawn
+      {   9,   63,   0                    }, // Knight      OUR PIECES
+      {  59,   65,  42,     0             }, // Bishop
+      {  46,   39,  24,   -24,    0       }, // Rook
+      { 101,  100, -37,   141,  268,    0 }  // Queen
+    },
+#endif
+#ifdef GRID
+    {
+      //           THEIR PIECES
+      // pair pawn knight bishop rook queen
+      {   0                               }, // Bishop pair
+      {  36,    0                         }, // Pawn
+      {   9,   63,   0                    }, // Knight      OUR PIECES
+      {  59,   65,  42,     0             }, // Bishop
+      {  46,   39,  24,   -24,    0       }, // Rook
+      { 101,  100, -37,   141,  268,    0 }  // Queen
     },
 #endif
 #ifdef HORDE
@@ -287,6 +347,18 @@ namespace {
       { 101,  100, -37,   141,  268,    0 }  // Queen
     },
 #endif
+#ifdef TWOKINGS
+    {
+      //           THEIR PIECES
+      // pair pawn knight bishop rook queen
+      {   0                               }, // Bishop pair
+      {  36,    0                         }, // Pawn
+      {   9,   63,   0                    }, // Knight      OUR PIECES
+      {  59,   65,  42,     0             }, // Bishop
+      {  46,   39,  24,   -24,    0       }, // Rook
+      { 101,  100, -37,   141,  268,    0 }  // Queen
+    },
+#endif
   };
 #ifdef CRAZYHOUSE
   const int QuadraticTheirsInHand[PIECE_TYPE_NB][PIECE_TYPE_NB] = {
@@ -300,11 +372,6 @@ namespace {
       {  78,    3,  46,    37,   -26,  -1 }  // Queen
   };
 #endif
-
-  // PawnSet[pawn count] contains a bonus/malus indexed by number of pawns
-  const int PawnSet[] = {
-    24, -32, 107, -51, 117, -9, -126, -21, 31
-  };
 
   // QueenMinorsImbalance[opp_minor_count] is applied when only one side has a queen.
   // It contains a bonus/malus for the side with the queen.
@@ -363,9 +430,9 @@ namespace {
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
-    int bonus = PawnSet[std::min(pieceCount[Us][PAWN], (int)FILE_NB)];
+    int bonus = 0;
 
-    // Second-degree polynomial material imbalance by Tord Romstad
+    // Second-degree polynomial material imbalance, by Tord Romstad
     PieceType pt_max =
 #ifdef ANTI
                       pos.is_anti() ? KING :

@@ -40,6 +40,12 @@ const Value Tempo[VARIANT_NB] = { // Must be visible to search
 #ifdef CRAZYHOUSE
   Value(100),
 #endif
+#ifdef EXTINCTION
+  Value(20),
+#endif
+#ifdef GRID
+  Value(20),
+#endif
 #ifdef HORDE
   Value(20),
 #endif
@@ -58,7 +64,12 @@ const Value Tempo[VARIANT_NB] = { // Must be visible to search
 #ifdef THREECHECK
   Value(20),
 #endif
+#ifdef TWOKINGS
+  Value(20),
+#endif
 };
+
+extern Score Contempt;
 
 std::string trace(const Position& pos);
 

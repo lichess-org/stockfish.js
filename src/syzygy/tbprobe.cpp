@@ -65,6 +65,12 @@ const char* WdlSuffixes[SUBVARIANT_NB] = {
 #ifdef CRAZYHOUSE
     nullptr,
 #endif
+#ifdef EXTINCTION
+    nullptr,
+#endif
+#ifdef GRID
+    nullptr,
+#endif
 #ifdef HORDE
     nullptr,
 #endif
@@ -83,13 +89,25 @@ const char* WdlSuffixes[SUBVARIANT_NB] = {
 #ifdef THREECHECK
     nullptr,
 #endif
+#ifdef TWOKINGS
+    nullptr,
+#endif
 #ifdef SUICIDE
     ".stbw",
 #endif
 #ifdef BUGHOUSE
     nullptr,
 #endif
+#ifdef DISPLACEDGRID
+    nullptr,
+#endif
 #ifdef LOOP
+    nullptr,
+#endif
+#ifdef SLIPPEDGRID
+    nullptr,
+#endif
+#ifdef TWOKINGSSYMMETRIC
     nullptr,
 #endif
 };
@@ -105,6 +123,12 @@ const char* PawnlessWdlSuffixes[SUBVARIANT_NB] = {
 #ifdef CRAZYHOUSE
     nullptr,
 #endif
+#ifdef EXTINCTION
+    nullptr,
+#endif
+#ifdef GRID
+    nullptr,
+#endif
 #ifdef HORDE
     nullptr,
 #endif
@@ -123,13 +147,25 @@ const char* PawnlessWdlSuffixes[SUBVARIANT_NB] = {
 #ifdef THREECHECK
     nullptr,
 #endif
+#ifdef TWOKINGS
+    nullptr,
+#endif
 #ifdef SUICIDE
     ".gtbw",
 #endif
 #ifdef BUGHOUSE
     nullptr,
 #endif
+#ifdef DISPLACEDGRID
+    nullptr,
+#endif
 #ifdef LOOP
+    nullptr,
+#endif
+#ifdef SLIPPEDGRID
+    nullptr,
+#endif
+#ifdef TWOKINGSSYMMETRIC
     nullptr,
 #endif
 };
@@ -145,6 +181,12 @@ const char* DtzSuffixes[SUBVARIANT_NB] = {
 #ifdef CRAZYHOUSE
     nullptr,
 #endif
+#ifdef EXTINCTION
+    nullptr,
+#endif
+#ifdef GRID
+    nullptr,
+#endif
 #ifdef HORDE
     nullptr,
 #endif
@@ -163,13 +205,25 @@ const char* DtzSuffixes[SUBVARIANT_NB] = {
 #ifdef THREECHECK
     nullptr,
 #endif
+#ifdef TWOKINGS
+    nullptr,
+#endif
 #ifdef SUICIDE
     ".stbz",
 #endif
 #ifdef BUGHOUSE
     nullptr,
 #endif
+#ifdef DISPLACEDGRID
+    nullptr,
+#endif
 #ifdef LOOP
+    nullptr,
+#endif
+#ifdef SLIPPEDGRID
+    nullptr,
+#endif
+#ifdef TWOKINGSSYMMETRIC
     nullptr,
 #endif
 };
@@ -185,6 +239,12 @@ const char* PawnlessDtzSuffixes[SUBVARIANT_NB] = {
 #ifdef CRAZYHOUSE
     nullptr,
 #endif
+#ifdef EXTINCTION
+    nullptr,
+#endif
+#ifdef GRID
+    nullptr,
+#endif
 #ifdef HORDE
     nullptr,
 #endif
@@ -203,13 +263,25 @@ const char* PawnlessDtzSuffixes[SUBVARIANT_NB] = {
 #ifdef THREECHECK
     nullptr,
 #endif
+#ifdef TWOKINGS
+    nullptr,
+#endif
 #ifdef SUICIDE
     ".gtbz",
 #endif
 #ifdef BUGHOUSE
     nullptr,
 #endif
+#ifdef DISPLACEDGRID
+    nullptr,
+#endif
 #ifdef LOOP
+    nullptr,
+#endif
+#ifdef SLIPPEDGRID
+    nullptr,
+#endif
+#ifdef TWOKINGSSYMMETRIC
     nullptr,
 #endif
 };
@@ -1582,6 +1654,18 @@ void* init(Entry& e, const Position& pos) {
             { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
+#ifdef EXTINCTION
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
+#ifdef GRID
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
 #ifdef HORDE
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
@@ -1618,6 +1702,12 @@ void* init(Entry& e, const Position& pos) {
             { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
+#ifdef TWOKINGS
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
 #ifdef SUICIDE
         {
             { 0xE4, 0xCF, 0xE7, 0x23 },
@@ -1630,7 +1720,25 @@ void* init(Entry& e, const Position& pos) {
             { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
+#ifdef DISPLACEDGRID
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
 #ifdef LOOP
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
+#ifdef SLIPPEDGRID
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
+#ifdef TWOKINGSSYMMETRIC
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
             { 0x71, 0xE8, 0x23, 0x5D }
@@ -1661,6 +1769,18 @@ void* init(Entry& e, const Position& pos) {
             { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
+#ifdef EXTINCTION
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
+#ifdef GRID
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
 #ifdef HORDE
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
@@ -1697,6 +1817,12 @@ void* init(Entry& e, const Position& pos) {
             { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
+#ifdef TWOKINGS
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
 #ifdef SUICIDE
         {
             { 0xD6, 0xF5, 0x1B, 0x50 },
@@ -1709,7 +1835,25 @@ void* init(Entry& e, const Position& pos) {
             { 0x71, 0xE8, 0x23, 0x5D }
         },
 #endif
+#ifdef DISPLACEDGRID
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
 #ifdef LOOP
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
+#ifdef SLIPPEDGRID
+        {
+            { 0xD7, 0x66, 0x0C, 0xA5 },
+            { 0x71, 0xE8, 0x23, 0x5D }
+        },
+#endif
+#ifdef TWOKINGSSYMMETRIC
         {
             { 0xD7, 0x66, 0x0C, 0xA5 },
             { 0x71, 0xE8, 0x23, 0x5D }
@@ -2294,6 +2438,12 @@ static int has_repeated(StateInfo *st)
 // no moves were filtered out.
 bool Tablebases::root_probe(Position& pos, Search::RootMoves& rootMoves, Value& score)
 {
+#ifdef EXTINCTION
+    if (pos.is_extinction()) return false;
+#endif
+#ifdef GRID
+    if (pos.is_grid()) return false;
+#endif
 #ifdef KOTH
     if (pos.is_koth()) return false;
 #endif
@@ -2305,6 +2455,9 @@ bool Tablebases::root_probe(Position& pos, Search::RootMoves& rootMoves, Value& 
 #endif
 #ifdef THREECHECK
     if (pos.is_three_check()) return false;
+#endif
+#ifdef TWOKINGS
+    if (pos.is_two_kings()) return false;
 #endif
 #ifdef HORDE
     if (pos.is_horde()) return false;
@@ -2445,6 +2598,12 @@ bool Tablebases::root_probe(Position& pos, Search::RootMoves& rootMoves, Value& 
 // no moves were filtered out.
 bool Tablebases::root_probe_wdl(Position& pos, Search::RootMoves& rootMoves, Value& score)
 {
+#ifdef EXTINCTION
+    if (pos.is_extinction()) return false;
+#endif
+#ifdef GRID
+    if (pos.is_grid()) return false;
+#endif
 #ifdef KOTH
     if (pos.is_koth()) return false;
 #endif
@@ -2456,6 +2615,9 @@ bool Tablebases::root_probe_wdl(Position& pos, Search::RootMoves& rootMoves, Val
 #endif
 #ifdef THREECHECK
     if (pos.is_three_check()) return false;
+#endif
+#ifdef TWOKINGS
+    if (pos.is_two_kings()) return false;
 #endif
 #ifdef HORDE
     if (pos.is_horde()) return false;
