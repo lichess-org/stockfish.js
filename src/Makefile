@@ -223,7 +223,7 @@ endif
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
-	LDFLAGS += -s TOTAL_MEMORY=33554432 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']"
+	LDFLAGS += -s TOTAL_MEMORY=33554432 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']"
 	ifeq ($(ARCH),js)
 		LDFLAGS += --pre-js pre.js --post-js post.js
 	else
