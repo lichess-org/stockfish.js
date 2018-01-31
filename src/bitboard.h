@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -59,6 +59,11 @@ const Bitboard Rank5BB = Rank1BB << (8 * 4);
 const Bitboard Rank6BB = Rank1BB << (8 * 5);
 const Bitboard Rank7BB = Rank1BB << (8 * 6);
 const Bitboard Rank8BB = Rank1BB << (8 * 7);
+
+#ifdef CRAZYHOUSE
+const Bitboard Rank1234BB = Rank1BB | Rank2BB | Rank3BB | Rank4BB;
+const Bitboard Rank5678BB = Rank5BB | Rank6BB | Rank7BB | Rank8BB;
+#endif
 
 extern int SquareDistance[SQUARE_NB][SQUARE_NB];
 

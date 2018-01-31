@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ namespace {
     S(30, 27),
 #endif
 #ifdef LOSERS
-    S(54, 69),
+    S(53, 69),
 #endif
 #ifdef RACE
     S(0, 0),
@@ -97,7 +97,7 @@ namespace {
     S(41, 19),
 #endif
 #ifdef LOSERS
-    S(26, 50),
+    S(26, 49),
 #endif
 #ifdef RACE
     S(0, 0),
@@ -141,7 +141,7 @@ namespace {
     S(18, 38),
 #endif
 #ifdef LOSERS
-    S( 4, 51),
+    S( 4, 54),
 #endif
 #ifdef RACE
     S( 0,  0),
@@ -155,12 +155,6 @@ namespace {
 #ifdef TWOKINGS
     S(18, 38),
 #endif
-  };
-
-  // Lever bonus by rank
-  const Score Lever[RANK_NB] = {
-    S( 0,  0), S( 0,  0), S(0, 0), S(0, 0),
-    S(17, 16), S(33, 32), S(0, 0), S(0, 0)
   };
 
   // Weakness of our pawn shelter in front of the king by [isKingFile][distance from edge][rank].
@@ -219,16 +213,7 @@ namespace {
   },
 #endif
 #ifdef HORDE
-  {
-    { { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) }, // Not On King file
-      { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
-      { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
-      { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) } },
-    { { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) }, // On King file
-      { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
-      { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
-      { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) } }
-  },
+  {},
 #endif
 #ifdef KOTH
   {
@@ -641,9 +626,6 @@ namespace {
         if (doubled && !supported)
 #endif
             score -= Doubled[pos.variant()];
-
-        if (lever)
-            score += Lever[relative_rank(Us, s)];
     }
 
     return score;
@@ -683,7 +665,7 @@ void init() {
     { 0, 8, 19, 13, 71, 94, 169, 324 },
 #endif
 #ifdef LOSERS
-    { 0, 8, 19, 13, 71, 94, 169, 324 },
+    { 0, 8, 20, 11, 69, 91, 183, 310 },
 #endif
 #ifdef RACE
     {},
@@ -708,6 +690,11 @@ void init() {
       int v = 17 * support;
       v += (Seed[var][r] + (phalanx ? (Seed[var][r + 1] - Seed[var][r]) / 2 : 0)) >> opposed;
 
+#ifdef HORDE
+      if (var == HORDE_VARIANT)
+          Connected[var][opposed][phalanx][support][r] = make_score(v, v);
+      else
+#endif
       Connected[var][opposed][phalanx][support][r] = make_score(v, v * (r - 2) / 4);
   }
 }

@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2017 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2018 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -400,11 +400,11 @@ enum Value : int {
   QueenValueMgHill  = 2104,  QueenValueEgHill  = 2402,
 #endif
 #ifdef LOSERS
-  PawnValueMgLosers   = -41,   PawnValueEgLosers   = -23,
-  KnightValueMgLosers = -22,   KnightValueEgLosers = 329,
-  BishopValueMgLosers = -219,  BishopValueEgLosers = 231,
-  RookValueMgLosers   = -457,  RookValueEgLosers   = 77,
-  QueenValueMgLosers  = -122,  QueenValueEgLosers  = -213,
+  PawnValueMgLosers   = -40,   PawnValueEgLosers   = -25,
+  KnightValueMgLosers = -23,   KnightValueEgLosers = 369,
+  BishopValueMgLosers = -206,  BishopValueEgLosers = 245,
+  RookValueMgLosers   = -415,  RookValueEgLosers   = 80,
+  QueenValueMgLosers  = -111,  QueenValueEgLosers  = -209,
 #endif
 #ifdef RACE
   KnightValueMgRace = 777,   KnightValueEgRace = 881,
