@@ -7,13 +7,10 @@ Module = (function () {
     else Module.ccall('uci_command', 'number', ['string'], [e.data]);
   };
 
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', 'stockfish.wasm?v=SF_VERSION', false);
-  xhr.responseType = 'arraybuffer';
-  xhr.send(null);
-
   return {
-    wasmBinary: xhr.response,
+    locateFile: function(file) {
+      return file + '?v=SF_VERSION';
+    },
     print: function(stdout) {
       postMessage(stdout);
     },

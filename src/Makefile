@@ -228,7 +228,7 @@ ifeq ($(COMP),emscripten)
 		LDFLAGS += --pre-js pre.js --post-js post.js
 	else
 		CXXFLAGS += --llvm-lto 3
-		LDFLAGS += -s WASM=1 -s "BINARYEN_TRAP_MODE='allow'" -s "BINARYEN_METHOD='native-wasm'" --llvm-lto 3 --pre-js pre.wasm.js
+		LDFLAGS += -s WASM=1 -s "BINARYEN_TRAP_MODE='allow'" -s "BINARYEN_METHOD='native-wasm'" -s BINARYEN_ASYNC_COMPILATION=1 --llvm-lto 3 --pre-js pre.wasm.js
 	endif
 endif
 
