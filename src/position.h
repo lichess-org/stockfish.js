@@ -60,11 +60,7 @@ struct StateInfo {
 #endif
   StateInfo* previous;
   Bitboard   blockersForKing[COLOR_NB];
-  Bitboard   pinnersForKing[COLOR_NB];
-#ifdef RELAY
-  Square     pieceListRelay[PIECE_NB][16];
-  Bitboard   byTypeBBRelay[PIECE_TYPE_NB];
-#endif
+  Bitboard   pinners[COLOR_NB];
   Bitboard   checkSquares[PIECE_TYPE_NB];
 };
 
@@ -123,8 +119,7 @@ public:
   bool kings_adjacent() const;
 #endif
   Bitboard checkers() const;
-  Bitboard discovered_check_candidates() const;
-  Bitboard pinned_pieces(Color c) const;
+  Bitboard blockers_for_king(Color c) const;
   Bitboard check_squares(PieceType pt) const;
 
   // Attacks to/from a given square
@@ -164,6 +159,8 @@ public:
 #ifdef ATOMIC
   template<Variant V>
   Value see(Move m) const;
+  template<Variant V>
+  Value see(Move m, PieceType nextVictim, Square s) const;
 #endif
   bool see_ge(Move m, Value threshold = VALUE_ZERO) const;
 
@@ -242,9 +239,6 @@ public:
   bool is_race_win() const;
   bool is_race_draw() const;
   bool is_race_loss() const;
-#endif
-#ifdef RELAY
-  bool is_relay() const;
 #endif
 #ifdef THREECHECK
   bool is_three_check() const;
@@ -395,21 +389,9 @@ template<PieceType Pt> inline const Square* Position::squares(Color c) const {
 }
 
 template<PieceType Pt> inline Square Position::square(Color c) const {
-#ifdef HORDE
-  if (is_horde() && pieceCount[make_piece(c, Pt)] == 0)
-      return SQ_NONE;
-#endif
-#ifdef ATOMIC
-  if (is_atomic() && pieceCount[make_piece(c, Pt)] == 0)
-      return SQ_NONE;
-#endif
 #ifdef EXTINCTION
-  if (is_extinction() && Pt == KING)
-  {
-      if (pieceCount[make_piece(c, Pt)] == 0)
-          return SQ_NONE;
+  if (is_extinction() && Pt == KING && pieceCount[make_piece(c, Pt)] > 1)
       return pieceList[make_piece(c, Pt)][0]; // return the first king's square
-  }
 #endif
 #ifdef TWOKINGS
   if (is_two_kings() && Pt == KING && pieceCount[make_piece(c, Pt)] > 1)
@@ -541,12 +523,8 @@ inline Bitboard Position::checkers() const {
   return st->checkersBB;
 }
 
-inline Bitboard Position::discovered_check_candidates() const {
-  return st->blockersForKing[~sideToMove] & pieces(sideToMove);
-}
-
-inline Bitboard Position::pinned_pieces(Color c) const {
-  return st->blockersForKing[c] & pieces(c);
+inline Bitboard Position::blockers_for_king(Color c) const {
+  return st->blockersForKing[c];
 }
 
 inline Bitboard Position::check_squares(PieceType pt) const {
@@ -554,10 +532,6 @@ inline Bitboard Position::check_squares(PieceType pt) const {
 }
 
 inline bool Position::pawn_passed(Color c, Square s) const {
-#ifdef RACE
-  if (is_race())
-    return true;
-#endif
 #ifdef HORDE
   if (is_horde() && is_horde_color(c))
       return !(pieces(~c, PAWN) & forward_file_bb(c, s));
@@ -609,6 +583,11 @@ inline bool Position::opposite_bishops() const {
 }
 
 #ifdef ATOMIC
+template<Variant V>
+Value Position::see(Move m) const {
+  return see<V>(m, type_of(moved_piece(m)), to_sq(m));
+}
+
 inline bool Position::is_atomic() const {
   return var == ATOMIC_VARIANT;
 }
@@ -756,7 +735,7 @@ inline bool Position::can_capture_losers() const {
   Bitboard attacks = attacks_from<KING>(ksq) & pieces(~sideToMove);
 
   // If not in check, unpinned non-king pieces and pawns may freely capture
-  if (!attacks && !checkers() && !pinned_pieces(sideToMove) && ep_square() == SQ_NONE)
+  if (!attacks && !checkers() && !st->blockersForKing[sideToMove] && ep_square() == SQ_NONE)
       return can_capture();
   while (attacks)
       if (!(attackers_to(pop_lsb(&attacks), pieces() ^ ksq) & pieces(~sideToMove)))
@@ -798,7 +777,7 @@ inline bool Position::can_capture_losers() const {
       attacks = pt == PAWN ? attacks_from<PAWN>(s, sideToMove) : attacks_from(pt, s);
 
       // A pinned piece may only capture along the pin
-      if (pinned_pieces(sideToMove) & s)
+      if (st->blockersForKing[sideToMove] & s)
           attacks &= LineBB[s][ksq];
       if (attacks & target)
           return true;
@@ -911,12 +890,6 @@ inline bool Position::is_race_loss() const {
       if (!(attackers_to(pop_lsb(&b)) & pieces(~sideToMove)))
           return false;
   return true;
-}
-#endif
-
-#ifdef RELAY
-inline bool Position::is_relay() const {
-  return var == RELAY_VARIANT;
 }
 #endif
 

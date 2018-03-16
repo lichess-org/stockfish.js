@@ -73,22 +73,27 @@ const Piece Pieces[] = { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
 // from the bitboards and scan for new X-ray attacks behind it.
 
 template<int Pt>
-PieceType min_attacker(const Bitboard* bb, Square to, Bitboard stmAttackers,
+PieceType min_attacker(const Bitboard* byTypeBB, Square to, Bitboard stmAttackers,
                        Bitboard& occupied, Bitboard& attackers) {
 
-  Bitboard b = stmAttackers & bb[Pt];
+  Bitboard b = stmAttackers & byTypeBB[Pt];
   if (!b)
-      return min_attacker<Pt + 1>(bb, to, stmAttackers, occupied, attackers);
+      return min_attacker<Pt + 1>(byTypeBB, to, stmAttackers, occupied, attackers);
 
-  occupied ^= b & ~(b - 1);
+  occupied ^= lsb(b); // Remove the attacker from occupied
 
+  // Add any X-ray attack behind the just removed piece. For instance with
+  // rooks in a8 and a7 attacking a1, after removing a7 we add rook in a8.
+  // Note that new added attackers can be of any color.
   if (Pt == PAWN || Pt == BISHOP || Pt == QUEEN)
-      attackers |= attacks_bb<BISHOP>(to, occupied) & (bb[BISHOP] | bb[QUEEN]);
+      attackers |= attacks_bb<BISHOP>(to, occupied) & (byTypeBB[BISHOP] | byTypeBB[QUEEN]);
 
   if (Pt == ROOK || Pt == QUEEN)
-      attackers |= attacks_bb<ROOK>(to, occupied) & (bb[ROOK] | bb[QUEEN]);
+      attackers |= attacks_bb<ROOK>(to, occupied) & (byTypeBB[ROOK] | byTypeBB[QUEEN]);
 
-  attackers &= occupied; // After X-ray that may add already processed pieces
+  // X-ray may add already processed pieces because byTypeBB[] is constant: in
+  // the rook example, now attackers contains _again_ rook in a7, so remove it.
+  attackers &= occupied;
   return (PieceType)Pt;
 }
 
@@ -96,6 +101,16 @@ template<>
 PieceType min_attacker<KING>(const Bitboard*, Square, Bitboard, Bitboard&, Bitboard&) {
   return KING; // No need to update bitboards: it is the last cycle
 }
+
+#ifdef TWOKINGS
+void two_kings_min_attacker(const Bitboard* byTypeBB, Square to, Bitboard stmAttackers,
+                       Bitboard& occupied, Bitboard& attackers) {
+  occupied ^= lsb(stmAttackers);
+  attackers |= attacks_bb<BISHOP>(to, occupied) & (byTypeBB[BISHOP] | byTypeBB[QUEEN]);
+  attackers |= attacks_bb<ROOK>(to, occupied) & (byTypeBB[ROOK] | byTypeBB[QUEEN]);
+  attackers &= occupied;
+}
+#endif
 
 } // namespace
 
@@ -297,6 +312,10 @@ Position& Position::set(const string& fenStr, bool isChess960, Variant v, StateI
   {
       Square rsq;
       Color c = islower(token) ? BLACK : WHITE;
+#ifdef HORDE
+      if (is_horde() && is_horde_color(c))
+          continue;
+#endif
       Rank rank = relative_rank(c, RANK_1);
       Square ksq = square<KING>(c);
 #ifdef ANTI
@@ -461,24 +480,53 @@ void Position::set_check_info(StateInfo* si) const {
 #ifdef ANTI
   if (is_anti())
   {
-      si->blockersForKing[WHITE] = si->pinnersForKing[WHITE] = 0;
-      si->blockersForKing[BLACK] = si->pinnersForKing[BLACK] = 0;
+      si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
+      si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
+  }
+  else
+#endif
+#ifdef ATOMIC
+  if (is_atomic() && (is_atomic_loss() || kings_adjacent()))
+  {
+      si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
+      si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
   }
   else
 #endif
 #ifdef EXTINCTION
   if (is_extinction())
   {
-      si->blockersForKing[WHITE] = si->pinnersForKing[WHITE] = 0;
-      si->blockersForKing[BLACK] = si->pinnersForKing[BLACK] = 0;
+      si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
+      si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
+  }
+  else
+#endif
+#ifdef HORDE
+  if (is_horde())
+  {
+      si->blockersForKing[WHITE] = si->pinners[WHITE] = is_horde_color(WHITE)
+          ? 0 : slider_blockers(pieces(BLACK), square<KING>(WHITE), si->pinners[WHITE]);
+      si->blockersForKing[BLACK] = si->pinners[BLACK] = is_horde_color(BLACK)
+          ? 0 : slider_blockers(pieces(WHITE), square<KING>(BLACK), si->pinners[BLACK]);
   }
   else
 #endif
   {
-  si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK), square<KING>(WHITE), si->pinnersForKing[WHITE]);
-  si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE), square<KING>(BLACK), si->pinnersForKing[BLACK]);
+  si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK), square<KING>(WHITE), si->pinners[WHITE]);
+  si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE), square<KING>(BLACK), si->pinners[BLACK]);
   }
 
+#ifdef HORDE
+  if (is_horde() && is_horde_color(~sideToMove)) {
+  si->checkSquares[PAWN]   = 0;
+  si->checkSquares[KNIGHT] = 0;
+  si->checkSquares[BISHOP] = 0;
+  si->checkSquares[ROOK]   = 0;
+  si->checkSquares[QUEEN]  = 0;
+  si->checkSquares[KING]   = 0;
+  return;
+  }
+#endif
   Square ksq = square<KING>(~sideToMove);
 #ifdef ANTI
   if (is_anti()) { // There are no checks in antichess
@@ -509,17 +557,6 @@ void Position::set_check_info(StateInfo* si) const {
   si->checkSquares[BISHOP] = attacks_from<BISHOP>(ksq) & ~grid_bb(ksq);
   si->checkSquares[ROOK]   = attacks_from<ROOK>(ksq) & ~grid_bb(ksq);
   si->checkSquares[QUEEN]  = (si->checkSquares[BISHOP] | si->checkSquares[ROOK]) & ~grid_bb(ksq);
-  si->checkSquares[KING]   = 0;
-  return;
-  }
-#endif
-#ifdef HORDE
-  if (is_horde() && is_horde_color(~sideToMove)) {
-  si->checkSquares[PAWN]   = 0;
-  si->checkSquares[KNIGHT] = 0;
-  si->checkSquares[BISHOP] = 0;
-  si->checkSquares[ROOK]   = 0;
-  si->checkSquares[QUEEN]  = 0;
   si->checkSquares[KING]   = 0;
   return;
   }
@@ -577,7 +614,7 @@ void Position::set_state(StateInfo* si) const {
   else
 #endif
 #ifdef ATOMIC
-  if (is_atomic() && (square<KING>(sideToMove) == SQ_NONE || kings_adjacent()))
+  if (is_atomic() && (is_atomic_loss() || kings_adjacent()))
       si->checkersBB = 0;
   else
 #endif
@@ -743,14 +780,8 @@ const string Position::fen() const {
 
 Bitboard Position::slider_blockers(Bitboard sliders, Square s, Bitboard& pinners) const {
 
-  Bitboard result = 0;
+  Bitboard blockers = 0;
   pinners = 0;
-#ifdef HORDE
-  if (is_horde() && s == SQ_NONE) return result;
-#endif
-#ifdef ATOMIC
-  if (is_atomic() && s == SQ_NONE) return result;
-#endif
 
   // Snipers are sliders that attack 's' when a piece is removed
   Bitboard snipers = (  (PseudoAttacks[  ROOK][s] & pieces(QUEEN, ROOK))
@@ -761,14 +792,14 @@ Bitboard Position::slider_blockers(Bitboard sliders, Square s, Bitboard& pinners
     Square sniperSq = pop_lsb(&snipers);
     Bitboard b = between_bb(s, sniperSq) & pieces();
 
-    if (!more_than_one(b))
+    if (b && !more_than_one(b))
     {
-        result |= b;
+        blockers |= b;
         if (b & pieces(color_of(piece_on(s))))
             pinners |= sniperSq;
     }
   }
-  return result;
+  return blockers;
 }
 
 
@@ -949,7 +980,7 @@ bool Position::legal(Move m) const {
 
   // A non-king move is legal if and only if it is not pinned or it
   // is moving along the ray towards or away from the king.
-  return   !(pinned_pieces(us) & from)
+  return   !(blockers_for_king(us) & from)
         ||  aligned(from, to_sq(m), square<KING>(us));
 }
 
@@ -1173,7 +1204,7 @@ bool Position::gives_check(Move m) const {
       return true;
 
   // Is there a discovered check?
-  if (   (discovered_check_candidates() & from)
+  if (   (st->blockersForKing[~sideToMove] & from)
       && !aligned(from, to, square<KING>(~sideToMove)))
       return true;
 #ifdef GRID
@@ -1494,7 +1525,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   {
       // Set en-passant square if the moved pawn can be captured
 #ifdef HORDE
-      if (is_horde() && rank_of(from) == relative_rank(us, RANK_1)); else
+      if (is_horde() && rank_of(from) == relative_rank(us, RANK_1)) {} else
 #endif
       if (   (int(to) ^ int(from)) == 16
 #ifdef ATOMIC
@@ -1864,23 +1895,28 @@ Key Position::key_after(Move m) const {
 
 #ifdef ATOMIC
 template<>
-Value Position::see<ATOMIC_VARIANT>(Move m) const {
+Value Position::see<ATOMIC_VARIANT>(Move m, PieceType nextVictim, Square s) const {
   assert(is_ok(m));
 
-  Square from = from_sq(m), to = to_sq(m);
-  Color stm = color_of(piece_on(from));
+  Square from = from_sq(m);
+  Color us = color_of(piece_on(from));
+  Bitboard blast = attacks_from<KING>(to_sq(m)) & (pieces() ^ pieces(PAWN)) & ~SquareBB[from];
+  if (s != to_sq(m))
+      blast &= ~SquareBB[s];
 
-  Value blast_eval = VALUE_ZERO;
-  Bitboard blast = attacks_from<KING>(to) & (pieces() ^ pieces(PAWN)) & ~SquareBB[from];
-  if (blast & pieces(~stm,KING))
+  if (blast & pieces(~us,KING))
       return VALUE_MATE;
+  if (s != to_sq(m) && (blast & pieces(us,KING)))
+      return -VALUE_MATE;
+
+  Value blastEval = PieceValue[var][MG][type_of(piece_on(s))] - PieceValue[var][MG][nextVictim];
   for (Color c = WHITE; c <= BLACK; ++c)
       for (PieceType pt = KNIGHT; pt <= QUEEN; ++pt)
-          if (c == stm)
-              blast_eval -= popcount(blast & pieces(c,pt)) * PieceValue[var][MG][pt];
+          if (c == us)
+              blastEval -= popcount(blast & pieces(c,pt)) * PieceValue[var][MG][pt];
           else
-              blast_eval += popcount(blast & pieces(c,pt)) * PieceValue[var][MG][pt];
-  return blast_eval + PieceValue[var][MG][piece_on(to_sq(m))] - PieceValue[var][MG][moved_piece(m)];
+              blastEval += popcount(blast & pieces(c,pt)) * PieceValue[var][MG][pt];
+  return blastEval;
 }
 #endif
 
@@ -1917,60 +1953,44 @@ bool Position::see_ge(Move m, Value threshold) const {
   if (type_of(m) != NORMAL)
       return VALUE_ZERO >= threshold;
 
+  Bitboard stmAttackers;
   Square from = from_sq(m), to = to_sq(m);
 #ifdef CRAZYHOUSE
   PieceType nextVictim = type_of(is_house() && type_of(m) == DROP ? dropped_piece(m) : piece_on(from));
-  Color stm = ~color_of(is_house() && type_of(m) == DROP ? dropped_piece(m) : piece_on(from)); // First consider opponent's move
+  Color us = color_of(is_house() && type_of(m) == DROP ? dropped_piece(m) : piece_on(from));
 #else
   PieceType nextVictim = type_of(piece_on(from));
-  Color stm = ~color_of(piece_on(from)); // First consider opponent's move
+  Color us = color_of(piece_on(from));
 #endif
-#ifdef EXTINCTION
-  // Is it a winning capture?
-  if (is_extinction() && piece_on(to) != NO_PIECE && !more_than_one(pieces(color_of(piece_on(to)), type_of(piece_on(to)))))
-      return true;
-#endif
-  Value balance; // Values of the pieces taken by us minus opponent's ones
-  Bitboard occupied, stmAttackers;
-
+  Color stm = ~us; // First consider opponent's move
 #ifdef ATOMIC
   if (is_atomic())
   {
-      stm = color_of(piece_on(from));
       if (capture(m))
-          return see<ATOMIC_VARIANT>(m) >= threshold + 1;
-      else
+          return see<ATOMIC_VARIANT>(m, nextVictim, to_sq(m)) >= threshold + 1;
+      if (threshold > VALUE_ZERO)
+          return false;
+
+      Bitboard occupied = pieces() ^ from;
+      stmAttackers = attackers_to(to, occupied) & occupied & pieces(stm) & ~pieces(KING);
+
+      // Loop over attacking pieces
+      while (stmAttackers)
       {
-          if (threshold > VALUE_ZERO)
+          Square s = pop_lsb(&stmAttackers);
+          if (see<ATOMIC_VARIANT>(m, nextVictim, s) < threshold)
               return false;
-
-          occupied = pieces() ^ from;
-          Bitboard b = attackers_to(to, occupied) & occupied & pieces(~stm) & ~pieces(KING);
-
-          // Loop over attacking pieces
-          while (b)
-          {
-              Square s = pop_lsb(&b);
-
-              Value blast_eval = VALUE_ZERO;
-              Bitboard blast = attacks_from<KING>(to) & (pieces() ^ pieces(PAWN)) & ~SquareBB[from] & ~SquareBB[s];
-              if (blast & pieces(~stm,KING))
-                  continue;
-              if (blast & pieces(stm,KING))
-                  return false;
-              for (Color c = WHITE; c <= BLACK; ++c)
-                  for (PieceType pt = KNIGHT; pt <= QUEEN; ++pt)
-                      if (c == stm)
-                          blast_eval -= popcount(blast & pieces(c,pt)) * PieceValue[var][MG][pt];
-                      else
-                          blast_eval += popcount(blast & pieces(c,pt)) * PieceValue[var][MG][pt];
-              if (blast_eval + PieceValue[var][MG][piece_on(s)] - PieceValue[var][MG][moved_piece(m)] < threshold)
-                  return false;
-          }
-          return true;
       }
+      return true;
   }
 #endif
+#ifdef EXTINCTION
+  // Test if this move is a winning capture
+  if (is_extinction() && (stm == sideToMove ? is_extinction_loss()
+          : ! more_than_one(pieces(stm, type_of(m) == ENPASSANT ? PAWN : type_of(piece_on(to))))))
+      return true;
+#endif
+  Value balance;   // Values of the pieces taken by us minus opponent's ones
 
   // The opponent may be able to recapture so this is the best result
   // we can hope for.
@@ -1978,39 +1998,50 @@ bool Position::see_ge(Move m, Value threshold) const {
 
   if (balance < VALUE_ZERO)
       return false;
+#ifdef EXTINCTION
+  // Test if a capture refutes this move
+  if (is_extinction() && ! more_than_one(pieces(us, nextVictim)))
+  {
+      // Toggles to square occupancy in case of stm != sideToMove
+      Bitboard occupied = pieces() ^ from ^ to;
+      if (type_of(m) == ENPASSANT)
+          occupied ^= make_square(file_of(to), rank_of(from));
+      if (attackers_to(to, occupied) & occupied & pieces(stm))
+          return false;
+  }
+#endif
 
   // Now assume the worst possible result: that the opponent can
   // capture our piece for free.
   balance -= PieceValue[var][MG][nextVictim];
 
-  if (balance >= VALUE_ZERO) // Always true if nextVictim == KING
+  // If it is enough (like in PxQ) then return immediately. Note that
+  // in case nextVictim == KING we always return here, this is ok
+  // if the given move is legal.
+  if (balance >= VALUE_ZERO)
       return true;
 
-  bool opponentToMove = true;
+  // Find all attackers to the destination square, with the moving piece
+  // removed, but possibly an X-ray attacker added behind it.
+  Bitboard occupied;
 #ifdef CRAZYHOUSE
   if (is_house() && type_of(m) == DROP)
       occupied = pieces() ^ to;
   else
 #endif
   occupied = pieces() ^ from ^ to;
-
-  // Find all attackers to the destination square, with the moving piece removed,
-  // but possibly an X-ray attacker added behind it.
   Bitboard attackers = attackers_to(to, occupied) & occupied;
+#ifdef TWOKINGS
+  Square ksq = SQ_NONE;
+#endif
 
   while (true)
   {
-      // The balance is negative only because we assumed we could win
-      // the last piece for free. We are truly winning only if we can
-      // win the last piece _cheaply enough_. Test if we can actually
-      // do this otherwise "give up".
-      assert(balance < VALUE_ZERO);
-
       stmAttackers = attackers & pieces(stm);
 
-      // Don't allow pinned pieces to attack pieces except the king as long all
-      // pinners are on their original square.
-      if (!(st->pinnersForKing[stm] & ~occupied))
+      // Don't allow pinned pieces to attack (except the king) as long as
+      // all pinners are on their original square.
+      if (!(st->pinners[~stm] & ~occupied))
           stmAttackers &= ~st->blockersForKing[stm];
 #ifdef RACE
       // Exclude checks in racing kings
@@ -2022,49 +2053,94 @@ bool Position::see_ge(Move m, Value threshold) const {
                   stmAttackers &= ~pieces(stm, pt);
 
           // Discovered checks
-          if (!(st->pinnersForKing[~stm] & ~occupied))
+          if (!(st->pinners[~stm] & ~occupied))
               stmAttackers &= ~st->blockersForKing[~stm];
       }
 #endif
 
-      // If we have no more attackers we must give up
+      // If stm has no more attackers then give up: stm loses
       if (!stmAttackers)
           break;
 
-      // Locate and remove the next least valuable attacker
+      // Locate and remove the next least valuable attacker, and add to
+      // the bitboard 'attackers' the possibly X-ray attackers behind it.
       nextVictim = min_attacker<PAWN>(byTypeBB, to, stmAttackers, occupied, attackers);
-
-      // Don't allow pinned pieces to attack pieces except the king
-#ifdef ANTI
-      if (is_anti()) {} else
-#endif
-      if (nextVictim == KING)
+#ifdef TWOKINGS
+      if (is_two_kings() && nextVictim == KING)
       {
-          // Our only attacker is the king. If the opponent still has
-          // attackers we must give up. Otherwise we make the move and
-          // (having no more attackers) the opponent must give up.
-          if (!(attackers & pieces(~stm)))
-              opponentToMove = !opponentToMove;
+          two_kings_min_attacker(byTypeBB, to, stmAttackers, occupied, attackers);
+          ksq = royal_king(stm, (pieces(stm, KING) & occupied) ^ to);
+      }
+#endif
+
+      stm = ~stm; // Switch side to move
+
+      // Negamax the balance with alpha = balance, beta = balance+1 and
+      // add nextVictim's value.
+      //
+      //      (balance, balance+1) -> (-balance-1, -balance)
+      //
+      assert(balance < VALUE_ZERO);
+
+#ifdef EXTINCTION
+      if (is_extinction() && nextVictim == KING)
+          balance = VALUE_ZERO;
+      else
+#endif
+#ifdef HORDE
+      if (is_horde() && nextVictim == KING)
+          balance = VALUE_ZERO;
+      else
+#endif
+#ifdef TWOKINGS
+      // Moving the royal king (possibly into check) terminates the sequence
+      if (is_two_kings() && nextVictim == KING && ksq == to)
+          balance = VALUE_ZERO;
+      else
+#endif
+      balance = -balance - 1 - PieceValue[var][MG][nextVictim];
+
+      // If balance is still non-negative after giving away nextVictim then we
+      // win. The only thing to be careful about it is that we should revert
+      // stm if we captured with the king when the opponent still has attackers.
+      if (balance >= VALUE_ZERO)
+      {
+#ifdef ANTI
+          if (is_anti()) {} else
+#endif
+#ifdef EXTINCTION
+          if (is_extinction())
+          {
+              if (!(pieces(~stm, nextVictim) & occupied) && (attackers & pieces(stm)))
+                  stm = ~stm;
+          }
+          else
+#endif
+#ifdef TWOKINGS
+          // If a non-royal king performed the final capture, do not apply
+          // the special rule for a (valueless) royal king moving into check.
+          if (is_two_kings() && nextVictim == KING && ksq != to) {} else
+#endif
+          if (nextVictim == KING && (attackers & pieces(stm)))
+              stm = ~stm;
           break;
       }
-
-      // Assume the opponent can win the next piece for free and switch sides
-      balance += PieceValue[var][MG][nextVictim];
-      opponentToMove = !opponentToMove;
-
-      // If balance is negative after receiving a free piece then give up
-      if (balance < VALUE_ZERO)
-          break;
-
-      // Complete the process of switching sides. The first line swaps
-      // all negative numbers with non-negative numbers. The compiler
-      // probably knows that it is just the bitwise negation ~balance.
-      balance = -balance-1;
-      stm = ~stm;
+#ifdef ANTI
+#ifdef TWOKINGS
+      // Assertions only impact debug mode performance
+      assert(is_anti() || (is_two_kings() && pieces(~stm, KING) & occupied) || nextVictim != KING);
+#else
+      assert(is_anti() || nextVictim != KING);
+#endif
+#else
+#ifdef TWOKINGS
+      assert((is_two_kings() && pieces(~stm, KING) & occupied) || nextVictim != KING);
+#else
+      assert(nextVictim != KING);
+#endif
+#endif
   }
-
-  // If the opponent gave up we win, otherwise we lose.
-  return opponentToMove;
+  return us != stm; // We break the above loop when stm loses
 }
 
 
@@ -2149,7 +2225,33 @@ bool Position::pos_is_ok() const {
 
   const bool Fast = true; // Quick (default) or full check?
 
-  Square wksq = square<KING>(WHITE), bksq = square<KING>(BLACK);
+  Square wksq, bksq;
+#ifdef ATOMIC
+  if (is_atomic() && is_atomic_loss())
+  {
+      wksq = sideToMove == WHITE ? SQ_NONE : square<KING>(WHITE);
+      bksq = sideToMove == BLACK ? SQ_NONE : square<KING>(BLACK);
+  }
+  else
+#endif
+#ifdef EXTINCTION
+  if (is_extinction() && is_extinction_loss())
+  {
+      wksq = sideToMove == WHITE ? SQ_NONE : square<KING>(WHITE);
+      bksq = sideToMove == BLACK ? SQ_NONE : square<KING>(BLACK);
+  }
+  else
+#endif
+#ifdef HORDE
+  if (is_horde())
+  {
+      wksq = is_horde_color(WHITE) ? SQ_NONE : square<KING>(WHITE);
+      bksq = is_horde_color(BLACK) ? SQ_NONE : square<KING>(BLACK);
+  }
+  else
+#endif
+  wksq = square<KING>(WHITE), bksq = square<KING>(BLACK);
+
 #ifdef ANTI
   if (is_anti())
   {
@@ -2160,7 +2262,7 @@ bool Position::pos_is_ok() const {
   else
 #endif
 #ifdef EXTINCTION
-  if (is_extinction())
+  if (is_extinction() && is_extinction_loss())
   {
       if ((sideToMove != WHITE && sideToMove != BLACK)
           || (ep_square() != SQ_NONE && relative_rank(sideToMove, ep_square()) != RANK_6))
@@ -2202,27 +2304,35 @@ bool Position::pos_is_ok() const {
   if (is_anti()) {} else
 #endif
 #ifdef EXTINCTION
-  if (is_extinction()) {} else
+  if (is_extinction())
+  {
+      if (pieceCount[W_KING] + pieceCount[B_KING] < 1)
+          assert(0 && "pos_is_ok: Kings (extinction)");
+  }
+  else
 #endif
 #ifdef HORDE
   if (is_horde())
   {
-      if (   std::count(board, board + SQUARE_NB, W_KING) +
-             std::count(board, board + SQUARE_NB, B_KING) != 1
+      if (pieceCount[W_KING] + pieceCount[B_KING] != 1
           || (is_horde_color(sideToMove) && attackers_to(square<KING>(~sideToMove)) & pieces(sideToMove)))
-      assert(0 && "pos_is_ok: Kings (horde)");
-  } else
+          assert(0 && "pos_is_ok: Kings (horde)");
+  }
+  else
 #endif
 #ifdef ATOMIC
   if (is_atomic() && (is_atomic_win() || is_atomic_loss()))
   {
-      if (std::count(board, board + SQUARE_NB, W_KING) +
-          std::count(board, board + SQUARE_NB, B_KING) != 1)
-      assert(0 && "pos_is_ok: Kings (atomic)");
+      if (pieceCount[W_KING] + pieceCount[B_KING] != 1)
+          assert(0 && "pos_is_ok: Kings (atomic)");
   }
   else if (is_atomic() && kings_adjacent())
   {
-  } else
+      if (   pieceCount[W_KING] != 1
+          || pieceCount[B_KING] != 1)
+          assert(0 && "pos_is_ok: Kings (atomic)");
+  }
+  else
 #endif
 #ifdef TWOKINGS
   if (is_two_kings())

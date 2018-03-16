@@ -61,9 +61,6 @@ namespace {
 #ifdef RACE
     S(0, 0),
 #endif
-#ifdef RELAY
-    S(30, 27),
-#endif
 #ifdef THREECHECK
     S(30, 27),
 #endif
@@ -101,9 +98,6 @@ namespace {
 #endif
 #ifdef RACE
     S(0, 0),
-#endif
-#ifdef RELAY
-    S(41, 19),
 #endif
 #ifdef THREECHECK
     S(41, 19),
@@ -146,9 +140,6 @@ namespace {
 #ifdef RACE
     S( 0,  0),
 #endif
-#ifdef RELAY
-    S(18, 38),
-#endif
 #ifdef THREECHECK
     S(18, 38),
 #endif
@@ -161,14 +152,14 @@ namespace {
   // RANK_1 = 0 is used for files where we have no pawns or our pawn is behind our king.
   const Value ShelterWeakness[VARIANT_NB][2][int(FILE_NB) / 2][RANK_NB] = {
   {
-    { { V( 97), V(17), V( 9), V(44), V( 84), V( 87), V( 99) }, // Not On King file
-      { V(106), V( 6), V(33), V(86), V( 87), V(104), V(112) },
-      { V(101), V( 2), V(65), V(98), V( 58), V( 89), V(115) },
-      { V( 73), V( 7), V(54), V(73), V( 84), V( 83), V(111) } },
-    { { V(104), V(20), V( 6), V(27), V( 86), V( 93), V( 82) }, // On King file
-      { V(123), V( 9), V(34), V(96), V(112), V( 88), V( 75) },
-      { V(120), V(25), V(65), V(91), V( 66), V( 78), V(117) },
-      { V( 81), V( 2), V(47), V(63), V( 94), V( 93), V(104) } }
+    { { V( 98), V(20), V(11), V(42), V( 83), V( 84), V(101) }, // Not On King file
+      { V(103), V( 8), V(33), V(86), V( 87), V(105), V(113) },
+      { V(100), V( 2), V(65), V(95), V( 59), V( 89), V(115) },
+      { V( 72), V( 6), V(52), V(74), V( 83), V( 84), V(112) } },
+    { { V(105), V(19), V( 3), V(27), V( 85), V( 93), V( 84) }, // On King file
+      { V(121), V( 7), V(33), V(95), V(112), V( 86), V( 72) },
+      { V(121), V(26), V(65), V(90), V( 65), V( 76), V(117) },
+      { V( 79), V( 0), V(45), V(65), V( 94), V( 92), V(105) } }
   },
 #ifdef ANTI
   {},
@@ -241,18 +232,6 @@ namespace {
 #endif
 #ifdef RACE
   {},
-#endif
-#ifdef RELAY
-  {
-    { { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) }, // Not On King file
-      { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
-      { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
-      { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) } },
-    { { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) }, // On King file
-      { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
-      { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
-      { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) } }
-  },
 #endif
 #ifdef THREECHECK
   {
@@ -431,26 +410,6 @@ namespace {
 #ifdef RACE
   {},
 #endif
-#ifdef RELAY
-  {
-    { { V( 0),  V(-290), V(-274), V(57), V(41) },  // BlockedByKing
-      { V( 0),  V(  60), V( 144), V(39), V(13) },
-      { V( 0),  V(  65), V( 141), V(41), V(34) },
-      { V( 0),  V(  53), V( 127), V(56), V(14) } },
-    { { V( 4),  V(  73), V( 132), V(46), V(31) },  // Unopposed
-      { V( 1),  V(  64), V( 143), V(26), V(13) },
-      { V( 1),  V(  47), V( 110), V(44), V(24) },
-      { V( 0),  V(  72), V( 127), V(50), V(31) } },
-    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  // BlockedByPawn
-      { V( 0),  V(   0), V( 148), V(27), V( 2) },
-      { V( 0),  V(   0), V( 161), V(16), V( 1) },
-      { V( 0),  V(   0), V( 171), V(22), V(15) } },
-    { { V(22),  V(  45), V( 104), V(62), V( 6) },  // Unblocked
-      { V(31),  V(  30), V(  99), V(39), V(19) },
-      { V(23),  V(  29), V(  96), V(41), V(15) },
-      { V(21),  V(  23), V( 116), V(41), V(15) } }
-  },
-#endif
 #ifdef THREECHECK
   {
     { { V(-40),  V(-310), V(-236), V( 86), V(107) },  // BlockedByKing
@@ -507,10 +466,8 @@ namespace {
   template<Color Us>
   Score evaluate(const Position& pos, Pawns::Entry* e) {
 
-    const Color     Them  = (Us == WHITE ? BLACK      : WHITE);
-    const Direction Up    = (Us == WHITE ? NORTH      : SOUTH);
-    const Direction Right = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
-    const Direction Left  = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
+    const Color     Them = (Us == WHITE ? BLACK : WHITE);
+    const Direction Up   = (Us == WHITE ? NORTH : SOUTH);
 
     Bitboard b, neighbours, stoppers, doubled, supported, phalanx;
     Bitboard lever, leverPush;
@@ -525,7 +482,7 @@ namespace {
     e->passedPawns[Us] = e->pawnAttacksSpan[Us] = e->weakUnopposed[Us] = 0;
     e->semiopenFiles[Us] = 0xFF;
     e->kingSquares[Us]   = SQ_NONE;
-    e->pawnAttacks[Us]   = shift<Right>(ourPawns) | shift<Left>(ourPawns);
+    e->pawnAttacks[Us]   = pawn_attacks_bb<Us>(ourPawns);
     e->pawnsOnSquares[Us][BLACK] = popcount(ourPawns & DarkSquares);
 #ifdef CRAZYHOUSE
     if (pos.is_house())
@@ -614,7 +571,7 @@ namespace {
 
         // Score this pawn
 #ifdef HORDE
-        if (pos.is_horde() && relative_rank(Us, s) == 0) {} else
+        if (pos.is_horde() && relative_rank(Us, s) == RANK_1) {} else
 #endif
         if (supported | phalanx)
             score += Connected[pos.variant()][opposed][bool(phalanx)][popcount(supported)][relative_rank(Us, s)];
@@ -675,9 +632,6 @@ void init() {
 #ifdef RACE
     {},
 #endif
-#ifdef RELAY
-    { 0, 8, 19, 13, 71, 94, 169, 324 },
-#endif
 #ifdef THREECHECK
     { 0, 8, 19, 13, 71, 94, 169, 324 },
 #endif
@@ -719,9 +673,12 @@ Entry* probe(const Position& pos) {
       return e;
 
   e->key = key;
-  e->score = evaluate<WHITE>(pos, e) - evaluate<BLACK>(pos, e);
-  e->asymmetry = popcount(e->semiopenFiles[WHITE] ^ e->semiopenFiles[BLACK]);
+  e->scores[WHITE] = evaluate<WHITE>(pos, e);
+  e->scores[BLACK] = evaluate<BLACK>(pos, e);
   e->openFiles = popcount(e->semiopenFiles[WHITE] & e->semiopenFiles[BLACK]);
+  e->asymmetry = popcount(  (e->passedPawns[WHITE]   | e->passedPawns[BLACK])
+                          | (e->semiopenFiles[WHITE] ^ e->semiopenFiles[BLACK]));
+
   return e;
 }
 
@@ -732,15 +689,23 @@ Entry* probe(const Position& pos) {
 template<Color Us>
 Value Entry::shelter_storm(const Position& pos, Square ksq) {
 
-  const Color Them = (Us == WHITE ? BLACK : WHITE);
+  constexpr Color Them = (Us == WHITE ? BLACK : WHITE);
+  constexpr Bitboard ShelterMask =
+                Us == WHITE ? make_bitboard(SQ_A2, SQ_B3, SQ_C2, SQ_F2, SQ_G3, SQ_H2)
+                            : make_bitboard(SQ_A7, SQ_B6, SQ_C7, SQ_F7, SQ_G6, SQ_H7);
+  constexpr Bitboard StormMask =
+                Us == WHITE ? make_bitboard(SQ_A3, SQ_C3, SQ_F3, SQ_H3)
+                            : make_bitboard(SQ_A6, SQ_C6, SQ_F6, SQ_H6);
 
   enum { BlockedByKing, Unopposed, BlockedByPawn, Unblocked };
 
-  Bitboard b = pos.pieces(PAWN) & (forward_ranks_bb(Us, ksq) | rank_bb(ksq));
+  File center = std::max(FILE_B, std::min(FILE_G, file_of(ksq)));
+  Bitboard b =   pos.pieces(PAWN)
+               & (forward_ranks_bb(Us, ksq) | rank_bb(ksq))
+               & (adjacent_files_bb(center) | file_bb(center));
   Bitboard ourPawns = b & pos.pieces(Us);
   Bitboard theirPawns = b & pos.pieces(Them);
   Value safety = MaxSafetyBonus;
-  File center = std::max(FILE_B, std::min(FILE_G, file_of(ksq)));
 
   for (File f = File(center - 1); f <= File(center + 1); ++f)
   {
@@ -758,6 +723,9 @@ Value Entry::shelter_storm(const Position& pos, Square ksq) {
                   rkThem == rkUs + 1                                        ? BlockedByPawn  : Unblocked]
                  [d][rkThem];
   }
+
+  if (popcount((ourPawns & ShelterMask) | (theirPawns & StormMask)) == 5)
+      safety += Value(300);
 
   return safety;
 }

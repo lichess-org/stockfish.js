@@ -73,9 +73,6 @@ namespace {
 #ifdef RACE
   "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1",
 #endif
-#ifdef RELAY
-  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-#endif
 #ifdef THREECHECK
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1",
 #endif
@@ -149,11 +146,11 @@ namespace {
 
     // Read option name (can contain spaces)
     while (is >> token && token != "value")
-        name += string(" ", name.empty() ? 0 : 1) + token;
+        name += (name.empty() ? "" : " ") + token;
 
     // Read option value (can contain spaces)
     while (is >> token)
-        value += string(" ", value.empty() ? 0 : 1) + token;
+        value += (value.empty() ? "" : " ") + token;
 
     if (Options.count(name))
     {

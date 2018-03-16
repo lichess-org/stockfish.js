@@ -151,6 +151,9 @@ namespace {
 
     // Knight promotion is the only promotion that can give a direct check
     // that's not already included in the queen promotion.
+#ifdef HORDE
+    if (V == HORDE_VARIANT && ksq == SQ_NONE) {} else
+#endif
     if (Type == QUIET_CHECKS && (PseudoAttacks[KNIGHT][to] & ksq))
         *moveList++ = make<PROMOTION>(to - D, to, KNIGHT);
     else
@@ -187,8 +190,8 @@ namespace {
 #endif
     const Bitboard  TRank3BB = (Us == WHITE ? Rank3BB    : Rank6BB);
     const Direction Up       = (Us == WHITE ? NORTH      : SOUTH);
-    const Direction Right    = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
-    const Direction Left     = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
+    const Direction UpRight  = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
+    const Direction UpLeft   = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
 
     Bitboard emptySquares;
 
@@ -242,7 +245,7 @@ namespace {
             // if the pawn is not on the same file as the enemy king, because we
             // don't generate captures. Note that a possible discovery check
             // promotion has been already generated amongst the captures.
-            Bitboard dcCandidates = pos.discovered_check_candidates();
+            Bitboard dcCandidates = pos.blockers_for_king(Them);
             if (pawnsNotOn7 & dcCandidates)
             {
                 Bitboard dc1 = shift<Up>(pawnsNotOn7 & dcCandidates) & emptySquares & ~file_bb(ksq);
@@ -290,38 +293,44 @@ namespace {
         if (Type == EVASIONS)
             emptySquares &= target;
 
-        Bitboard b1 = shift<Right>(pawnsOn7) & enemies;
-        Bitboard b2 = shift<Left >(pawnsOn7) & enemies;
-        Bitboard b3 = shift<Up   >(pawnsOn7) & emptySquares;
+        Bitboard b1 = shift<UpRight>(pawnsOn7) & enemies;
+        Bitboard b2 = shift<UpLeft >(pawnsOn7) & enemies;
+        Bitboard b3 = shift<Up     >(pawnsOn7) & emptySquares;
 
-        Square ksq = pos.square<KING>(Them);
+        Square ksq;
+#ifdef HORDE
+        if (V == HORDE_VARIANT && pos.is_horde_color(Them))
+            ksq = SQ_NONE;
+        else
+#endif
+        ksq = pos.square<KING>(Them);
 
         while (b1)
-            moveList = make_promotions<V, Type, Right>(moveList, pop_lsb(&b1), ksq);
+            moveList = make_promotions<V, Type, UpRight>(moveList, pop_lsb(&b1), ksq);
 
         while (b2)
-            moveList = make_promotions<V, Type, Left >(moveList, pop_lsb(&b2), ksq);
+            moveList = make_promotions<V, Type, UpLeft >(moveList, pop_lsb(&b2), ksq);
 
         while (b3)
-            moveList = make_promotions<V, Type, Up   >(moveList, pop_lsb(&b3), ksq);
+            moveList = make_promotions<V, Type, Up     >(moveList, pop_lsb(&b3), ksq);
     }
 
     // Standard and en-passant captures
     if (Type == CAPTURES || Type == EVASIONS || Type == NON_EVASIONS)
     {
-        Bitboard b1 = shift<Right>(pawnsNotOn7) & enemies;
-        Bitboard b2 = shift<Left >(pawnsNotOn7) & enemies;
+        Bitboard b1 = shift<UpRight>(pawnsNotOn7) & enemies;
+        Bitboard b2 = shift<UpLeft >(pawnsNotOn7) & enemies;
 
         while (b1)
         {
             Square to = pop_lsb(&b1);
-            *moveList++ = make_move(to - Right, to);
+            *moveList++ = make_move(to - UpRight, to);
         }
 
         while (b2)
         {
             Square to = pop_lsb(&b2);
-            *moveList++ = make_move(to - Left, to);
+            *moveList++ = make_move(to - UpLeft, to);
         }
 
         if (pos.ep_square() != SQ_NONE)
@@ -363,25 +372,11 @@ namespace {
                 && !(PseudoAttacks[Pt][from] & target & pos.check_squares(Pt)))
                 continue;
 
-            if (pos.discovered_check_candidates() & from)
+            if (pos.blockers_for_king(~us) & from)
                 continue;
         }
 
         Bitboard b = pos.attacks_from<Pt>(from) & target;
-#ifdef RELAY
-        if (V == RELAY_VARIANT)
-        {
-            const Bitboard defenders = pos.attackers_to(from) & pos.pieces(us);
-            if (defenders & pos.pieces(KNIGHT))
-                b |= pos.attacks_from<KNIGHT>(from) & target;
-            if (defenders & pos.pieces(QUEEN, BISHOP))
-                b |= pos.attacks_from<BISHOP>(from) & target;
-            if (defenders & pos.pieces(QUEEN, ROOK))
-                b |= pos.attacks_from<ROOK>(from) & target;
-            if (defenders & pos.pieces(KING))
-                b |= pos.attacks_from<KING>(from) & target;
-        }
-#endif
 
         if (Checks)
             b &= pos.check_squares(Pt);
@@ -447,6 +442,9 @@ namespace {
     }
     else
 #endif
+#ifdef HORDE
+    if (pos.is_horde() && pos.is_horde_color(Us)) {} else
+#endif
 #ifdef TWOKINGS
     if (V == TWOKINGS_VARIANT && Type != EVASIONS)
     {
@@ -472,18 +470,6 @@ namespace {
                 b |= pos.attacks_from<KING>(ksq) & passed_pawn_mask(WHITE, ksq) & ~pos.pieces();
             if (Type == QUIETS)
                 b &= ~passed_pawn_mask(WHITE, ksq);
-        }
-#endif
-#ifdef RELAY
-        if (V == RELAY_VARIANT)
-        {
-            const Bitboard defenders = pos.attackers_to(ksq) & pos.pieces(Us);
-            if (defenders & pos.pieces(KNIGHT))
-                b |= pos.attacks_from<KNIGHT>(ksq) & target;
-            if (defenders & pos.pieces(QUEEN, BISHOP))
-                b |= pos.attacks_from<BISHOP>(ksq) & target;
-            if (defenders & pos.pieces(QUEEN, ROOK))
-                b |= pos.attacks_from<ROOK>(ksq) & target;
         }
 #endif
         while (b)
@@ -587,11 +573,6 @@ ExtMove* generate(const Position& pos, ExtMove* moveList) {
       return us == WHITE ? generate_all<RACE_VARIANT, WHITE, Type>(pos, moveList, target)
                          : generate_all<RACE_VARIANT, BLACK, Type>(pos, moveList, target);
 #endif
-#ifdef RELAY
-  if (pos.is_relay())
-      return us == WHITE ? generate_all<RELAY_VARIANT, WHITE, Type>(pos, moveList, target)
-                         : generate_all<RELAY_VARIANT, BLACK, Type>(pos, moveList, target);
-#endif
 #ifdef TWOKINGS
   if (pos.is_two_kings())
       return us == WHITE ? generate_all<TWOKINGS_VARIANT, WHITE, Type>(pos, moveList, target)
@@ -619,6 +600,10 @@ ExtMove* generate<QUIET_CHECKS>(const Position& pos, ExtMove* moveList) {
   if (pos.is_extinction())
       return moveList;
 #endif
+#ifdef HORDE
+  if (pos.is_horde() && pos.is_horde_color(~pos.side_to_move()))
+      return moveList;
+#endif
 #ifdef LOSERS
   if (pos.is_losers() && pos.can_capture_losers())
       return moveList;
@@ -631,7 +616,7 @@ ExtMove* generate<QUIET_CHECKS>(const Position& pos, ExtMove* moveList) {
   assert(!pos.checkers());
 
   Color us = pos.side_to_move();
-  Bitboard dc = pos.discovered_check_candidates();
+  Bitboard dc = pos.blockers_for_king(~us) & pos.pieces(us);
 
   while (dc)
   {
@@ -674,11 +659,6 @@ ExtMove* generate<QUIET_CHECKS>(const Position& pos, ExtMove* moveList) {
   if (pos.is_losers())
       return us == WHITE ? generate_all<LOSERS_VARIANT, WHITE, QUIET_CHECKS>(pos, moveList, ~pos.pieces())
                          : generate_all<LOSERS_VARIANT, BLACK, QUIET_CHECKS>(pos, moveList, ~pos.pieces());
-#endif
-#ifdef RELAY
-  if (pos.is_relay())
-      return us == WHITE ? generate_all<RELAY_VARIANT, WHITE, QUIET_CHECKS>(pos, moveList, ~pos.pieces())
-                         : generate_all<RELAY_VARIANT, BLACK, QUIET_CHECKS>(pos, moveList, ~pos.pieces());
 #endif
 #ifdef TWOKINGS
   if (pos.is_two_kings())
@@ -821,11 +801,6 @@ ExtMove* generate<EVASIONS>(const Position& pos, ExtMove* moveList) {
                          : generate_all<LOSERS_VARIANT, BLACK, EVASIONS>(pos, moveList, target);
   }
 #endif
-#ifdef RELAY
-  if (pos.is_relay())
-      return us == WHITE ? generate_all<RELAY_VARIANT, WHITE, EVASIONS>(pos, moveList, target)
-                         : generate_all<RELAY_VARIANT, BLACK, EVASIONS>(pos, moveList, target);
-#endif
 #ifdef TWOKINGS
   if (pos.is_two_kings())
       return us == WHITE ? generate_all<TWOKINGS_VARIANT, WHITE, EVASIONS>(pos, moveList, target)
@@ -844,7 +819,8 @@ ExtMove* generate<LEGAL>(const Position& pos, ExtMove* moveList) {
   if (pos.is_variant_end())
       return moveList;
 
-  Bitboard pinned = pos.pinned_pieces(pos.side_to_move());
+  Color us = pos.side_to_move();
+  Bitboard pinned = pos.blockers_for_king(us) & pos.pieces(us);
   bool validate = pinned;
 #ifdef GRID
   if (pos.is_grid()) validate = true;
@@ -855,7 +831,13 @@ ExtMove* generate<LEGAL>(const Position& pos, ExtMove* moveList) {
 #ifdef TWOKINGS
   if (pos.is_two_kings()) validate = true;
 #endif
-  Square ksq = pos.square<KING>(pos.side_to_move());
+  Square ksq;
+#ifdef HORDE
+  if (pos.is_horde() && pos.is_horde_color(pos.side_to_move()))
+      ksq = SQ_NONE;
+  else
+#endif
+  ksq = pos.square<KING>(us);
   ExtMove* cur = moveList;
   moveList = pos.checkers() ? generate<EVASIONS    >(pos, moveList)
                             : generate<NON_EVASIONS>(pos, moveList);

@@ -139,9 +139,6 @@ enum Variant {
 #ifdef RACE
   RACE_VARIANT,
 #endif
-#ifdef RELAY
-  RELAY_VARIANT,
-#endif
 #ifdef THREECHECK
   THREECHECK_VARIANT,
 #endif
@@ -202,9 +199,6 @@ static std::vector<std::string> variants = {
 #endif
 #ifdef RACE
 "racingkings",
-#endif
-#ifdef RELAY
-"relay",
 #endif
 #ifdef THREECHECK
 "3check",
@@ -420,12 +414,12 @@ enum Value : int {
   QueenValueMgThreeCheck  = 1947,  QueenValueEgThreeCheck  = 2323,
 #endif
 #ifdef TWOKINGS
-  PawnValueMgTwoKings   = 181,   PawnValueEgTwoKings   = 257,
-  KnightValueMgTwoKings = 778,   KnightValueEgTwoKings = 838,
-  BishopValueMgTwoKings = 840,   BishopValueEgTwoKings = 864,
-  RookValueMgTwoKings   = 1269,  RookValueEgTwoKings   = 1329,
-  QueenValueMgTwoKings  = 2432,  QueenValueEgTwoKings  = 2696,
-  KingValueMgTwoKings   = 520,   KingValueEgTwoKings   = 746,
+  PawnValueMgTwoKings   = 196,   PawnValueEgTwoKings   = 275,
+  KnightValueMgTwoKings = 851,   KnightValueEgTwoKings = 872,
+  BishopValueMgTwoKings = 917,   BishopValueEgTwoKings = 904,
+  RookValueMgTwoKings   = 1320,  RookValueEgTwoKings   = 1374,
+  QueenValueMgTwoKings  = 2409,  QueenValueEgTwoKings  = 2832,
+  KingValueMgTwoKings   = 622,   KingValueEgTwoKings   = 793,
 #endif
 
   MidgameLimit  = 15258, EndgameLimit  = 3915
@@ -434,7 +428,6 @@ enum Value : int {
 enum PieceType {
   NO_PIECE_TYPE, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
   ALL_PIECES = 0,
-  QUEEN_DIAGONAL = 7,
   PIECE_TYPE_NB = 8
 };
 

@@ -21,6 +21,7 @@
 #ifndef EVALUATE_H_INCLUDED
 #define EVALUATE_H_INCLUDED
 
+#include <atomic>
 #include <string>
 
 #include "types.h"
@@ -58,9 +59,6 @@ const Value Tempo[VARIANT_NB] = { // Must be visible to search
 #ifdef RACE
   Value(100),
 #endif
-#ifdef RELAY
-  Value(20),
-#endif
 #ifdef THREECHECK
   Value(20),
 #endif
@@ -69,7 +67,7 @@ const Value Tempo[VARIANT_NB] = { // Must be visible to search
 #endif
 };
 
-extern Score Contempt;
+extern std::atomic<Score> Contempt;
 
 std::string trace(const Position& pos);
 

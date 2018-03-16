@@ -21,12 +21,6 @@
 ### Section 1. General Configuration
 ### ==========================================================================
 
-### Establish the operating system name
-KERNEL = $(shell uname -s)
-ifeq ($(KERNEL),Linux)
-	OS = $(shell uname -o)
-endif
-
 ### Executable name
 EXE = stockfish
 
@@ -44,6 +38,12 @@ OBJS = bitbase.o bitboard.o endgame.o evaluate.o main.o \
 ifneq ($(COMP),emscripten)
 	OBJS += benchmark.o
 	OBJS += syzygy/tbprobe.o
+endif
+
+### Establish the operating system name
+KERNEL = $(shell uname -s)
+ifeq ($(KERNEL),Linux)
+	OS = $(shell uname -o)
 endif
 
 ### ==========================================================================
@@ -236,11 +236,12 @@ ifeq ($(COMP),clang)
 	comp=clang
 	CXX=clang++
 	CXXFLAGS += -pedantic -Wextra -Wshadow
-ifneq ($(KERNEL),Darwin)
-ifneq ($(KERNEL),OpenBSD)
-	LDFLAGS += -latomic
-endif
-endif
+
+	ifneq ($(KERNEL),Darwin)
+	ifneq ($(KERNEL),OpenBSD)
+		LDFLAGS += -latomic
+	endif
+	endif
 
 	ifeq ($(ARCH),armv7)
 		ifeq ($(OS),Android)
@@ -350,37 +351,14 @@ ifeq ($(optimize),yes)
 	LDFLAGS += -O3
 
 	ifeq ($(comp),gcc)
-
-		ifeq ($(KERNEL),Darwin)
-			ifeq ($(arch),i386)
-				CXXFLAGS += -mdynamic-no-pic
-			endif
-			ifeq ($(arch),x86_64)
-				CXXFLAGS += -mdynamic-no-pic
-			endif
-		endif
-
 		ifeq ($(OS), Android)
 			CXXFLAGS += -fno-gcse -mthumb -march=armv7-a -mfloat-abi=softfp
 		endif
 	endif
-
-	ifeq ($(comp),icc)
+	
+	ifeq ($(comp),$(filter $(comp),gcc clang icc))
 		ifeq ($(KERNEL),Darwin)
 			CXXFLAGS += -mdynamic-no-pic
-		endif
-	endif
-
-	ifeq ($(comp),clang)
-		ifeq ($(KERNEL),Darwin)
-				CXXFLAGS += -flto
-				LDFLAGS += $(CXXFLAGS)
-			ifeq ($(arch),i386)
-				CXXFLAGS += -mdynamic-no-pic
-			endif
-			ifeq ($(arch),x86_64)
-				CXXFLAGS += -mdynamic-no-pic
-			endif
 		endif
 	endif
 endif
@@ -420,24 +398,20 @@ endif
 ### 3.8 Link Time Optimization, it works since gcc 4.5 but not on mingw under Windows.
 ### This is a mix of compile and link time options because the lto link phase
 ### needs access to the optimization flags.
-ifeq ($(comp),gcc)
-	ifeq ($(optimize),yes)
-	ifeq ($(debug),no)
+ifeq ($(optimize),yes)
+ifeq ($(debug), no)
+	ifeq ($(comp),$(filter $(comp),gcc clang))
+		CXXFLAGS += -flto
+		LDFLAGS += $(CXXFLAGS)
+	endif
+
+	ifeq ($(comp),mingw)
+	ifeq ($(KERNEL),Linux)
 		CXXFLAGS += -flto
 		LDFLAGS += $(CXXFLAGS)
 	endif
 	endif
 endif
-
-ifeq ($(comp),mingw)
-	ifeq ($(KERNEL),Linux)
-	ifeq ($(optimize),yes)
-	ifeq ($(debug),no)
-		CXXFLAGS += -flto
-		LDFLAGS += $(CXXFLAGS)
-	endif
-	endif
-	endif
 endif
 
 ### 3.9 Android 5 can only run position independent executables. Note that this

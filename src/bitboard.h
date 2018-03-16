@@ -169,7 +169,17 @@ inline Bitboard grid_layout_bb(GridLayout l, Square s) {
 #endif
 
 
-/// shift() moves a bitboard one step along direction D. Mainly for pawns
+/// make_bitboard() returns a bitboard from a list of squares
+
+constexpr Bitboard make_bitboard() { return 0; }
+
+template<typename ...Squares>
+constexpr Bitboard make_bitboard(Square s, Squares... squares) {
+  return (1ULL << s) | make_bitboard(squares...);
+}
+
+
+/// shift() moves a bitboard one step along direction D (mainly for pawns)
 
 template<Direction D>
 constexpr Bitboard shift(Bitboard b) {
@@ -177,6 +187,16 @@ constexpr Bitboard shift(Bitboard b) {
         : D == NORTH_EAST ? (b & ~FileHBB) << 9 : D == SOUTH_EAST ? (b & ~FileHBB) >> 7
         : D == NORTH_WEST ? (b & ~FileABB) << 7 : D == SOUTH_WEST ? (b & ~FileABB) >> 9
         : 0;
+}
+
+
+/// pawn_attacks_bb() returns the pawn attacks for the given color from the
+/// squares in the given bitboard.
+
+template<Color C>
+constexpr Bitboard pawn_attacks_bb(Bitboard b) {
+  return C == WHITE ? shift<NORTH_WEST>(b) | shift<NORTH_EAST>(b)
+                    : shift<SOUTH_WEST>(b) | shift<SOUTH_EAST>(b);
 }
 
 
@@ -198,9 +218,9 @@ inline Bitboard between_bb(Square s1, Square s2) {
 }
 
 
-/// forward_ranks_bb() returns a bitboard representing all the squares on all the ranks
-/// in front of the given one, from the point of view of the given color. For
-/// instance, forward_ranks_bb(BLACK, SQ_D3) will return the 16 squares on ranks 1 and 2.
+/// forward_ranks_bb() returns a bitboard representing the squares on all the ranks
+/// in front of the given one, from the point of view of the given color. For instance,
+/// forward_ranks_bb(BLACK, SQ_D3) will return the 16 squares on ranks 1 and 2.
 
 inline Bitboard forward_ranks_bb(Color c, Square s) {
   return ForwardRanksBB[c][rank_of(s)];
@@ -302,7 +322,7 @@ inline int popcount(Bitboard b) {
 
 /// lsb() and msb() return the least/most significant bit in a non-zero bitboard
 
-#if defined(__GNUC__)
+#if defined(__GNUC__)  // GCC, Clang, ICC
 
 inline Square lsb(Bitboard b) {
   assert(b);
@@ -314,7 +334,9 @@ inline Square msb(Bitboard b) {
   return Square(63 ^ __builtin_clzll(b));
 }
 
-#elif defined(_WIN64) && defined(_MSC_VER)
+#elif defined(_MSC_VER)  // MSVC
+
+#ifdef _WIN64  // MSVC, WIN64
 
 inline Square lsb(Bitboard b) {
   assert(b);
@@ -330,12 +352,39 @@ inline Square msb(Bitboard b) {
   return (Square) idx;
 }
 
-#else
+#else  // MSVC, WIN32
 
-#define NO_BSF // Fallback on software implementation for other cases
+inline Square lsb(Bitboard b) {
+  assert(b);
+  unsigned long idx;
 
-Square lsb(Bitboard b);
-Square msb(Bitboard b);
+  if (b & 0xffffffff) {
+      _BitScanForward(&idx, int32_t(b));
+      return Square(idx);
+  } else {
+      _BitScanForward(&idx, int32_t(b >> 32));
+      return Square(idx + 32);
+  }
+}
+
+inline Square msb(Bitboard b) {
+  assert(b);
+  unsigned long idx;
+
+  if (b >> 32) {
+      _BitScanReverse(&idx, int32_t(b >> 32));
+      return Square(idx + 32);
+  } else {
+      _BitScanReverse(&idx, int32_t(b));
+      return Square(idx);
+  }
+}
+
+#endif
+
+#else  // Compiler is neither GCC nor MSVC compatible
+
+#error "Compiler not supported."
 
 #endif
 
