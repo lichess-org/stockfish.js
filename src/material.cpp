@@ -31,7 +31,7 @@ namespace {
 
   // Polynomial material imbalance parameters
 
-  const int QuadraticOurs[VARIANT_NB][PIECE_TYPE_NB][PIECE_TYPE_NB] = {
+  constexpr int QuadraticOurs[VARIANT_NB][PIECE_TYPE_NB][PIECE_TYPE_NB] = {
     {
     //            OUR PIECES
     // pair pawn knight bishop rook queen
@@ -168,13 +168,13 @@ namespace {
     {
       //            OUR PIECES
       // pair pawn knight bishop rook queen king
-      {1676                                    }, // Bishop pair
+      {1627                                    }, // Bishop pair
       {  41,    0                              }, // Pawn
-      {  32,  265,  -3                         }, // Knight      OUR PIECES
-      {   0,  108,   4,    0                   }, // Bishop
-      { -26,   -2,  46,   106,  -151           }, // Rook
-      {-188,   24, 123,   138,  -133,   0      }, // Queen
-      { -49,  154,  40,    60,   72,  -74,  32 }  // King
+      {  31,  270,  -3                         }, // Knight      OUR PIECES
+      {   0,  104,   4,    0                   }, // Bishop
+      { -26,   -2,  44,   108,  -149           }, // Rook
+      {-185,   25, 122,   139,  -133,   0      }, // Queen
+      { -48,  153,  38,    60,   72,  -73,  32 }  // King
     },
 #endif
   };
@@ -191,7 +191,7 @@ namespace {
   };
 #endif
 
-  const int QuadraticTheirs[VARIANT_NB][PIECE_TYPE_NB][PIECE_TYPE_NB] = {
+  constexpr int QuadraticTheirs[VARIANT_NB][PIECE_TYPE_NB][PIECE_TYPE_NB] = {
     {
     //           THEIR PIECES
     // pair pawn knight bishop rook queen
@@ -330,11 +330,11 @@ namespace {
       // pair pawn knight bishop rook queen king
       {   0                                    }, // Bishop pair
       {  35,    0                              }, // Pawn
-      {   9,   61,   0                         }, // Knight      OUR PIECES
-      {  61,   66,  41,     0                  }, // Bishop
-      {  46,   39,  24,   -23,    0            }, // Rook
-      { 102,  100, -37,   142,  271,    0      }, // Queen
-      { -16, -116,  -4,   -92,   65,  -96,   0 }  // King
+      {   9,   62,   0                         }, // Knight      OUR PIECES
+      {  63,   67,  41,     0                  }, // Bishop
+      {  45,   39,  25,   -23,    0            }, // Rook
+      { 104,  103, -37,   144,  272,    0      }, // Queen
+      { -16, -119,  -4,   -90,   64,  -99,   0 }  // King
     },
 #endif
   };
@@ -400,7 +400,7 @@ namespace {
   int imbalance(const Position& pos, const int pieceCount[][PIECE_TYPE_NB]) {
 #endif
 
-    const Color Them = (Us == WHITE ? BLACK : WHITE);
+    constexpr Color Them = (Us == WHITE ? BLACK : WHITE);
 
     int bonus = 0;
 
@@ -581,7 +581,7 @@ Entry* probe(const Position& pos) {
   // Evaluate the material imbalance. We use PIECE_TYPE_NONE as a place holder
   // for the bishop pair "extended piece", which allows us to be more flexible
   // in defining bishop pair bonuses.
-  const int PieceCount[COLOR_NB][PIECE_TYPE_NB] = {
+  const int pieceCount[COLOR_NB][PIECE_TYPE_NB] = {
   { pos.count<BISHOP>(WHITE) > 1, pos.count<PAWN>(WHITE), pos.count<KNIGHT>(WHITE),
     pos.count<BISHOP>(WHITE)    , pos.count<ROOK>(WHITE), pos.count<QUEEN >(WHITE), pos.count<KING>(WHITE) },
   { pos.count<BISHOP>(BLACK) > 1, pos.count<PAWN>(BLACK), pos.count<KNIGHT>(BLACK),
@@ -589,18 +589,18 @@ Entry* probe(const Position& pos) {
 #ifdef CRAZYHOUSE
   if (pos.is_house())
   {
-      const int PieceCountInHand[COLOR_NB][PIECE_TYPE_NB] = {
+      const int pieceCountInHand[COLOR_NB][PIECE_TYPE_NB] = {
       { pos.count_in_hand<ALL_PIECES>(WHITE) == 0, pos.count_in_hand<PAWN>(WHITE), pos.count_in_hand<KNIGHT>(WHITE),
         pos.count_in_hand<BISHOP>(WHITE)         , pos.count_in_hand<ROOK>(WHITE), pos.count_in_hand<QUEEN >(WHITE), pos.count_in_hand<KING>(WHITE) },
       { pos.count_in_hand<ALL_PIECES>(BLACK) == 0, pos.count_in_hand<PAWN>(BLACK), pos.count_in_hand<KNIGHT>(BLACK),
         pos.count_in_hand<BISHOP>(BLACK)         , pos.count_in_hand<ROOK>(BLACK), pos.count_in_hand<QUEEN >(BLACK), pos.count_in_hand<KING>(BLACK) } };
 
-      e->value = int16_t((imbalance<WHITE>(pos, PieceCount, PieceCountInHand) - imbalance<BLACK>(pos, PieceCount, PieceCountInHand)) / 16);
+      e->value = int16_t((imbalance<WHITE>(pos, pieceCount, pieceCountInHand) - imbalance<BLACK>(pos, pieceCount, pieceCountInHand)) / 16);
   }
   else
-      e->value = int16_t((imbalance<WHITE>(pos, PieceCount, NULL) - imbalance<BLACK>(pos, PieceCount, NULL)) / 16);
+      e->value = int16_t((imbalance<WHITE>(pos, pieceCount, NULL) - imbalance<BLACK>(pos, pieceCount, NULL)) / 16);
 #else
-  e->value = int16_t((imbalance<WHITE>(pos, PieceCount) - imbalance<BLACK>(pos, PieceCount)) / 16);
+  e->value = int16_t((imbalance<WHITE>(pos, pieceCount) - imbalance<BLACK>(pos, pieceCount)) / 16);
 #endif
   return e;
 }

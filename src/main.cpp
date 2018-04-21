@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
   Search::init();
   Pawns::init();
 #ifndef __EMSCRIPTEN__
-  Tablebases::init(Options["SyzygyPath"], CHESS_VARIANT);
+  Tablebases::init(CHESS_VARIANT, Options["SyzygyPath"]); // After Bitboards are set
 #endif
   TT.resize(Options["Hash"]);
   Threads.set(Options["Threads"]);

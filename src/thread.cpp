@@ -203,7 +203,7 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
 
 #ifndef __EMSCRIPTEN__
   if (!rootMoves.empty())
-      Tablebases::filter_root_moves(pos, rootMoves);
+      Tablebases::rank_root_moves(pos, rootMoves);
 #endif
 
   // After ownership transfer 'states' becomes empty, so if we stop the search

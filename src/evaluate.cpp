@@ -28,15 +28,14 @@
 #include "evaluate.h"
 #include "material.h"
 #include "pawns.h"
-
-std::atomic<Score> Eval::Contempt;
+#include "thread.h"
 
 namespace Trace {
 
   enum Tracing { NO_TRACE, TRACE };
 
   enum Term { // The first 8 entries are reserved for PieceType
-    MATERIAL = 8, IMBALANCE, MOBILITY, THREAT, PASSED, SPACE, INITIATIVE, TOTAL, TERM_NB
+    MATERIAL = 8, IMBALANCE, MOBILITY, THREAT, PASSED, SPACE, INITIATIVE, VARIANT, TOTAL, TERM_NB
   };
 
   Score scores[TERM_NB][COLOR_NB];
@@ -74,20 +73,20 @@ using namespace Trace;
 
 namespace {
 
-  const Bitboard QueenSide   = FileABB | FileBBB | FileCBB | FileDBB;
-  const Bitboard CenterFiles = FileCBB | FileDBB | FileEBB | FileFBB;
-  const Bitboard KingSide    = FileEBB | FileFBB | FileGBB | FileHBB;
-  const Bitboard Center      = (FileDBB | FileEBB) & (Rank4BB | Rank5BB);
+  constexpr Bitboard QueenSide   = FileABB | FileBBB | FileCBB | FileDBB;
+  constexpr Bitboard CenterFiles = FileCBB | FileDBB | FileEBB | FileFBB;
+  constexpr Bitboard KingSide    = FileEBB | FileFBB | FileGBB | FileHBB;
+  constexpr Bitboard Center      = (FileDBB | FileEBB) & (Rank4BB | Rank5BB);
 
-  const Bitboard KingFlank[FILE_NB] = {
+  constexpr Bitboard KingFlank[FILE_NB] = {
     QueenSide,   QueenSide, QueenSide,
     CenterFiles, CenterFiles,
     KingSide,    KingSide,  KingSide
   };
 
   // Threshold for lazy and space evaluation
-  const Value LazyThreshold  = Value(1500);
-  const Value SpaceThreshold[VARIANT_NB] = {
+  constexpr Value LazyThreshold  = Value(1500);
+  constexpr Value SpaceThreshold[VARIANT_NB] = {
     Value(12222),
 #ifdef ANTI
     Value(12222),
@@ -105,7 +104,7 @@ namespace {
     Value(12222),
 #endif
 #ifdef HORDE
-    VALUE_ZERO,
+    Value(12222),
 #endif
 #ifdef KOTH
     VALUE_ZERO,
@@ -125,7 +124,7 @@ namespace {
   };
 
   // KingAttackWeights[PieceType] contains king attack weights by piece type
-  const int KingAttackWeights[VARIANT_NB][PIECE_TYPE_NB] = {
+  constexpr int KingAttackWeights[VARIANT_NB][PIECE_TYPE_NB] = {
     { 0, 0, 78, 56, 45, 11 },
 #ifdef ANTI
     {},
@@ -163,7 +162,7 @@ namespace {
   };
 
   // Per-variant king danger malus factors
-  const int KingDangerParams[VARIANT_NB][7] = {
+  constexpr int KingDangerParams[VARIANT_NB][7] = {
     {   102,  191,  143, -848,   -9,   40,    0 },
 #ifdef ANTI
     {},
@@ -201,26 +200,26 @@ namespace {
   };
 
   // Penalties for enemy's safe checks
-  const int QueenSafeCheck  = 780;
-  const int RookSafeCheck   = 880;
-  const int BishopSafeCheck = 435;
-  const int KnightSafeCheck = 790;
+  constexpr int QueenSafeCheck  = 780;
+  constexpr int RookSafeCheck   = 880;
+  constexpr int BishopSafeCheck = 435;
+  constexpr int KnightSafeCheck = 790;
 #ifdef CRAZYHOUSE
-  const int PawnSafeCheck   = 435;
+  constexpr int PawnSafeCheck   = 435;
 #endif
 #ifdef ATOMIC
-  const int IndirectKingAttack = 883;
+  constexpr int IndirectKingAttack = 883;
 #endif
 #ifdef THREECHECK
   // In Q8 fixed point
-  const int ThreeCheckKSFactors[CHECKS_NB] = { 571, 619, 858, 0 };
+  constexpr int ThreeCheckKSFactors[CHECKS_NB] = { 571, 619, 858, 0 };
 #endif
 
 #define S(mg, eg) make_score(mg, eg)
 
   // MobilityBonus[PieceType-2][attacked] contains bonuses for middle and end game,
   // indexed by piece type and number of attacked squares in the mobility area.
-  const Score MobilityBonus[VARIANT_NB][4][32] = {
+  constexpr Score MobilityBonus[VARIANT_NB][4][32] = {
     {
     { S(-75,-76), S(-57,-54), S( -9,-28), S( -2,-10), S(  6,  5), S( 14, 12), // Knights
       S( 22, 26), S( 29, 29), S( 36, 29) },
@@ -428,29 +427,29 @@ namespace {
   // Outpost[knight/bishop][supported by pawn] contains bonuses for minor
   // pieces if they occupy or can reach an outpost square, bigger if that
   // square is supported by a pawn.
-  const Score Outpost[][2] = {
+  constexpr Score Outpost[][2] = {
     { S(22, 6), S(36,12) }, // Knight
     { S( 9, 2), S(15, 5) }  // Bishop
   };
 
   // RookOnFile[semiopen/open] contains bonuses for each rook when there is
   // no (friendly) pawn on the rook file.
-  const Score RookOnFile[] = { S(20, 7), S(45, 20) };
+  constexpr Score RookOnFile[] = { S(20, 7), S(45, 20) };
 
   // ThreatByMinor/ByRook[attacked PieceType] contains bonuses according to
   // which piece type attacks which one. Attacks on lesser pieces which are
   // pawn-defended are not considered.
-  const Score ThreatByMinor[PIECE_TYPE_NB] = {
+  constexpr Score ThreatByMinor[PIECE_TYPE_NB] = {
     S(0, 0), S(0, 31), S(39, 42), S(57, 44), S(68, 112), S(47, 120)
   };
 
-  const Score ThreatByRook[PIECE_TYPE_NB] = {
+  constexpr Score ThreatByRook[PIECE_TYPE_NB] = {
     S(0, 0), S(0, 24), S(38, 71), S(38, 61), S(0, 38), S(36, 38)
   };
 
   // ThreatByKing[on one/on many] contains bonuses for king attacks on
   // pawns or pieces which are not pawn-defended.
-  const Score ThreatByKing[] = { S(3, 65), S(9, 145) };
+  constexpr Score ThreatByKing[] = { S(3, 65), S(9, 145) };
 
 #ifdef ATOMIC
   const Score ThreatByBlast = S(80, 80);
@@ -517,7 +516,7 @@ namespace {
 #endif
 
   // PassedRank[Rank] contains a bonus according to the rank of a passed pawn
-  const Score PassedRank[VARIANT_NB][RANK_NB] = {
+  constexpr Score PassedRank[VARIANT_NB][RANK_NB] = {
     {
     S(0, 0), S(5, 7), S(5, 13), S(32, 42), S(70, 70), S(172, 170), S(217, 269)
     },
@@ -557,20 +556,20 @@ namespace {
   };
 
   // PassedFile[File] contains a bonus according to the file of a passed pawn
-  const Score PassedFile[FILE_NB] = {
+  constexpr Score PassedFile[FILE_NB] = {
     S(  9, 10), S(2, 10), S(1, -8), S(-20,-12),
     S(-20,-12), S(1, -8), S(2, 10), S(  9, 10)
   };
 
   // PassedDanger[Rank] contains a term to weight the passed score
-  const int PassedDanger[RANK_NB] = { 0, 0, 0, 2, 7, 12, 19 };
+  constexpr int PassedDanger[RANK_NB] = { 0, 0, 0, 2, 7, 12, 19 };
 
   // KingProtector[PieceType-2] contains a penalty according to distance from king
-  const Score KingProtector[] = { S(3, 5), S(4, 3), S(3, 0), S(1, -1) };
+  constexpr Score KingProtector[] = { S(3, 5), S(4, 3), S(3, 0), S(1, -1) };
 
   // Assorted bonuses and penalties
-  const Score BishopPawns        = S(  8, 12);
-  const Score CloseEnemies[VARIANT_NB] = {
+  constexpr Score BishopPawns        = S(  8, 12);
+  constexpr Score CloseEnemies[VARIANT_NB] = {
     S( 7,  0),
 #ifdef ANTI
     S( 0,  0),
@@ -606,22 +605,23 @@ namespace {
     S( 7,  0),
 #endif
   };
-  const Score Connectivity       = S(  3,  1);
-  const Score CorneredBishop     = S( 50, 50);
-  const Score Hanging            = S( 52, 30);
-  const Score HinderPassedPawn   = S(  8,  1);
-  const Score KnightOnQueen      = S( 21, 11);
-  const Score LongDiagonalBishop = S( 22,  0);
-  const Score MinorBehindPawn    = S( 16,  0);
-  const Score PawnlessFlank      = S( 20, 80);
-  const Score RookOnPawn         = S(  8, 24);
-  const Score SliderOnQueen      = S( 42, 21);
-  const Score ThreatByPawnPush   = S( 47, 26);
-  const Score ThreatByRank       = S( 16,  3);
-  const Score ThreatBySafePawn   = S(175,168);
-  const Score TrappedRook        = S( 92,  0);
-  const Score WeakQueen          = S( 50, 10);
-  const Score WeakUnopposedPawn  = S(  5, 25);
+  constexpr Score Connectivity       = S(  3,  1);
+  constexpr Score CorneredBishop     = S( 50, 50);
+  constexpr Score Hanging            = S( 52, 30);
+  constexpr Score HinderPassedPawn   = S(  8,  1);
+  constexpr Score KnightOnQueen      = S( 21, 11);
+  constexpr Score LongDiagonalBishop = S( 22,  0);
+  constexpr Score MinorBehindPawn    = S( 16,  0);
+  constexpr Score Overload           = S( 10,  5);
+  constexpr Score PawnlessFlank      = S( 20, 80);
+  constexpr Score RookOnPawn         = S(  8, 24);
+  constexpr Score SliderOnQueen      = S( 42, 21);
+  constexpr Score ThreatByPawnPush   = S( 47, 26);
+  constexpr Score ThreatByRank       = S( 16,  3);
+  constexpr Score ThreatBySafePawn   = S(175,168);
+  constexpr Score TrappedRook        = S( 92,  0);
+  constexpr Score WeakQueen          = S( 50, 10);
+  constexpr Score WeakUnopposedPawn  = S(  5, 25);
 
 #undef S
 
@@ -642,6 +642,7 @@ namespace {
     template<Color Us> Score threats() const;
     template<Color Us> Score passed() const;
     template<Color Us> Score space() const;
+    template<Color Us> Score variant() const;
     ScaleFactor scale_factor(Value eg) const;
     Score initiative(Value eg) const;
 
@@ -691,10 +692,10 @@ namespace {
   template<Tracing T> template<Color Us>
   void Evaluation<T>::initialize() {
 
-    const Color     Them = (Us == WHITE ? BLACK : WHITE);
-    const Direction Up   = (Us == WHITE ? NORTH : SOUTH);
-    const Direction Down = (Us == WHITE ? SOUTH : NORTH);
-    const Bitboard LowRanks = (Us == WHITE ? Rank2BB | Rank3BB: Rank7BB | Rank6BB);
+    constexpr Color     Them = (Us == WHITE ? BLACK : WHITE);
+    constexpr Direction Up   = (Us == WHITE ? NORTH : SOUTH);
+    constexpr Direction Down = (Us == WHITE ? SOUTH : NORTH);
+    constexpr Bitboard LowRanks = (Us == WHITE ? Rank2BB | Rank3BB: Rank7BB | Rank6BB);
 
     // Find our pawns that are blocked or on the first two ranks
     Bitboard b = pos.pieces(Us, PAWN) & (shift<Down>(pos.pieces()) | LowRanks);
@@ -765,6 +766,12 @@ namespace {
         if (relative_rank(Us, pos.square<KING>(Us)) == RANK_1)
             kingRing[Us] |= shift<Up>(kingRing[Us]);
 
+        if (file_of(pos.square<KING>(Us)) == FILE_H)
+            kingRing[Us] |= shift<WEST>(kingRing[Us]);
+
+        else if (file_of(pos.square<KING>(Us)) == FILE_A)
+            kingRing[Us] |= shift<EAST>(kingRing[Us]);
+
         kingAttackersCount[Them] = popcount(attackedBy[Us][KING] & pe->pawn_attacks(Them));
         kingAttacksCount[Them] = kingAttackersWeight[Them] = 0;
     }
@@ -777,14 +784,15 @@ namespace {
   template<Tracing T> template<Color Us, PieceType Pt>
   Score Evaluation<T>::pieces() {
 
-    const Color Them = (Us == WHITE ? BLACK : WHITE);
-    const Bitboard OutpostRanks = (Us == WHITE ? Rank4BB | Rank5BB | Rank6BB
-                                               : Rank5BB | Rank4BB | Rank3BB);
+    constexpr Color Them = (Us == WHITE ? BLACK : WHITE);
+    constexpr Bitboard OutpostRanks = (Us == WHITE ? Rank4BB | Rank5BB | Rank6BB
+                                                   : Rank5BB | Rank4BB | Rank3BB);
     const Square* pl = pos.squares<Pt>(Us);
 
     Bitboard b, bb;
     Square s;
     Score score = SCORE_ZERO;
+    int mob;
 
     attackedBy[Us][Pt] = 0;
 
@@ -813,7 +821,8 @@ namespace {
             kingAttacksCount[Us] += popcount(b & attackedBy[Them][KING]);
         }
 
-        int mob = popcount(b & mobilityArea[Us]);
+        mob = (Pt == KNIGHT || Pt == BISHOP) ? popcount(b & mobilityArea[Us] & ~pos.pieces(Us, QUEEN))
+                                             : popcount(b & mobilityArea[Us]);
 
         mobility[Us] += MobilityBonus[pos.variant()][Pt - 2][mob];
 
@@ -870,7 +879,7 @@ namespace {
 
         if (Pt == ROOK)
         {
-            // Bonus for aligning rook with with enemy pawns on the same rank/file
+            // Bonus for aligning rook with enemy pawns on the same rank/file
             if (relative_rank(Us, s) >= RANK_5)
                 score += RookOnPawn * popcount(pos.pieces(Them, PAWN) & PseudoAttacks[ROOK][s]);
 
@@ -923,9 +932,9 @@ namespace {
         return SCORE_ZERO;
 #endif
 
-    const Color    Them = (Us == WHITE ? BLACK : WHITE);
-    const Bitboard Camp = (Us == WHITE ? AllSquares ^ Rank6BB ^ Rank7BB ^ Rank8BB
-                                       : AllSquares ^ Rank1BB ^ Rank2BB ^ Rank3BB);
+    constexpr Color    Them = (Us == WHITE ? BLACK : WHITE);
+    constexpr Bitboard Camp = (Us == WHITE ? AllSquares ^ Rank6BB ^ Rank7BB ^ Rank8BB
+                                           : AllSquares ^ Rank1BB ^ Rank2BB ^ Rank3BB);
 
     const Square ksq = pos.square<KING>(Us);
     Bitboard weak, b, b1, b2, safe, unsafeChecks, pinned;
@@ -1110,9 +1119,9 @@ namespace {
   template<Tracing T> template<Color Us>
   Score Evaluation<T>::threats() const {
 
-    const Color     Them     = (Us == WHITE ? BLACK   : WHITE);
-    const Direction Up       = (Us == WHITE ? NORTH   : SOUTH);
-    const Bitboard  TRank3BB = (Us == WHITE ? Rank3BB : Rank6BB);
+    constexpr Color     Them     = (Us == WHITE ? BLACK   : WHITE);
+    constexpr Direction Up       = (Us == WHITE ? NORTH   : SOUTH);
+    constexpr Bitboard  TRank3BB = (Us == WHITE ? Rank3BB : Rank6BB);
 
     Bitboard b, weak, defended, nonPawnEnemies, stronglyProtected, safeThreats;
     Score score = SCORE_ZERO;
@@ -1152,6 +1161,7 @@ namespace {
             score += ThreatsAnti[0] * popcount(attackedBy[Them][ALL_PIECES] & (pawnPushes | pieceMoves));
             score += ThreatsAnti[1] * popcount(attackedBy[Them][ALL_PIECES] & (unprotectedPawnPushes | unprotectedPieceMoves));
         }
+        nonPawnEnemies = 0;
         stronglyProtected = 0;
     }
     else
@@ -1171,6 +1181,7 @@ namespace {
                 count--;
             score += std::max(SCORE_ZERO, ThreatByBlast * count);
         }
+        nonPawnEnemies = 0;
         stronglyProtected = 0;
     }
     else
@@ -1208,25 +1219,15 @@ namespace {
             score += ThreatsLosers[0] * popcount(attackedBy[Them][ALL_PIECES] & (pawnPushes | pieceMoves));
             score += ThreatsLosers[1] * popcount(attackedBy[Them][ALL_PIECES] & (unprotectedPawnPushes | unprotectedPieceMoves));
         }
+        nonPawnEnemies = 0;
         stronglyProtected = 0;
     }
     else
 #endif
     {
 
-    // Non-pawn enemies attacked by a pawn
+    // Non-pawn enemies
     nonPawnEnemies = pos.pieces(Them) ^ pos.pieces(Them, PAWN);
-    weak = nonPawnEnemies & attackedBy[Us][PAWN];
-
-    if (weak)
-    {
-        // Our safe or protected pawns
-        b =  pos.pieces(Us, PAWN)
-           & (~attackedBy[Them][ALL_PIECES] | attackedBy[Us][ALL_PIECES]);
-
-        safeThreats = pawn_attacks_bb<Us>(b) & weak;
-        score += ThreatBySafePawn * popcount(safeThreats);
-    }
 
     // Squares strongly protected by the enemy, either because they defend the
     // square with a pawn, or because they defend the square twice and we don't.
@@ -1260,16 +1261,29 @@ namespace {
                 score += ThreatByRank * (int)relative_rank(Them, s);
         }
 
-        score += Hanging * popcount(weak & ~attackedBy[Them][ALL_PIECES]);
-
         b = weak & attackedBy[Us][KING];
         if (b)
             score += ThreatByKing[more_than_one(b)];
+
+        score += Hanging * popcount(weak & ~attackedBy[Them][ALL_PIECES]);
+
+        // Bonus for overload (non-pawn enemies attacked and defended exactly once)
+        b =  nonPawnEnemies
+           & attackedBy[Us][ALL_PIECES]   & ~attackedBy2[Us]
+           & attackedBy[Them][ALL_PIECES] & ~attackedBy2[Them];
+        score += Overload * popcount(b);
     }
 
     // Bonus for enemy unopposed weak pawns
     if (pos.pieces(Us, ROOK, QUEEN))
         score += WeakUnopposedPawn * pe->weak_unopposed(Them);
+
+    // Our safe or protected pawns
+    b =   pos.pieces(Us, PAWN)
+       & (~attackedBy[Them][ALL_PIECES] | attackedBy[Us][ALL_PIECES]);
+
+    safeThreats = pawn_attacks_bb<Us>(b) & nonPawnEnemies;
+    score += ThreatBySafePawn * popcount(safeThreats);
 
     // Find squares where our pawns can push on the next move
     b  = shift<Up>(pos.pieces(Us, PAWN)) & ~pos.pieces();
@@ -1285,61 +1299,6 @@ namespace {
        & ~attackedBy[Us][PAWN];
 
     score += ThreatByPawnPush * popcount(b);
-
-#ifdef THREECHECK
-    if (pos.is_three_check())
-        score += ChecksGivenBonus[pos.checks_given(Us)];
-#endif
-#ifdef HORDE
-    if (pos.is_horde() && pos.is_horde_color(Them))
-    {
-        // Add a bonus according to how close we are to breaking through the pawn wall
-        if (pos.pieces(Us, ROOK) | pos.pieces(Us, QUEEN))
-        {
-            int dist = 8;
-            if ((attackedBy[Us][QUEEN] | attackedBy[Us][ROOK]) & rank_bb(relative_rank(Us, RANK_8)))
-                dist = 0;
-            else
-            {
-                for (File f = FILE_A; f <= FILE_H; ++f)
-                {
-                    int pawns = popcount(pos.pieces(Them, PAWN) & file_bb(f));
-                    int pawnsl = f > FILE_A ? std::min(popcount(pos.pieces(Them, PAWN) & FileBB[f - 1]), pawns) : 0;
-                    int pawnsr = f < FILE_H ? std::min(popcount(pos.pieces(Them, PAWN) & FileBB[f + 1]), pawns) : 0;
-                    dist = std::min(dist, pawnsl + pawnsr);
-                }
-            }
-            score += make_score(71, 61) * pos.count<PAWN>(Them) / (1 + dist) / (pos.pieces(Us, QUEEN) ? 2 : 4);
-        }
-    }
-#endif
-#ifdef RACE
-    if (pos.is_race())
-    {
-        Square ksq = pos.square<KING>(Us);
-        int s = relative_rank(BLACK, ksq);
-        for (Rank kr = rank_of(ksq), r = Rank(kr + 1); r <= RANK_8; ++r)
-            if (!(rank_bb(r) & DistanceRingBB[ksq][r - 1 - kr] & ~attackedBy[Them][ALL_PIECES] & ~pos.pieces(Us)))
-                s++;
-        score += KingRaceBonus[std::min(s, 7)];
-    }
-#endif
-#ifdef KOTH
-    if (pos.is_koth())
-    {
-        Bitboard center = Center;
-        while (center)
-        {
-            Square s = pop_lsb(&center);
-            int dist = distance(pos.square<KING>(Us), s)
-                      + popcount(pos.attackers_to(s) & pos.pieces(Them))
-                      + !!(pos.pieces(Us) & s)
-                      + !!(shift<Up>(pos.pieces(Us, PAWN) & s) & pos.pieces(Them, PAWN));
-            assert(dist > 0);
-            score += KothDistanceBonus[std::min(dist - 1, 5)];
-        }
-    }
-#endif
 
     // Bonus for threats on the next moves against enemy queen
 #ifdef CRAZYHOUSE
@@ -1378,8 +1337,8 @@ namespace {
   template<Tracing T> template<Color Us>
   Score Evaluation<T>::passed() const {
 
-    const Color     Them = (Us == WHITE ? BLACK : WHITE);
-    const Direction Up   = (Us == WHITE ? NORTH : SOUTH);
+    constexpr Color     Them = (Us == WHITE ? BLACK : WHITE);
+    constexpr Direction Up   = (Us == WHITE ? NORTH : SOUTH);
 
     auto king_proximity = [&](Color c, Square s) {
       return std::min(distance(pos.square<KING>(c), s), 5);
@@ -1415,9 +1374,9 @@ namespace {
             {
                 // Assume a horde king distance of approximately 5
                 if (pos.is_horde_color(Us))
-                    bonus += make_score(0, (king_proximity(Them, blockSq) * 5 - 10) * w);
+                    bonus += make_score(0, king_proximity(Them, blockSq) * 5 * w);
                 else
-                    bonus += make_score(0, (25 - king_proximity(Us,   blockSq) * 2) * w);
+                    bonus += make_score(0, 15 * w);
             }
             else
 #endif
@@ -1470,7 +1429,7 @@ namespace {
             }
             else if (pos.pieces(Us) & blockSq)
                 bonus += make_score(w + r * 2, w + r * 2);
-        } // rr != 0
+        } // w != 0
 
         // Scale down bonus for candidate passers which need more than one
         // pawn push to become passed or have a pawn in front of them.
@@ -1498,15 +1457,11 @@ namespace {
   template<Tracing T> template<Color Us>
   Score Evaluation<T>::space() const {
 
-    const Color Them = (Us == WHITE ? BLACK : WHITE);
-    const Bitboard SpaceMask =
+    constexpr Color Them = (Us == WHITE ? BLACK : WHITE);
+    constexpr Bitboard SpaceMask =
       Us == WHITE ? CenterFiles & (Rank2BB | Rank3BB | Rank4BB)
                   : CenterFiles & (Rank7BB | Rank6BB | Rank5BB);
 
-#ifdef HORDE
-    if (pos.is_horde())
-        return SCORE_ZERO;
-#endif
     if (pos.non_pawn_material() < SpaceThreshold[pos.variant()])
         return SCORE_ZERO;
 
@@ -1515,8 +1470,7 @@ namespace {
     // pawn, or if it is undefended and attacked by an enemy piece.
     Bitboard safe =   SpaceMask
                    & ~pos.pieces(Us, PAWN)
-                   & ~attackedBy[Them][PAWN]
-                   & (attackedBy[Us][ALL_PIECES] | ~attackedBy[Them][ALL_PIECES]);
+                   & ~attackedBy[Them][PAWN];
 
     // Find all squares which are at most three squares behind some friendly pawn
     Bitboard behind = pos.pieces(Us, PAWN);
@@ -1526,17 +1480,86 @@ namespace {
     int bonus = popcount(safe) + popcount(behind & safe);
     int weight = pos.count<ALL_PIECES>(Us) - 2 * pe->open_files();
 
-    Score score;
+    Score score = make_score(bonus * weight * weight / 16, 0);
 #ifdef KOTH
     if (pos.is_koth())
-        score = make_score(bonus * weight * weight / 22, 0)
-              + KothSafeCenter * popcount(safe & behind & (Rank4BB | Rank5BB) & (FileDBB | FileEBB));
-    else
+        score += KothSafeCenter * popcount(behind & safe & Center);
 #endif
-    score = make_score(bonus * weight * weight / 16, 0);
 
     if (T)
         Trace::add(SPACE, Us, score);
+
+    return score;
+  }
+
+  // Evaluation::variant() computes variant-specific evaluation terms.
+
+  template<Tracing T> template<Color Us>
+  Score Evaluation<T>::variant() const {
+
+    constexpr Color Them = (Us == WHITE ? BLACK : WHITE);
+
+    Score score = SCORE_ZERO;
+
+#ifdef HORDE
+    if (pos.is_horde() && pos.is_horde_color(Them))
+    {
+        // Add a bonus according to how close we are to breaking through the pawn wall
+        if (pos.pieces(Us, ROOK) | pos.pieces(Us, QUEEN))
+        {
+            int dist = 8;
+            if ((attackedBy[Us][QUEEN] | attackedBy[Us][ROOK]) & rank_bb(relative_rank(Us, RANK_8)))
+                dist = 0;
+            else
+            {
+                for (File f = FILE_A; f <= FILE_H; ++f)
+                {
+                    int pawns = popcount(pos.pieces(Them, PAWN) & file_bb(f));
+                    int pawnsl = f > FILE_A ? std::min(popcount(pos.pieces(Them, PAWN) & FileBB[f - 1]), pawns) : 0;
+                    int pawnsr = f < FILE_H ? std::min(popcount(pos.pieces(Them, PAWN) & FileBB[f + 1]), pawns) : 0;
+                    dist = std::min(dist, pawnsl + pawnsr);
+                }
+            }
+            score += make_score(71, 61) * pos.count<PAWN>(Them) / (1 + dist) / (pos.pieces(Us, QUEEN) ? 2 : 4);
+        }
+    }
+#endif
+#ifdef KOTH
+    if (pos.is_koth())
+    {
+        constexpr Direction Up = (Us == WHITE ? NORTH : SOUTH);
+        Bitboard pinned = pos.blockers_for_king(Them) & pos.pieces(Them);
+        Bitboard center = Center;
+        while (center)
+        {
+            Square s = pop_lsb(&center);
+            int dist = distance(pos.square<KING>(Us), s)
+                      + ((pinned || (attackedBy[Them][ALL_PIECES] & s)) ? popcount(pos.attackers_to(s) & pos.pieces(Them)) : 0)
+                      + !!(pos.pieces(Us) & s)
+                      + !!(shift<Up>(pos.pieces(Us, PAWN) & s) & pos.pieces(Them, PAWN));
+            assert(dist > 0);
+            score += KothDistanceBonus[std::min(dist - 1, 5)];
+        }
+    }
+#endif
+#ifdef RACE
+    if (pos.is_race())
+    {
+        Square ksq = pos.square<KING>(Us);
+        int s = relative_rank(BLACK, ksq);
+        for (Rank kr = rank_of(ksq), r = Rank(kr + 1); r <= RANK_8; ++r)
+            if (!(rank_bb(r) & DistanceRingBB[ksq][r - 1 - kr] & ~attackedBy[Them][ALL_PIECES] & ~pos.pieces(Us)))
+                s++;
+        score += KingRaceBonus[std::min(s, 7)];
+    }
+#endif
+#ifdef THREECHECK
+    if (pos.is_three_check())
+        score += ChecksGivenBonus[pos.checks_given(Us)];
+#endif
+
+    if (T)
+        Trace::add(VARIANT, Us, score);
 
     return score;
   }
@@ -1614,11 +1637,10 @@ namespace {
 #endif
         if (pos.opposite_bishops())
         {
-            // Endgame with opposite-colored bishops and no other pieces (ignoring pawns)
-            // is almost a draw, in case of KBP vs KB, it is even more a draw.
+            // Endgame with opposite-colored bishops and no other pieces is almost a draw
             if (   pos.non_pawn_material(WHITE) == BishopValueMg
                 && pos.non_pawn_material(BLACK) == BishopValueMg)
-                sf = more_than_one(pos.pieces(PAWN)) ? 31 : 9;
+                sf = 31;
 
             // Endgame with opposite-colored bishops, but also other pieces. Still
             // a bit drawish, but not as drawish as with only the two bishops.
@@ -1660,7 +1682,7 @@ namespace {
     // Initialize score by reading the incrementally updated scores included in
     // the position object (material + piece square tables) and the material
     // imbalance. Score is computed internally from the white point of view.
-    Score score = pos.psq_score() + me->imbalance() + Eval::Contempt;
+    Score score = pos.psq_score() + me->imbalance() + pos.this_thread()->contempt;
 
     // Probe the pawn hash table
     pe = Pawns::probe(pos);
@@ -1699,6 +1721,9 @@ namespace {
             + threats<WHITE>() - threats<BLACK>()
             + passed< WHITE>() - passed< BLACK>()
             + space<  WHITE>() - space<  BLACK>();
+
+    if (pos.variant() != CHESS_VARIANT)
+        score += variant<WHITE>() - variant<BLACK>();
 
     score += initiative(eg_value(score));
 
@@ -1742,7 +1767,7 @@ std::string Eval::trace(const Position& pos) {
 
   std::memset(scores, 0, sizeof(scores));
 
-  Eval::Contempt = SCORE_ZERO; // Reset any dynamic contempt
+  pos.this_thread()->contempt = SCORE_ZERO; // Reset any dynamic contempt
 
   Value v = Evaluation<TRACE>(pos).value();
 
@@ -1766,6 +1791,7 @@ std::string Eval::trace(const Position& pos) {
      << "     Threats | " << Term(THREAT)
      << "      Passed | " << Term(PASSED)
      << "       Space | " << Term(SPACE)
+     << "     Variant | " << Term(VARIANT)
      << " ------------+-------------+-------------+------------\n"
      << "       Total | " << Term(TOTAL);
 

@@ -226,7 +226,6 @@ public:
   bool is_koth() const;
   bool is_koth_win() const;
   bool is_koth_loss() const;
-  int koth_distance(Color c) const;
 #endif
 #ifdef LOSERS
   bool is_losers() const;
@@ -268,6 +267,7 @@ public:
 #endif
   Thread* this_thread() const;
   bool is_draw(int ply) const;
+  bool has_repeated() const;
   int rule50_count() const;
   Score psq_score() const;
   Value non_pawn_material(Color c) const;
@@ -337,7 +337,7 @@ inline Piece Position::piece_on(Square s) const {
 
 inline Piece Position::moved_piece(Move m) const {
 #ifdef CRAZYHOUSE
-  if (is_house() && type_of(m) == DROP)
+  if (type_of(m) == DROP)
       return dropped_piece(m);
 #endif
   return board[from_sq(m)];
@@ -852,12 +852,6 @@ inline bool Position::is_koth_loss() const {
   Square ksq = square<KING>(~sideToMove);
   return (rank_of(ksq) == RANK_4 || rank_of(ksq) == RANK_5) &&
          (file_of(ksq) == FILE_D || file_of(ksq) == FILE_E);
-}
-
-inline int Position::koth_distance(Color c) const {
-  Square ksq = square<KING>(c);
-  return (distance(ksq, SQ_D4) + distance(ksq, SQ_E4) +
-          distance(ksq, SQ_D5) + distance(ksq, SQ_E5)) / 4;
 }
 #endif
 

@@ -32,7 +32,7 @@ namespace {
   #define S(mg, eg) make_score(mg, eg)
 
   // Isolated pawn penalty
-  const Score Isolated[VARIANT_NB] = {
+  constexpr Score Isolated[VARIANT_NB] = {
     S(13, 18),
 #ifdef ANTI
     S(54, 69),
@@ -70,7 +70,7 @@ namespace {
   };
 
   // Backward pawn penalty
-  const Score Backward[VARIANT_NB] = {
+  constexpr Score Backward[VARIANT_NB] = {
     S(24, 12),
 #ifdef ANTI
     S(26, 50),
@@ -111,7 +111,7 @@ namespace {
   Score Connected[VARIANT_NB][2][2][3][RANK_NB];
 
   // Doubled pawn penalty
-  const Score Doubled[VARIANT_NB] = {
+  constexpr Score Doubled[VARIANT_NB] = {
     S(18, 38),
 #ifdef ANTI
     S( 4, 51),
@@ -150,7 +150,7 @@ namespace {
 
   // Weakness of our pawn shelter in front of the king by [isKingFile][distance from edge][rank].
   // RANK_1 = 0 is used for files where we have no pawns or our pawn is behind our king.
-  const Value ShelterWeakness[VARIANT_NB][2][int(FILE_NB) / 2][RANK_NB] = {
+  constexpr Value ShelterWeakness[VARIANT_NB][2][int(FILE_NB) / 2][RANK_NB] = {
   {
     { { V( 98), V(20), V(11), V(42), V( 83), V( 84), V(101) }, // Not On King file
       { V(103), V( 8), V(33), V(86), V( 87), V(105), V(113) },
@@ -260,9 +260,9 @@ namespace {
   };
 
   // Danger of enemy pawns moving toward our king by [type][distance from edge][rank].
-  // For the unopposed and unblocked cases, RANK_1 = 0 is used when opponent has no pawn
-  // on the given file, or their pawn is behind our king.
-  const Value StormDanger[VARIANT_NB][4][4][RANK_NB] = {
+  // For the unopposed and unblocked cases, RANK_1 = 0 is used when opponent has
+  // no pawn on the given file, or their pawn is behind our king.
+  constexpr Value StormDanger[VARIANT_NB][4][4][RANK_NB] = {
   {
     { { V( 0),  V(-290), V(-274), V(57), V(41) },  // BlockedByKing
       { V( 0),  V(  60), V( 144), V(39), V(13) },
@@ -272,10 +272,10 @@ namespace {
       { V( 1),  V(  64), V( 143), V(26), V(13) },
       { V( 1),  V(  47), V( 110), V(44), V(24) },
       { V( 0),  V(  72), V( 127), V(50), V(31) } },
-    { { V( 0),  V(   0), V(  79), V(23), V( 1) },  // BlockedByPawn
-      { V( 0),  V(   0), V( 148), V(27), V( 2) },
-      { V( 0),  V(   0), V( 161), V(16), V( 1) },
-      { V( 0),  V(   0), V( 171), V(22), V(15) } },
+    { { V( 0),  V(   0), V(  19), V(23), V( 1) },  // BlockedByPawn
+      { V( 0),  V(   0), V(  88), V(27), V( 2) },
+      { V( 0),  V(   0), V( 101), V(16), V( 1) },
+      { V( 0),  V(   0), V( 111), V(22), V(15) } },
     { { V(22),  V(  45), V( 104), V(62), V( 6) },  // Unblocked
       { V(31),  V(  30), V(  99), V(39), V(19) },
       { V(23),  V(  29), V(  96), V(41), V(15) },
@@ -454,7 +454,7 @@ namespace {
 
   // Max bonus for king safety. Corresponds to start position with all the pawns
   // in front of the king and no enemy pawn on the horizon.
-  const Value MaxSafetyBonus = V(258);
+  constexpr Value MaxSafetyBonus = V(258);
 
 #ifdef HORDE
   const Score ImbalancedHorde = S(49, 39);
@@ -466,8 +466,8 @@ namespace {
   template<Color Us>
   Score evaluate(const Position& pos, Pawns::Entry* e) {
 
-    const Color     Them = (Us == WHITE ? BLACK : WHITE);
-    const Direction Up   = (Us == WHITE ? NORTH : SOUTH);
+    constexpr Color     Them = (Us == WHITE ? BLACK : WHITE);
+    constexpr Direction Up   = (Us == WHITE ? NORTH : SOUTH);
 
     Bitboard b, neighbours, stoppers, doubled, supported, phalanx;
     Bitboard lever, leverPush;
@@ -556,7 +556,7 @@ namespace {
         // not attacked more times than defended.
         if (   !(stoppers ^ lever ^ leverPush)
             && !(ourPawns & forward_file_bb(Us, s))
-            && popcount(supported) >= popcount(lever)
+            && popcount(supported) >= popcount(lever) - 1
             && popcount(phalanx)   >= popcount(leverPush))
             e->passedPawns[Us] |= s;
 
@@ -603,7 +603,7 @@ namespace Pawns {
 
 void init() {
 
-  static const int Seed[VARIANT_NB][RANK_NB] = {
+  static constexpr int Seed[VARIANT_NB][RANK_NB] = {
     { 0, 13, 24, 18, 76, 100, 175, 330 },
 #ifdef ANTI
     { 0, 8, 19, 13, 71, 94, 169, 324 },
@@ -689,24 +689,17 @@ Entry* probe(const Position& pos) {
 template<Color Us>
 Value Entry::shelter_storm(const Position& pos, Square ksq) {
 
-  constexpr Color Them = (Us == WHITE ? BLACK : WHITE);
-  constexpr Bitboard ShelterMask =
-                Us == WHITE ? make_bitboard(SQ_A2, SQ_B3, SQ_C2, SQ_F2, SQ_G3, SQ_H2)
-                            : make_bitboard(SQ_A7, SQ_B6, SQ_C7, SQ_F7, SQ_G6, SQ_H7);
-  constexpr Bitboard StormMask =
-                Us == WHITE ? make_bitboard(SQ_A3, SQ_C3, SQ_F3, SQ_H3)
-                            : make_bitboard(SQ_A6, SQ_C6, SQ_F6, SQ_H6);
+  constexpr Color     Them = (Us == WHITE ? BLACK : WHITE);
+  constexpr Direction Down = (Us == WHITE ? SOUTH : NORTH);
 
   enum { BlockedByKing, Unopposed, BlockedByPawn, Unblocked };
 
-  File center = std::max(FILE_B, std::min(FILE_G, file_of(ksq)));
-  Bitboard b =   pos.pieces(PAWN)
-               & (forward_ranks_bb(Us, ksq) | rank_bb(ksq))
-               & (adjacent_files_bb(center) | file_bb(center));
+  Bitboard b = pos.pieces(PAWN) & (forward_ranks_bb(Us, ksq) | rank_bb(ksq));
   Bitboard ourPawns = b & pos.pieces(Us);
   Bitboard theirPawns = b & pos.pieces(Them);
   Value safety = MaxSafetyBonus;
 
+  File center = std::max(FILE_B, std::min(FILE_G, file_of(ksq)));
   for (File f = File(center - 1); f <= File(center + 1); ++f)
   {
       b = ourPawns & file_bb(f);
@@ -718,14 +711,11 @@ Value Entry::shelter_storm(const Position& pos, Square ksq) {
       int d = std::min(f, ~f);
       safety -=  ShelterWeakness[pos.variant()][f == file_of(ksq)][d][rkUs]
                + StormDanger[pos.variant()]
-                 [f == file_of(ksq) && rkThem == relative_rank(Us, ksq) + 1 ? BlockedByKing  :
-                  rkUs   == RANK_1                                          ? Unopposed :
-                  rkThem == rkUs + 1                                        ? BlockedByPawn  : Unblocked]
+                 [(shift<Down>(b) & ksq) ? BlockedByKing :
+                  rkUs   == RANK_1       ? Unopposed     :
+                  rkThem == (rkUs + 1)   ? BlockedByPawn : Unblocked]
                  [d][rkThem];
   }
-
-  if (popcount((ourPawns & ShelterMask) | (theirPawns & StormMask)) == 5)
-      safety += Value(300);
 
   return safety;
 }

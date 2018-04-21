@@ -82,32 +82,32 @@
 #endif
 
 #ifdef USE_POPCNT
-const bool HasPopCnt = true;
+constexpr bool HasPopCnt = true;
 #else
-const bool HasPopCnt = false;
+constexpr bool HasPopCnt = false;
 #endif
 
 #ifdef USE_PEXT
-const bool HasPext = true;
+constexpr bool HasPext = true;
 #else
-const bool HasPext = false;
+constexpr bool HasPext = false;
 #endif
 
 #ifdef IS_64BIT
-const bool Is64Bit = true;
+constexpr bool Is64Bit = true;
 #else
-const bool Is64Bit = false;
+constexpr bool Is64Bit = false;
 #endif
 
 typedef uint64_t Key;
 typedef uint64_t Bitboard;
 
 #if defined(CRAZYHOUSE) || defined(HORDE)
-const int MAX_MOVES = 512;
+constexpr int MAX_MOVES = 512;
 #else
-const int MAX_MOVES = 256;
+constexpr int MAX_MOVES = 256;
 #endif
-const int MAX_PLY   = 128;
+constexpr int MAX_PLY   = 128;
 
 enum Variant {
   //main variants
@@ -340,7 +340,7 @@ enum Value : int {
   KnightValueMg = 764,   KnightValueEg = 848,
   BishopValueMg = 826,   BishopValueEg = 891,
   RookValueMg   = 1282,  RookValueEg   = 1373,
-  QueenValueMg  = 2526,  QueenValueEg  = 2646,
+  QueenValueMg  = 2500,  QueenValueEg  = 2670,
 #ifdef ANTI
   PawnValueMgAnti   = -108,  PawnValueEgAnti   = -165,
   KnightValueMgAnti = -155,  KnightValueEgAnti = 194,
@@ -357,11 +357,11 @@ enum Value : int {
   QueenValueMgAtomic  = 1447,  QueenValueEgAtomic  = 1892,
 #endif
 #ifdef CRAZYHOUSE
-  PawnValueMgHouse   = 140,   PawnValueEgHouse   = 232,
-  KnightValueMgHouse = 441,   KnightValueEgHouse = 538,
-  BishopValueMgHouse = 464,   BishopValueEgHouse = 508,
-  RookValueMgHouse   = 673,   RookValueEgHouse   = 727,
-  QueenValueMgHouse  = 832,   QueenValueEgHouse  = 1046,
+  PawnValueMgHouse   = 149,   PawnValueEgHouse   = 206,
+  KnightValueMgHouse = 447,   KnightValueEgHouse = 527,
+  BishopValueMgHouse = 450,   BishopValueEgHouse = 521,
+  RookValueMgHouse   = 619,   RookValueEgHouse   = 669,
+  QueenValueMgHouse  = 878,   QueenValueEgHouse  = 965,
 #endif
 #ifdef EXTINCTION
   PawnValueMgExtinction   = 209,   PawnValueEgExtinction   = 208,
@@ -414,12 +414,12 @@ enum Value : int {
   QueenValueMgThreeCheck  = 1947,  QueenValueEgThreeCheck  = 2323,
 #endif
 #ifdef TWOKINGS
-  PawnValueMgTwoKings   = 196,   PawnValueEgTwoKings   = 275,
-  KnightValueMgTwoKings = 851,   KnightValueEgTwoKings = 872,
-  BishopValueMgTwoKings = 917,   BishopValueEgTwoKings = 904,
-  RookValueMgTwoKings   = 1320,  RookValueEgTwoKings   = 1374,
-  QueenValueMgTwoKings  = 2409,  QueenValueEgTwoKings  = 2832,
-  KingValueMgTwoKings   = 622,   KingValueEgTwoKings   = 793,
+  PawnValueMgTwoKings   = 206,   PawnValueEgTwoKings   = 265,
+  KnightValueMgTwoKings = 887,   KnightValueEgTwoKings = 871,
+  BishopValueMgTwoKings = 940,   BishopValueEgTwoKings = 898,
+  RookValueMgTwoKings   = 1360,  RookValueEgTwoKings   = 1415,
+  QueenValueMgTwoKings  = 2455,  QueenValueEgTwoKings  = 2846,
+  KingValueMgTwoKings   = 554,   KingValueEgTwoKings   = 806,
 #endif
 
   MidgameLimit  = 15258, EndgameLimit  = 3915
@@ -490,10 +490,10 @@ enum Rank : int {
 };
 
 
-/// Score enum stores a middlegame and an endgame value in a single integer
-/// (enum). The least significant 16 bits are used to store the endgame value
-/// and the upper 16 bits are used to store the middlegame value. Take some
-/// care to avoid left-shifting a signed int to avoid undefined behavior.
+/// Score enum stores a middlegame and an endgame value in a single integer (enum).
+/// The least significant 16 bits are used to store the middlegame value and the
+/// upper 16 bits are used to store the endgame value. We have to take care to
+/// avoid left-shifting a signed int to avoid undefined behavior.
 enum Score : int { SCORE_ZERO };
 
 constexpr Score make_score(int mg, int eg) {
