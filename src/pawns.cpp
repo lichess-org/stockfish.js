@@ -148,44 +148,32 @@ namespace {
 #endif
   };
 
-  // Weakness of our pawn shelter in front of the king by [isKingFile][distance from edge][rank].
-  // RANK_1 = 0 is used for files where we have no pawns or our pawn is behind our king.
-  constexpr Value ShelterWeakness[VARIANT_NB][2][int(FILE_NB) / 2][RANK_NB] = {
+  // Strength of pawn shelter for our king by [distance from edge][rank].
+  // RANK_1 = 0 is used for files where we have no pawn, or pawn is behind our king.
+  constexpr Value ShelterStrength[VARIANT_NB][int(FILE_NB) / 2][RANK_NB] = {
   {
-    { { V( 98), V(20), V(11), V(42), V( 83), V( 84), V(101) }, // Not On King file
-      { V(103), V( 8), V(33), V(86), V( 87), V(105), V(113) },
-      { V(100), V( 2), V(65), V(95), V( 59), V( 89), V(115) },
-      { V( 72), V( 6), V(52), V(74), V( 83), V( 84), V(112) } },
-    { { V(105), V(19), V( 3), V(27), V( 85), V( 93), V( 84) }, // On King file
-      { V(121), V( 7), V(33), V(95), V(112), V( 86), V( 72) },
-      { V(121), V(26), V(65), V(90), V( 65), V( 76), V(117) },
-      { V( 79), V( 0), V(45), V(65), V( 94), V( 92), V(105) } }
+    { V( -9), V(64), V(77), V( 44), V( 4), V( -1), V(-11) },
+    { V(-15), V(83), V(51), V(-10), V( 1), V(-10), V(-28) },
+    { V(-18), V(84), V(27), V(-12), V(21), V( -7), V(-36) },
+    { V( 12), V(79), V(25), V( 19), V( 9), V( -6), V(-33) }
   },
 #ifdef ANTI
   {},
 #endif
 #ifdef ATOMIC
   {
-    { { V( 88), V(34), V( 5), V(44), V( 89), V( 90), V( 94) }, // Not On King file
-      { V(116), V(61), V(-4), V(80), V( 95), V(101), V(104) },
-      { V( 97), V(68), V(34), V(82), V( 62), V(104), V(110) },
-      { V(103), V(44), V(44), V(77), V(103), V( 66), V(118) } },
-    { { V( 88), V(34), V( 5), V(44), V( 89), V( 90), V( 94) }, // On King file
-      { V(116), V(61), V(-4), V(80), V( 95), V(101), V(104) },
-      { V( 97), V(68), V(34), V(82), V( 62), V(104), V(110) },
-      { V(103), V(44), V(44), V(77), V(103), V( 66), V(118) } }
+    { V( -9), V(64), V(77), V( 44), V( 4), V( -1), V(-11) },
+    { V(-15), V(83), V(51), V(-10), V( 1), V(-10), V(-28) },
+    { V(-18), V(84), V(27), V(-12), V(21), V( -7), V(-36) },
+    { V( 12), V(79), V(25), V( 19), V( 9), V( -6), V(-33) }
   },
 #endif
 #ifdef CRAZYHOUSE
   {
-    { { V(148), V(  7), V( 84), V(141), V(156), V(177), V(326) }, // Not On King file
-      { V(288), V( -3), V(141), V(216), V(182), V(213), V(162) },
-      { V(190), V( 48), V(140), V(167), V(254), V(186), V(247) },
-      { V(142), V(129), V( 90), V(164), V(141), V(116), V(289) } },
-    { { V(145), V(-56), V( 20), V(134), V(126), V(166), V(309) }, // On King file
-      { V(290), V(  0), V(144), V(222), V(177), V(210), V(161) },
-      { V(205), V( 46), V(118), V(163), V(235), V(165), V(244) },
-      { V(154), V( 84), V( 87), V(188), V(105), V(177), V(275) } }
+    { V(-48), V(138), V(80), V( 48), V( 5), V( -7), V(  9) },
+    { V(-78), V(116), V(20), V( -2), V(14), V(  6), V(-36) },
+    { V(-69), V( 99), V(12), V(-19), V(38), V( 22), V(-50) },
+    { V( -6), V( 95), V( 9), V(  4), V(-2), V(  2), V(-37) }
   },
 #endif
 #ifdef EXTINCTION
@@ -193,41 +181,34 @@ namespace {
 #endif
 #ifdef GRID
   {
-    { { V( 97), V(17), V( 9), V(44), V( 84), V( 87), V( 99) }, // Not On King file
-      { V(106), V( 6), V(33), V(86), V( 87), V(104), V(112) },
-      { V(101), V( 2), V(65), V(98), V( 58), V( 89), V(115) },
-      { V( 73), V( 7), V(54), V(73), V( 84), V( 83), V(111) } },
-    { { V(104), V(20), V( 6), V(27), V( 86), V( 93), V( 82) }, // On King file
-      { V(123), V( 9), V(34), V(96), V(112), V( 88), V( 75) },
-      { V(120), V(25), V(65), V(91), V( 66), V( 78), V(117) },
-      { V( 81), V( 2), V(47), V(63), V( 94), V( 93), V(104) } }
+    { V( -9), V(64), V(77), V( 44), V( 4), V( -1), V(-11) },
+    { V(-15), V(83), V(51), V(-10), V( 1), V(-10), V(-28) },
+    { V(-18), V(84), V(27), V(-12), V(21), V( -7), V(-36) },
+    { V( 12), V(79), V(25), V( 19), V( 9), V( -6), V(-33) }
   },
 #endif
 #ifdef HORDE
-  {},
+  {
+    { V( -9), V(64), V(77), V( 44), V( 4), V( -1), V(-11) },
+    { V(-15), V(83), V(51), V(-10), V( 1), V(-10), V(-28) },
+    { V(-18), V(84), V(27), V(-12), V(21), V( -7), V(-36) },
+    { V( 12), V(79), V(25), V( 19), V( 9), V( -6), V(-33) }
+  },
 #endif
 #ifdef KOTH
   {
-    { { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) }, // Not On King file
-      { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
-      { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
-      { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) } },
-    { { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) }, // On King file
-      { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
-      { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
-      { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) } },
+    { V( -9), V(64), V(77), V( 44), V( 4), V( -1), V(-11) },
+    { V(-15), V(83), V(51), V(-10), V( 1), V(-10), V(-28) },
+    { V(-18), V(84), V(27), V(-12), V(21), V( -7), V(-36) },
+    { V( 12), V(79), V(25), V( 19), V( 9), V( -6), V(-33) }
   },
 #endif
 #ifdef LOSERS
   {
-    { { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) }, // Not On King file
-      { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
-      { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
-      { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) } },
-    { { V(100), V(20), V(10), V(46), V(82), V( 86), V( 98) }, // On King file
-      { V(116), V( 4), V(28), V(87), V(94), V(108), V(104) },
-      { V(109), V( 1), V(59), V(87), V(62), V( 91), V(116) },
-      { V( 75), V(12), V(43), V(59), V(90), V( 84), V(112) } }
+    { V( -9), V(64), V(77), V( 44), V( 4), V( -1), V(-11) },
+    { V(-15), V(83), V(51), V(-10), V( 1), V(-10), V(-28) },
+    { V(-18), V(84), V(27), V(-12), V(21), V( -7), V(-36) },
+    { V( 12), V(79), V(25), V( 19), V( 9), V( -6), V(-33) }
   },
 #endif
 #ifdef RACE
@@ -235,26 +216,18 @@ namespace {
 #endif
 #ifdef THREECHECK
   {
-    { { V(140), V( 11), V(38), V( 26), V( 99), V( 94), V( 95) }, // Not On King file
-      { V(104), V( 14), V(28), V(128), V( 86), V(107), V(115) },
-      { V(144), V( 59), V(89), V( 97), V( 39), V( 85), V(114) },
-      { V(103), V( 24), V(76), V( 96), V(115), V( 98), V(127) } },
-    { { V(115), V(-16), V(13), V( 38), V(115), V( 76), V( 92) }, // On King file
-      { V(166), V( 20), V(51), V(111), V( 98), V(113), V(114) },
-      { V(102), V( 29), V(76), V( 75), V( 60), V( 99), V( 96) },
-      { V( 89), V( 18), V(44), V(112), V( 77), V(114), V(115) } }
+    { V( -9), V(64), V(77), V( 44), V( 4), V( -1), V(-11) },
+    { V(-15), V(83), V(51), V(-10), V( 1), V(-10), V(-28) },
+    { V(-18), V(84), V(27), V(-12), V(21), V( -7), V(-36) },
+    { V( 12), V(79), V(25), V( 19), V( 9), V( -6), V(-33) }
   },
 #endif
 #ifdef TWOKINGS
   {
-    { { V( 97), V(17), V( 9), V(44), V( 84), V( 87), V( 99) }, // Not On King file
-      { V(106), V( 6), V(33), V(86), V( 87), V(104), V(112) },
-      { V(101), V( 2), V(65), V(98), V( 58), V( 89), V(115) },
-      { V( 73), V( 7), V(54), V(73), V( 84), V( 83), V(111) } },
-    { { V(104), V(20), V( 6), V(27), V( 86), V( 93), V( 82) }, // On King file
-      { V(123), V( 9), V(34), V(96), V(112), V( 88), V( 75) },
-      { V(120), V(25), V(65), V(91), V( 66), V( 78), V(117) },
-      { V( 81), V( 2), V(47), V(63), V( 94), V( 93), V(104) } }
+    { V( -9), V(64), V(77), V( 44), V( 4), V( -1), V(-11) },
+    { V(-15), V(83), V(51), V(-10), V( 1), V(-10), V(-28) },
+    { V(-18), V(84), V(27), V(-12), V(21), V( -7), V(-36) },
+    { V( 12), V(79), V(25), V( 19), V( 9), V( -6), V(-33) }
   },
 #endif
   };
@@ -262,12 +235,8 @@ namespace {
   // Danger of enemy pawns moving toward our king by [type][distance from edge][rank].
   // For the unopposed and unblocked cases, RANK_1 = 0 is used when opponent has
   // no pawn on the given file, or their pawn is behind our king.
-  constexpr Value StormDanger[VARIANT_NB][4][4][RANK_NB] = {
+  constexpr Value StormDanger[VARIANT_NB][3][4][RANK_NB] = {
   {
-    { { V( 0),  V(-290), V(-274), V(57), V(41) },  // BlockedByKing
-      { V( 0),  V(  60), V( 144), V(39), V(13) },
-      { V( 0),  V(  65), V( 141), V(41), V(34) },
-      { V( 0),  V(  53), V( 127), V(56), V(14) } },
     { { V( 4),  V(  73), V( 132), V(46), V(31) },  // Unopposed
       { V( 1),  V(  64), V( 143), V(26), V(13) },
       { V( 1),  V(  47), V( 110), V(44), V(24) },
@@ -286,10 +255,6 @@ namespace {
 #endif
 #ifdef ATOMIC
   {
-    { { V(-25),  V(-332), V(-235), V( 79), V( 41) },  // BlockedByKing
-      { V(-17),  V(  35), V( 206), V(-21), V(-11) },
-      { V(-31),  V(  52), V( 103), V( 42), V( 94) },
-      { V( -5),  V( 101), V(  67), V( 29), V( 64) } },
     { { V(-47),  V(  62), V( 114), V( 16), V( 13) },  // Unopposed
       { V( 82),  V(  41), V( 161), V( 48), V( 35) },
       { V( 44),  V(  56), V( 115), V( 17), V( 48) },
@@ -306,10 +271,6 @@ namespace {
 #endif
 #ifdef CRAZYHOUSE
   {
-    { { V( -54),  V(-364), V(-273), V( -2), V( 72) },  // BlockedByKing
-      { V( -35),  V(  99), V( 123), V( 85), V(-25) },
-      { V(   4),  V(  51), V( 136), V(111), V(149) },
-      { V( -55),  V(  26), V( 164), V( 74), V( 67) } },
     { { V( 106),  V(  88), V( 213), V( 68), V( 47) },  // Unopposed
       { V( -82),  V( 122), V(  92), V(148), V(  6) },
       { V(  25),  V(   3), V( 120), V(141), V( 22) },
@@ -329,10 +290,6 @@ namespace {
 #endif
 #ifdef GRID
   {
-    { { V( 0),  V(-290), V(-274), V(57), V(41) },  // BlockedByKing
-      { V( 0),  V(  60), V( 144), V(39), V(13) },
-      { V( 0),  V(  65), V( 141), V(41), V(34) },
-      { V( 0),  V(  53), V( 127), V(56), V(14) } },
     { { V( 4),  V(  73), V( 132), V(46), V(31) },  // Unopposed
       { V( 1),  V(  64), V( 143), V(26), V(13) },
       { V( 1),  V(  47), V( 110), V(44), V(24) },
@@ -349,10 +306,6 @@ namespace {
 #endif
 #ifdef HORDE
   {
-    { { V(-11),  V(-364), V(-337), V( 43), V( 69) },  // BlockedByKing
-      { V(-24),  V(   2), V( 133), V(-33), V(-73) },
-      { V(  9),  V(  72), V( 152), V( 99), V( 66) },
-      { V( 71),  V(  18), V(  38), V( 30), V( 69) } },
     { { V( 18),  V( -11), V( 131), V( 42), V(114) },  // Unopposed
       { V( -4),  V(  63), V( -77), V( 62), V( 28) },
       { V( 66),  V(  82), V(  43), V( 11), V( 95) },
@@ -369,10 +322,6 @@ namespace {
 #endif
 #ifdef KOTH
   {
-    { { V( 0),  V(-290), V(-274), V(57), V(41) },  // BlockedByKing
-      { V( 0),  V(  60), V( 144), V(39), V(13) },
-      { V( 0),  V(  65), V( 141), V(41), V(34) },
-      { V( 0),  V(  53), V( 127), V(56), V(14) } },
     { { V( 4),  V(  73), V( 132), V(46), V(31) },  // Unopposed
       { V( 1),  V(  64), V( 143), V(26), V(13) },
       { V( 1),  V(  47), V( 110), V(44), V(24) },
@@ -389,10 +338,6 @@ namespace {
 #endif
 #ifdef LOSERS
   {
-    { { V( 0),  V(-290), V(-274), V(57), V(41) },  // BlockedByKing
-      { V( 0),  V(  60), V( 144), V(39), V(13) },
-      { V( 0),  V(  65), V( 141), V(41), V(34) },
-      { V( 0),  V(  53), V( 127), V(56), V(14) } },
     { { V( 4),  V(  73), V( 132), V(46), V(31) },  // Unopposed
       { V( 1),  V(  64), V( 143), V(26), V(13) },
       { V( 1),  V(  47), V( 110), V(44), V(24) },
@@ -412,10 +357,6 @@ namespace {
 #endif
 #ifdef THREECHECK
   {
-    { { V(-40),  V(-310), V(-236), V( 86), V(107) },  // BlockedByKing
-      { V( 24),  V(  80), V( 168), V( 38), V( -4) },
-      { V( 16),  V( -41), V( 171), V( 63), V( 19) },
-      { V( 12),  V(  80), V( 182), V( 36), V(-16) } },
     { { V( 27),  V( -18), V( 175), V( 31), V( 29) },  // Unopposed
       { V(106),  V(  81), V( 106), V( 86), V( 19) },
       { V( 42),  V(  62), V(  96), V( 84), V( 40) },
@@ -432,10 +373,6 @@ namespace {
 #endif
 #ifdef TWOKINGS
   {
-    { { V( 0),  V(-290), V(-274), V(57), V(41) },  // BlockedByKing
-      { V( 0),  V(  60), V( 144), V(39), V(13) },
-      { V( 0),  V(  65), V( 141), V(41), V(34) },
-      { V( 0),  V(  53), V( 127), V(56), V(14) } },
     { { V( 4),  V(  73), V( 132), V(46), V(31) },  // Unopposed
       { V( 1),  V(  64), V( 143), V(26), V(13) },
       { V( 1),  V(  47), V( 110), V(44), V(24) },
@@ -452,12 +389,8 @@ namespace {
 #endif
   };
 
-  // Max bonus for king safety. Corresponds to start position with all the pawns
-  // in front of the king and no enemy pawn on the horizon.
-  constexpr Value MaxSafetyBonus = V(258);
-
 #ifdef HORDE
-  const Score ImbalancedHorde = S(49, 39);
+  constexpr Score ImbalancedHorde = S(49, 39);
 #endif
 
   #undef S
@@ -604,7 +537,7 @@ namespace Pawns {
 void init() {
 
   static constexpr int Seed[VARIANT_NB][RANK_NB] = {
-    { 0, 13, 24, 18, 76, 100, 175, 330 },
+    { 0, 13, 24, 18, 65, 100, 175, 330 },
 #ifdef ANTI
     { 0, 8, 19, 13, 71, 94, 169, 324 },
 #endif
@@ -615,10 +548,10 @@ void init() {
     { 0, 8, 19, 13, 71, 94, 169, 324 },
 #endif
 #ifdef EXTINCTION
-    { 0, 13, 24, 18, 76, 100, 175, 330 },
+    { 0, 13, 24, 18, 65, 100, 175, 330 },
 #endif
 #ifdef GRID
-    { 0, 13, 24, 18, 76, 100, 175, 330 },
+    { 0, 13, 24, 18, 65, 100, 175, 330 },
 #endif
 #ifdef HORDE
     { 37, 29, 3, 1, 105,  99, 343, 350 },
@@ -636,7 +569,7 @@ void init() {
     { 0, 8, 19, 13, 71, 94, 169, 324 },
 #endif
 #ifdef TWOKINGS
-    { 0, 13, 24, 18, 76, 100, 175, 330 },
+    { 0, 13, 24, 18, 65, 100, 175, 330 },
 #endif
   };
 
@@ -683,21 +616,25 @@ Entry* probe(const Position& pos) {
 }
 
 
-/// Entry::shelter_storm() calculates shelter and storm penalties for the file
-/// the king is on, as well as the two closest files.
+/// Entry::evaluate_shelter() calculates the shelter bonus and the storm
+/// penalty for a king, looking at the king file and the two closest files.
 
 template<Color Us>
-Value Entry::shelter_storm(const Position& pos, Square ksq) {
+Value Entry::evaluate_shelter(const Position& pos, Square ksq) {
 
+  enum { Unopposed, BlockedByPawn, Unblocked };
   constexpr Color     Them = (Us == WHITE ? BLACK : WHITE);
   constexpr Direction Down = (Us == WHITE ? SOUTH : NORTH);
-
-  enum { BlockedByKing, Unopposed, BlockedByPawn, Unblocked };
+  constexpr Bitboard  BlockRanks = (Us == WHITE ? Rank1BB | Rank2BB : Rank8BB | Rank7BB);
 
   Bitboard b = pos.pieces(PAWN) & (forward_ranks_bb(Us, ksq) | rank_bb(ksq));
   Bitboard ourPawns = b & pos.pieces(Us);
   Bitboard theirPawns = b & pos.pieces(Them);
-  Value safety = MaxSafetyBonus;
+
+  Value safety = (ourPawns & file_bb(ksq)) ? Value(5) : Value(-5);
+
+  if ((shift<Down>(theirPawns) & (FileABB | FileHBB) & BlockRanks) & ksq)
+      safety += 374;
 
   File center = std::max(FILE_B, std::min(FILE_G, file_of(ksq)));
   for (File f = File(center - 1); f <= File(center + 1); ++f)
@@ -709,12 +646,10 @@ Value Entry::shelter_storm(const Position& pos, Square ksq) {
       Rank rkThem = b ? relative_rank(Us, frontmost_sq(Them, b)) : RANK_1;
 
       int d = std::min(f, ~f);
-      safety -=  ShelterWeakness[pos.variant()][f == file_of(ksq)][d][rkUs]
-               + StormDanger[pos.variant()]
-                 [(shift<Down>(b) & ksq) ? BlockedByKing :
-                  rkUs   == RANK_1       ? Unopposed     :
-                  rkThem == (rkUs + 1)   ? BlockedByPawn : Unblocked]
-                 [d][rkThem];
+      safety +=  ShelterStrength[pos.variant()][d][rkUs]
+               - StormDanger[pos.variant()][rkUs == RANK_1     ? Unopposed     :
+                                            rkUs == rkThem - 1 ? BlockedByPawn : Unblocked]
+                                           [d][rkThem];
   }
 
   return safety;
@@ -735,14 +670,14 @@ Score Entry::do_king_safety(const Position& pos, Square ksq) {
   if (pawns)
       while (!(DistanceRingBB[ksq][minKingPawnDistance++] & pawns)) {}
 
-  Value bonus = shelter_storm<Us>(pos, ksq);
+  Value bonus = evaluate_shelter<Us>(pos, ksq);
 
   // If we can castle use the bonus after the castling if it is bigger
   if (pos.can_castle(MakeCastling<Us, KING_SIDE>::right))
-      bonus = std::max(bonus, shelter_storm<Us>(pos, relative_square(Us, SQ_G1)));
+      bonus = std::max(bonus, evaluate_shelter<Us>(pos, relative_square(Us, SQ_G1)));
 
   if (pos.can_castle(MakeCastling<Us, QUEEN_SIDE>::right))
-      bonus = std::max(bonus, shelter_storm<Us>(pos, relative_square(Us, SQ_C1)));
+      bonus = std::max(bonus, evaluate_shelter<Us>(pos, relative_square(Us, SQ_C1)));
 
 #ifdef CRAZYHOUSE
   if (pos.is_house())

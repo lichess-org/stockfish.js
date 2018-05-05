@@ -22,7 +22,11 @@
 ### ==========================================================================
 
 ### Executable name
+ifeq ($(COMP),mingw)
+EXE = stockfish.exe
+else
 EXE = stockfish
+endif
 
 ### Installation dir definitions
 PREFIX = /usr/local
@@ -299,9 +303,6 @@ endif
 
 ### 3.2.1 Debugging
 CXXFLAGS += -DANTI -DATOMIC -DCRAZYHOUSE -DHORDE -DKOTH -DRACE -DTHREECHECK -DUSELONGESTPV
-ifneq ($(COMP),emscripten)
-CXXFLAGS += -DSKILL
-endif
 ifneq (,$(filter -DBUGHOUSE,$(CXXFLAGS)))
 ifeq (,$(filter -DCRAZYHOUSE,$(CXXFLAGS)))
 $(error Crazyhouse (-DCRAZYHOUSE) is required for subvariant bughouse chess)
@@ -510,7 +511,7 @@ clean: objclean profileclean
 
 # clean binaries and objects
 objclean:
-	@rm -f $(EXE) $(EXE).exe stockfish.js stockfish.wasm *.o ./syzygy/*.o
+	@rm -f $(EXE) stockfish.js stockfish.wasm *.o ./syzygy/*.o
 
 # clean auxiliary profiling files
 profileclean:
