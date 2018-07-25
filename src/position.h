@@ -45,7 +45,6 @@ struct StateInfo {
 #ifdef THREECHECK
   CheckCount checksGiven[COLOR_NB];
 #endif
-  Score  psq;
   Square epSquare;
 
   // Not copied when making a move (will be recomputed anyhow)
@@ -267,6 +266,7 @@ public:
 #endif
   Thread* this_thread() const;
   bool is_draw(int ply) const;
+  bool has_game_cycle(int ply) const;
   bool has_repeated() const;
   int rule50_count() const;
   Score psq_score() const;
@@ -313,6 +313,7 @@ private:
   Bitboard castlingPath[CASTLING_RIGHT_NB];
   int gamePly;
   Color sideToMove;
+  Score psq;
   Thread* thisThread;
   StateInfo* st;
   bool chess960;
@@ -320,6 +321,14 @@ private:
   Variant subvar;
 
 };
+
+namespace PSQT {
+#ifdef CRAZYHOUSE
+  extern Score psq[VARIANT_NB][PIECE_NB][SQUARE_NB+1];
+#else
+  extern Score psq[VARIANT_NB][PIECE_NB][SQUARE_NB];
+#endif
+}
 
 extern std::ostream& operator<<(std::ostream& os, const Position& pos);
 
@@ -557,7 +566,7 @@ inline Key Position::material_key() const {
 }
 
 inline Score Position::psq_score() const {
-  return st->psq;
+  return psq;
 }
 
 inline Value Position::non_pawn_material(Color c) const {
@@ -699,9 +708,8 @@ inline bool Position::can_capture() const {
       return true;
   Bitboard target = pieces(~sideToMove);
   Bitboard b1 = pieces(sideToMove, PAWN), b2 = pieces(sideToMove) - b1;
-  while (b1)
-      if (attacks_from<PAWN>(pop_lsb(&b1), sideToMove) & target)
-          return true;
+  if ((sideToMove == WHITE ? pawn_attacks_bb<WHITE>(b1) : pawn_attacks_bb<BLACK>(b1)) & target)
+      return true;
   while (b2)
   {
       Square s = pop_lsb(&b2);
@@ -811,11 +819,13 @@ inline Value Position::material_in_hand(Color c) const {
 inline void Position::add_to_hand(Color c, PieceType pt) {
   pieceCountInHand[c][pt]++;
   pieceCountInHand[c][ALL_PIECES]++;
+  psq += PSQT::psq[var][make_piece(c, pt)][SQ_NONE];
 }
 
 inline void Position::remove_from_hand(Color c, PieceType pt) {
   pieceCountInHand[c][pt]--;
   pieceCountInHand[c][ALL_PIECES]--;
+  psq -= PSQT::psq[var][make_piece(c, pt)][SQ_NONE];
 }
 
 inline bool Position::is_promoted(Square s) const {
@@ -1085,6 +1095,7 @@ inline void Position::put_piece(Piece pc, Square s) {
   index[s] = pieceCount[pc]++;
   pieceList[pc][index[s]] = s;
   pieceCount[make_piece(color_of(pc), ALL_PIECES)]++;
+  psq += PSQT::psq[var][pc][s];
 }
 
 inline void Position::remove_piece(Piece pc, Square s) {
@@ -1106,20 +1117,22 @@ inline void Position::remove_piece(Piece pc, Square s) {
   pieceList[pc][index[lastSquare]] = lastSquare;
   pieceList[pc][pieceCount[pc]] = SQ_NONE;
   pieceCount[make_piece(color_of(pc), ALL_PIECES)]--;
+  psq -= PSQT::psq[var][pc][s];
 }
 
 inline void Position::move_piece(Piece pc, Square from, Square to) {
 
   // index[from] is not updated and becomes stale. This works as long as index[]
   // is accessed just by known occupied squares.
-  Bitboard from_to_bb = SquareBB[from] ^ SquareBB[to];
-  byTypeBB[ALL_PIECES] ^= from_to_bb;
-  byTypeBB[type_of(pc)] ^= from_to_bb;
-  byColorBB[color_of(pc)] ^= from_to_bb;
+  Bitboard fromTo = SquareBB[from] ^ SquareBB[to];
+  byTypeBB[ALL_PIECES] ^= fromTo;
+  byTypeBB[type_of(pc)] ^= fromTo;
+  byColorBB[color_of(pc)] ^= fromTo;
   board[from] = NO_PIECE;
   board[to] = pc;
   index[to] = index[from];
   pieceList[pc][index[to]] = to;
+  psq += PSQT::psq[var][pc][to] - PSQT::psq[var][pc][from];
 }
 
 #ifdef CRAZYHOUSE

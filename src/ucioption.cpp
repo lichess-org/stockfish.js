@@ -63,8 +63,8 @@ void init(OptionsMap& o) {
   constexpr int MaxHashMB = Is64Bit ? 131072 : 2048;
 
   o["Debug Log File"]        << Option("", on_logger);
-  o["Contempt"]              << Option(12, -100, 100);
-  o["Analysis Contempt"]     << Option("Both var Off var White var Black var Both", "Both");
+  o["Contempt"]              << Option(21, -100, 100);
+  o["Analysis Contempt"]     << Option("Both", {"Both", "Off", "White", "Black"});
 #ifndef __EMSCRIPTEN__
   o["Threads"]               << Option(1, 1, 512, on_threads);
   o["Hash"]                  << Option(16, 1, MaxHashMB, on_hash_size);
@@ -140,9 +140,6 @@ Option::Option(OnChange f) : type("button"), min(0), max(0), on_change(f)
 Option::Option(double v, int minv, int maxv, OnChange f) : type("spin"), min(minv), max(maxv), on_change(f)
 { defaultValue = currentValue = std::to_string(v); }
 
-Option::Option(const char* v, const char* cur, OnChange f) : type("combo"), min(0), max(0), on_change(f)
-{ defaultValue = v; currentValue = cur; }
-
 Option::operator double() const {
   assert(type == "check" || type == "spin");
   return (type == "spin" ? stof(currentValue) : currentValue == "true");
@@ -153,7 +150,7 @@ Option::operator std::string() const {
   return currentValue;
 }
 
-bool Option::operator==(const char* s) {
+bool Option::operator==(const char* s) const {
   assert(type == "combo");
   return    !CaseInsensitiveLess()(currentValue, s)
          && !CaseInsensitiveLess()(s, currentValue);

@@ -121,8 +121,15 @@ public:
   MovePicker(const MovePicker&) = delete;
   MovePicker& operator=(const MovePicker&) = delete;
   MovePicker(const Position&, Move, Value, const CapturePieceToHistory*);
-  MovePicker(const Position&, Move, Depth, const ButterflyHistory*,  const CapturePieceToHistory*, Square);
-  MovePicker(const Position&, Move, Depth, const ButterflyHistory*, const CapturePieceToHistory*, const PieceToHistory**, Move, Move*);
+  MovePicker(const Position&, Move, Depth, const ButterflyHistory*,
+                                           const CapturePieceToHistory*,
+                                           const PieceToHistory**,
+                                           Square);
+  MovePicker(const Position&, Move, Depth, const ButterflyHistory*,
+                                           const CapturePieceToHistory*,
+                                           const PieceToHistory**,
+                                           Move,
+                                           Move*);
   Move next_move(bool skipQuiets = false);
 
 private:
@@ -134,7 +141,7 @@ private:
   const Position& pos;
   const ButterflyHistory* mainHistory;
   const CapturePieceToHistory* captureHistory;
-  const PieceToHistory** contHistory;
+  const PieceToHistory** continuationHistory;
   Move ttMove;
   ExtMove refutations[3], *cur, *endMoves, *endBadCaptures;
   int stage;

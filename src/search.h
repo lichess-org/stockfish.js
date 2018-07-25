@@ -41,7 +41,7 @@ constexpr int CounterMovePruneThreshold = 0;
 
 struct Stack {
   Move* pv;
-  PieceToHistory* contHistory;
+  PieceToHistory* continuationHistory;
   int ply;
   Move currentMove;
   Move excludedMove;
@@ -69,8 +69,8 @@ struct RootMove {
   Value score = -VALUE_INFINITE;
   Value previousScore = -VALUE_INFINITE;
   int selDepth = 0;
-  int TBRank = 0;
-  Value TBScore;
+  int tbRank = 0;
+  Value tbScore;
   std::vector<Move> pv;
 };
 

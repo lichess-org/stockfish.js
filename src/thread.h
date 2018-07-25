@@ -71,8 +71,9 @@ public:
   Pawns::Table pawnsTable;
   Material::Table materialTable;
   Endgames endgames;
-  size_t PVIdx, PVLast;
-  int selDepth, nmp_ply, nmp_odd;
+  size_t pvIdx, pvLast;
+  int selDepth, nmpMinPly;
+  Color nmpColor;
   std::atomic<uint64_t> nodes, tbHits;
 
   Position rootPos;
@@ -81,7 +82,7 @@ public:
   CounterMoveHistory counterMoves;
   ButterflyHistory mainHistory;
   CapturePieceToHistory captureHistory;
-  ContinuationHistory contHistory;
+  ContinuationHistory continuationHistory;
   Score contempt;
 };
 
@@ -99,7 +100,6 @@ struct MainThread : public Thread {
   void after_search();
 /* </REFACTORED FOR EMSCRIPTEN> */
 
-  bool failedLow;
   double bestMoveChanges, previousTimeReduction;
   Value previousScore;
   int callsCnt;
