@@ -59,8 +59,6 @@ Changes to original Stockfish
 Acknowledgements
 ----------------
 
-Thanks to [@nmrugg](https://github.com/nmrugg/stockfish.js) for doing the same
-thing with Stockfish 6, to [@ddugovic](https://github.com/ddugovic) for his
-[multi-variant Stockfish fork](https://github.com/ddugovic/Stockfish) and to
-the Stockfish team for ...
-[Stockfish](https://github.com/official-stockfish/Stockfish).
+* [@nmrugg](https://github.com/nmrugg/stockfish.js) for doing the same thing with Stockfish 6
+* [@ddugovic](https://github.com/ddugovic) for his [multi-variant Stockfish fork](https://github.com/ddugovic/Stockfish)
+* Stockfish team for ... [Stockfish](https://github.com/official-stockfish/Stockfish).
