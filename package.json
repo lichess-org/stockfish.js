@@ -18,5 +18,7 @@
     "stockfish.wasm",
     "stockfish.wasm.js"
   ],
-  "scripts": {}
+  "scripts": {
+    "prepare": "./build.sh"
+  }
 }
