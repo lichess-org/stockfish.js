@@ -9,7 +9,7 @@ Module = (function () {
 
   return {
     locateFile: function(file) {
-      return file + '?v=SF_VERSION';
+      return file;
     },
     print: function(stdout) {
       postMessage(stdout);
