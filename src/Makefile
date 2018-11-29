@@ -227,12 +227,12 @@ endif
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
-	LDFLAGS += -s TOTAL_MEMORY=33554432 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']"
+	LDFLAGS += -s TOTAL_MEMORY=33554432 --memory-init-file 0 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" --pre-js pre.js
 	ifeq ($(ARCH),js)
-		LDFLAGS += --pre-js pre.js --post-js post.js
+		LDFLAGS += -s WASM=0 -s LEGACY_VM_SUPPORT=1
 	else
 		CXXFLAGS += --llvm-lto 3
-		LDFLAGS += -s WASM=1 -s "BINARYEN_TRAP_MODE='allow'" -s "BINARYEN_METHOD='native-wasm'" -s BINARYEN_ASYNC_COMPILATION=1 --llvm-lto 3 --pre-js pre.wasm.js
+		LDFLAGS += -s WASM=1 -s "BINARYEN_TRAP_MODE='allow'" -s "BINARYEN_METHOD='native-wasm'" -s BINARYEN_ASYNC_COMPILATION=1 --llvm-lto 3
 	endif
 endif
 
@@ -567,7 +567,7 @@ config-sanity:
 	@test "$(pext)" = "yes" || test "$(pext)" = "no"
 	@test "$(comp)" = "gcc" || test "$(comp)" = "icc" || test "$(comp)" = "mingw" || test "$(comp)" = "clang"
 
-$(EXE): $(OBJS) pre.js post.js
+$(EXE): $(OBJS) pre.js
 	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
 
 clang-profile-make:
