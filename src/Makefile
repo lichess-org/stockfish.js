@@ -232,7 +232,7 @@ ifeq ($(COMP),emscripten)
 		LDFLAGS += -s WASM=0 -s LEGACY_VM_SUPPORT=1
 	else
 		CXXFLAGS += --llvm-lto 3
-		LDFLAGS += -s WASM=1 -s "BINARYEN_TRAP_MODE='allow'" -s "BINARYEN_METHOD='native-wasm'" -s BINARYEN_ASYNC_COMPILATION=1 --llvm-lto 3
+		LDFLAGS += -s WASM=1 -s "BINARYEN_TRAP_MODE='allow'" -s BINARYEN_ASYNC_COMPILATION=1 --llvm-lto 3
 	endif
 endif
 
