@@ -9,7 +9,7 @@ for [local computer analysis on lichess.org](https://lichess.org/analysis).
 
 [![npm](https://badge.fury.io/js/stockfish.js.svg)](https://badge.fury.io/js/stockfish.js)
 [![Build status](https://travis-ci.org/niklasf/stockfish.js.svg?branch=ddugovic)](https://travis-ci.org/niklasf/stockfish.js)
-![Passively maintained](https://img.shields.io/badge/passively%20maintained-x-yellow.svg)
+[![Passively maintained](https://img.shields.io/badge/passively%20maintained-x-yellow.svg)](#)
 
 Maintained with bugfixes to keep supporting older browsers, but active
 development is happening on [stockfish.wasm](https://github.com/niklasf/stockfish.wasm).
