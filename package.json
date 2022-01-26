@@ -5,10 +5,10 @@
   "keywords": ["chess", "stockfish", "emscripten", "lichess", "asmjs", "webassembly"],
   "author": "Niklas Fiekas <niklas.fiekas@backscattering.de>",
   "license": "GPL-3.0",
-  "repository": "github:niklasf/stockfish.js",
-  "homepage": "https://github.com/niklasf/stockfish.js#readme",
+  "repository": "github:lichess-org/stockfish.js",
+  "homepage": "https://github.com/lichess-org/stockfish.js#readme",
   "bugs": {
-    "url": "https://github.com/niklasf/stockfish.js/issues",
+    "url": "https://github.com/lichess-org/stockfish.js/issues",
     "email": "niklas.fiekas@backscattering.de"
   },
   "main": "stockfish.wasm.js",
